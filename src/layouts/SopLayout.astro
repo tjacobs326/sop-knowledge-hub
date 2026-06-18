@@ -1,0 +1,68 @@
+---
+import Layout from "../components/Layout.astro";
+import SopMetadata from "../components/SopMetadata.astro";
+import PrintActions from "../components/PrintActions.astro";
+import RelatedSops from "../components/RelatedSops.astro";
+import ChangeHistory from "../components/ChangeHistory.astro";
+import { resolveRelatedSops, type SopEntry } from "../lib/sops";
+
+interface Props {
+  sop: SopEntry;
+  allSops: SopEntry[];
+  Content: any;
+}
+
+const { sop, allSops, Content } = Astro.props;
+const relatedSops = resolveRelatedSops(sop, allSops);
+---
+
+<Layout title={sop.data.title} description={sop.data.purpose}>
+  <article class="sop-document" data-pagefind-body>
+    <div class="sop-document__header">
+      <p class="eyebrow">{sop.data.category}</p>
+      <h1>{sop.data.title}</h1>
+      <p class="lede">{sop.data.purpose}</p>
+      <PrintActions />
+    </div>
+
+    <div class="sop-layout">
+      <SopMetadata
+        owner={sop.data.owner}
+        lastUpdated={sop.data.lastUpdated}
+        reviewDate={sop.data.reviewDate}
+        category={sop.data.category}
+        tools={sop.data.tools}
+        audience={sop.data.audience}
+        status={sop.data.status}
+        version={sop.data.version}
+        estimatedCompletionTime={sop.data.estimatedCompletionTime}
+      />
+
+      <div class="sop-content">
+        <section class="sop-section">
+          <h2>Purpose</h2>
+          <p>{sop.data.purpose}</p>
+        </section>
+
+        <Content />
+
+        {
+          sop.data.screenshots.length > 0 && (
+            <section class="sop-section screenshots" aria-labelledby="screenshots-heading">
+              <h2 id="screenshots-heading">Screenshots</h2>
+              {sop.data.screenshots.map((screenshot) => (
+                <figure>
+                  <img src={screenshot.src} alt={screenshot.alt} loading="lazy" />
+                  <figcaption>{screenshot.caption}</figcaption>
+                </figure>
+              ))}
+            </section>
+          )
+        }
+
+        <RelatedSops items={relatedSops} />
+        <ChangeHistory entries={sop.data.changeHistory} />
+      </div>
+    </div>
+  </article>
+</Layout>

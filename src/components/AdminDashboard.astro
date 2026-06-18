@@ -1,0 +1,95 @@
+---
+import type { SopEntry } from "../lib/sops";
+import { getSopUrl } from "../lib/sops";
+import { formatDate, daysUntil } from "../lib/dates";
+import type { ReviewQueueItem } from "../types";
+
+interface Props {
+  sops: SopEntry[];
+  reviewItems: ReviewQueueItem[];
+}
+
+const { sops, reviewItems } = Astro.props;
+
+const totalSops = sops.length;
+const draftSops = reviewItems.filter((item) => item.status === "Drafting").length;
+const inReview = reviewItems.filter((item) => item.status === "In Review").length;
+const published = sops.filter((sop) => sop.data.status === "Published").length;
+const waitingTriage = reviewItems.filter((item) => item.status === "Submitted" || item.status === "Triage").length;
+const urgent = reviewItems.filter((item) => item.priority === "Urgent").length;
+const dueForReview = sops.filter((sop) => {
+  const days = daysUntil(sop.data.reviewDate);
+  return days !== null && days <= 45;
+}).length;
+const recentlyPublished = [...sops]
+  .filter((sop) => sop.data.status === "Published")
+  .sort((a, b) => b.data.lastUpdated.localeCompare(a.data.lastUpdated))
+  .slice(0, 4);
+
+const stats = [
+  ["Total SOPs", totalSops],
+  ["Draft SOPs", draftSops],
+  ["SOPs In Review", inReview],
+  ["Published SOPs", published],
+  ["Submissions Waiting for Triage", waitingTriage],
+  ["Urgent Requests", urgent],
+  ["SOPs Due for Review", dueForReview],
+];
+
+const quickLinks = [
+  ["/create/", "Create New SOP"],
+  ["/admin/review/", "Review Queue"],
+  ["/submit/", "Submit SOP Request"],
+  ["/search/", "View All SOPs"],
+  ["/categories/", "View Categories"],
+];
+---
+
+<section class="tool-surface" aria-labelledby="admin-heading">
+  <div class="section-heading">
+    <p class="eyebrow">Admin Dashboard</p>
+    <h1 id="admin-heading">SOP Operations</h1>
+  </div>
+
+  <div class="stat-grid">
+    {stats.map(([label, value]) => (
+      <article class="stat-card">
+        <span>{label}</span>
+        <strong>{value}</strong>
+      </article>
+    ))}
+  </div>
+
+  <section class="dashboard-section" aria-labelledby="quick-links-heading">
+    <h2 id="quick-links-heading">Quick Links</h2>
+    <div class="quick-link-grid">
+      {quickLinks.map(([href, label]) => <a class="quick-link" href={href}>{label}</a>)}
+    </div>
+  </section>
+
+  <section class="dashboard-section" aria-labelledby="recent-heading">
+    <h2 id="recent-heading">Recently Published SOPs</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">SOP</th>
+            <th scope="col">Category</th>
+            <th scope="col">Owner</th>
+            <th scope="col">Updated</th>
+          </tr>
+        </thead>
+        <tbody>
+          {recentlyPublished.map((sop) => (
+            <tr>
+              <td><a href={getSopUrl(sop)}>{sop.data.title}</a></td>
+              <td>{sop.data.category}</td>
+              <td>{sop.data.owner}</td>
+              <td>{formatDate(sop.data.lastUpdated)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</section>

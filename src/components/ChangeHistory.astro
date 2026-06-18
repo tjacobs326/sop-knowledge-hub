@@ -1,0 +1,32 @@
+---
+import { formatDate } from "../lib/dates";
+
+interface Entry {
+  version: string;
+  date: string;
+  editor: string;
+  summary: string;
+}
+
+interface Props {
+  entries: Entry[];
+}
+
+const { entries } = Astro.props;
+---
+
+<section class="sop-section" aria-labelledby="change-history-heading">
+  <h2 id="change-history-heading">Change History</h2>
+  <ol class="history-list">
+    {
+      entries.map((entry) => (
+        <li>
+          <strong>Version {entry.version}</strong>
+          <span>{formatDate(entry.date)}</span>
+          <span>{entry.editor}</span>
+          <p>{entry.summary}</p>
+        </li>
+      ))
+    }
+  </ol>
+</section>

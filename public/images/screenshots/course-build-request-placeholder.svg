@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" role="img" aria-labelledby="title desc">
+  <title id="title">Course build request screenshot placeholder</title>
+  <desc id="desc">Placeholder showing a course build request form.</desc>
+  <rect width="960" height="540" fill="#FFF7ED"/>
+  <rect x="56" y="46" width="848" height="448" rx="18" fill="#FFFFFF" stroke="#D1D5DB" stroke-width="3"/>
+  <text x="92" y="98" fill="#1A3263" font-family="Arial, sans-serif" font-size="30" font-weight="700">Course Build Request</text>
+  <rect x="92" y="136" width="340" height="42" rx="8" fill="#F8FAFC" stroke="#D1D5DB"/>
+  <rect x="456" y="136" width="340" height="42" rx="8" fill="#F8FAFC" stroke="#D1D5DB"/>
+  <rect x="92" y="214" width="704" height="82" rx="8" fill="#F8FAFC" stroke="#D1D5DB"/>
+  <rect x="92" y="330" width="704" height="82" rx="8" fill="#F8FAFC" stroke="#D1D5DB"/>
+  <rect x="660" y="432" width="136" height="38" rx="8" fill="#F16821"/>
+</svg>

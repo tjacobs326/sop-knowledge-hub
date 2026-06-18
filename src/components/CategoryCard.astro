@@ -1,0 +1,16 @@
+---
+import { getCategoryUrl } from "../lib/sops";
+
+interface Props {
+  name: string;
+  slug: string;
+  description: string;
+}
+
+const { name, slug, description } = Astro.props;
+---
+
+<article class="category-card">
+  <h3><a href={getCategoryUrl(slug)}>{name}</a></h3>
+  <p>{description}</p>
+</article>

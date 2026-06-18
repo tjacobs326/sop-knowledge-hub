@@ -1,0 +1,28 @@
+---
+import Layout from "../../components/Layout.astro";
+import CategoryCard from "../../components/CategoryCard.astro";
+import { getAllSops, getCategoryCounts } from "../../lib/sops";
+
+const sops = await getAllSops();
+const categoryCounts = getCategoryCounts(sops);
+---
+
+<Layout title="Categories" wide>
+  <section class="page-section">
+    <div class="section-heading">
+      <p class="eyebrow">Browse SOPs</p>
+      <h1>Categories</h1>
+    </div>
+    <div class="category-grid">
+      {
+        categoryCounts.map((category) => (
+          <CategoryCard
+            name={category.name}
+            slug={category.slug}
+            description={category.description}
+          />
+        ))
+      }
+    </div>
+  </section>
+</Layout>

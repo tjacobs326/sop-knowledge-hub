@@ -1,0 +1,291 @@
+---
+import { categories } from "../data/categories";
+import {
+  REVIEW_QUEUE_STORAGE_KEY,
+  SUBMISSIONS_STORAGE_KEY,
+} from "../lib/submissions";
+
+const submissionTypes = [
+  "Request a new SOP",
+  "Submit a draft SOP",
+  "Suggest an update to an existing SOP",
+  "Report an issue with an SOP",
+  "Request a template",
+];
+
+const priorities = ["Low", "Medium", "High", "Urgent"];
+const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally", "One-time", "Unsure"];
+---
+
+<section class="tool-surface" aria-labelledby="submit-heading">
+  <div class="section-heading">
+    <p class="eyebrow">Outside Department Intake</p>
+    <h1 id="submit-heading">Submit an SOP Request</h1>
+    <p>
+      Use this form to request a new SOP, suggest an update, submit a department process, or
+      share a draft SOP for review.
+    </p>
+  </div>
+
+  <form class="form-grid" id="request-form" novalidate>
+    <div class="field field--full">
+      <label for="submission-type">Submission Type</label>
+      <select id="submission-type" name="submissionType" required>
+        <option value="">Select submission type</option>
+        {submissionTypes.map((type) => <option value={type}>{type}</option>)}
+      </select>
+    </div>
+
+    <h2 class="form-section-title field--full">Department Information</h2>
+    <div class="field">
+      <label for="department">Department name</label>
+      <input id="department" name="department" type="text" required />
+    </div>
+    <div class="field">
+      <label for="submitted-by">Submitted by</label>
+      <input id="submitted-by" name="submittedBy" type="text" required />
+    </div>
+    <div class="field">
+      <label for="submitter-email">Submitter email</label>
+      <input id="submitter-email" name="submitterEmail" type="email" required />
+    </div>
+    <div class="field">
+      <label for="role-title">Role or title</label>
+      <input id="role-title" name="submitterRole" type="text" />
+    </div>
+    <div class="field field--full">
+      <label for="contact-method">Best contact method</label>
+      <input id="contact-method" name="bestContactMethod" type="text" />
+    </div>
+
+    <h2 class="form-section-title field--full">Process Information</h2>
+    <div class="field">
+      <label for="requested-title">Requested SOP title</label>
+      <input id="requested-title" name="title" type="text" required />
+    </div>
+    <div class="field">
+      <label for="tool-system">Related system or tool</label>
+      <input id="tool-system" name="toolOrSystem" type="text" />
+    </div>
+    <div class="field">
+      <label for="request-category">Category</label>
+      <select id="request-category" name="category" required>
+        <option value="">Select category</option>
+        {categories.map((category) => <option value={category.name}>{category.name}</option>)}
+      </select>
+    </div>
+    <div class="field">
+      <label for="audience">Who uses this process?</label>
+      <input id="audience" name="audience" type="text" required />
+    </div>
+    <div class="field field--full">
+      <label for="business-need">Why is this SOP needed?</label>
+      <textarea id="business-need" name="businessNeed" rows="3" required></textarea>
+    </div>
+    <div class="field">
+      <label for="frequency">How often is this process used?</label>
+      <select id="frequency" name="frequency">
+        <option value="">Select frequency</option>
+        {frequencies.map((frequency) => <option value={frequency}>{frequency}</option>)}
+      </select>
+    </div>
+    <div class="field">
+      <label for="priority">Priority</label>
+      <select id="priority" name="priority" required>
+        <option value="">Select priority</option>
+        {priorities.map((priority) => <option value={priority}>{priority}</option>)}
+      </select>
+    </div>
+    <div class="field">
+      <label for="desired-date">Desired completion date</label>
+      <input id="desired-date" name="desiredCompletionDate" type="date" />
+    </div>
+
+    <h2 class="form-section-title field--full">SOP Details or Draft Content</h2>
+    <div class="field field--full">
+      <label for="process-purpose">Purpose of the process</label>
+      <textarea id="process-purpose" name="purpose" rows="3"></textarea>
+    </div>
+    <div class="field field--full">
+      <label for="before-begin">Before you begin</label>
+      <textarea id="before-begin" name="beforeYouBegin" rows="2"></textarea>
+    </div>
+    <div class="field field--full">
+      <label for="process-steps">Procedure or process steps</label>
+      <textarea id="process-steps" name="procedureSteps" rows="5"></textarea>
+    </div>
+    <div class="field field--full">
+      <label for="known-issues">Known issues or exceptions</label>
+      <textarea id="known-issues" name="knownIssues" rows="3"></textarea>
+    </div>
+    <div class="field">
+      <label for="related-resources">Links to related resources</label>
+      <input id="related-resources" name="relatedResources" type="text" />
+    </div>
+    <div class="field">
+      <label for="documentation-location">Existing documentation location</label>
+      <input id="documentation-location" name="documentationLocation" type="text" />
+    </div>
+    <div class="field">
+      <label for="attachments">Screenshots or attachments</label>
+      <input id="attachments" name="screenshots" type="text" />
+    </div>
+    <div class="field field--full">
+      <label for="additional-notes">Additional notes</label>
+      <textarea id="additional-notes" name="additionalNotes" rows="3"></textarea>
+    </div>
+    <div class="form-actions field--full">
+      <button class="button button--primary" type="submit">Submit SOP Request</button>
+      <button class="button button--ghost" type="reset">Clear Form</button>
+    </div>
+    <div class="form-errors field--full" id="request-errors" role="alert" hidden></div>
+    <div class="confirmation field--full" id="request-confirmation" role="status" hidden></div>
+  </form>
+</section>
+
+<script
+  is:inline
+  define:vars={{
+    SUBMISSIONS_STORAGE_KEY,
+    REVIEW_QUEUE_STORAGE_KEY,
+  }}
+>
+  const form = document.getElementById("request-form");
+  const errorsEl = document.getElementById("request-errors");
+  const confirmationEl = document.getElementById("request-confirmation");
+
+  const escapeHtml = (value) =>
+    String(value ?? "").replace(/[&<>"']/g, (character) => {
+      const replacements = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      };
+      return replacements[character];
+    });
+
+  const splitList = (value) =>
+    String(value || "")
+      .split(/[\n,]+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+  function getField(name) {
+    const element = form?.querySelector(`[name="${name}"]`);
+    return element instanceof HTMLInputElement ||
+      element instanceof HTMLSelectElement ||
+      element instanceof HTMLTextAreaElement
+      ? element.value.trim()
+      : "";
+  }
+
+  function readStorage(key) {
+    try {
+      return JSON.parse(localStorage.getItem(key) || "[]");
+    } catch {
+      return [];
+    }
+  }
+
+  function writeStorage(key, value) {
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+
+  function validateSubmission(submission) {
+    const required = [
+      ["submissionType", "Submission Type is required."],
+      ["department", "Department name is required."],
+      ["submittedBy", "Submitted by is required."],
+      ["submitterEmail", "Submitter email is required."],
+      ["title", "Requested SOP title is required."],
+      ["category", "Category is required."],
+      ["audience", "Who uses this process is required."],
+      ["businessNeed", "Why this SOP is needed is required."],
+      ["priority", "Priority is required."],
+    ];
+
+    const errors = required
+      .filter(([field]) => !submission[field])
+      .map(([, message]) => message);
+
+    if (submission.submitterEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(submission.submitterEmail)) {
+      errors.push("Enter a valid submitter email.");
+    }
+
+    errorsEl.hidden = errors.length === 0;
+    errorsEl.innerHTML = errors.map((error) => `<p>${escapeHtml(error)}</p>`).join("");
+
+    return errors.length === 0;
+  }
+
+  function buildSubmission() {
+    const now = new Date().toISOString().slice(0, 10);
+    return {
+      id: `sub-${Date.now()}`,
+      source: "Outside Department Submission",
+      submissionType: getField("submissionType"),
+      title: getField("title"),
+      department: getField("department"),
+      submittedBy: getField("submittedBy"),
+      submitterEmail: getField("submitterEmail"),
+      submitterRole: getField("submitterRole"),
+      bestContactMethod: getField("bestContactMethod"),
+      category: getField("category"),
+      toolOrSystem: getField("toolOrSystem"),
+      audience: getField("audience"),
+      businessNeed: getField("businessNeed"),
+      frequency: getField("frequency"),
+      priority: getField("priority"),
+      desiredCompletionDate: getField("desiredCompletionDate"),
+      purpose: getField("purpose"),
+      beforeYouBegin: getField("beforeYouBegin"),
+      procedureSteps: splitList(getField("procedureSteps")),
+      knownIssues: getField("knownIssues"),
+      relatedResources: splitList(getField("relatedResources")),
+      documentationLocation: getField("documentationLocation"),
+      screenshots: splitList(getField("screenshots")),
+      additionalNotes: getField("additionalNotes"),
+      status: "Submitted",
+      assignedOwner: "",
+      createdDate: now,
+      updatedDate: now,
+      reviewDate: getField("desiredCompletionDate"),
+    };
+  }
+
+  form?.addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    const submission = buildSubmission();
+    if (!validateSubmission(submission)) return;
+
+    const submissions = readStorage(SUBMISSIONS_STORAGE_KEY);
+    writeStorage(SUBMISSIONS_STORAGE_KEY, [...submissions, submission]);
+
+    const reviewItem = {
+      id: `review-${submission.id}`,
+      source: submission.source,
+      submissionType: submission.submissionType,
+      title: submission.title,
+      department: submission.department,
+      submittedBy: submission.submittedBy,
+      category: submission.category,
+      priority: submission.priority,
+      status: "Submitted",
+      assignedOwner: "",
+      createdDate: submission.createdDate,
+      reviewDate: submission.reviewDate,
+      originalId: submission.id,
+    };
+    const reviewItems = readStorage(REVIEW_QUEUE_STORAGE_KEY);
+    writeStorage(REVIEW_QUEUE_STORAGE_KEY, [...reviewItems, reviewItem]);
+
+    form.reset();
+    confirmationEl.hidden = false;
+    confirmationEl.innerHTML =
+      "<strong>Your SOP submission has been received.</strong><p>Next steps: The SOP team will triage your submission, assign an owner, review the details, and follow up if more information is needed.</p>";
+    confirmationEl.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+</script>

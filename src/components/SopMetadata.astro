@@ -1,0 +1,69 @@
+---
+import StatusBadge from "./StatusBadge.astro";
+import { formatDate } from "../lib/dates";
+
+interface Props {
+  owner: string;
+  lastUpdated: string;
+  reviewDate: string;
+  category: string;
+  tools: string[];
+  audience: string[];
+  status: string;
+  version: string;
+  estimatedCompletionTime: string;
+}
+
+const {
+  owner,
+  lastUpdated,
+  reviewDate,
+  category,
+  tools,
+  audience,
+  status,
+  version,
+  estimatedCompletionTime,
+} = Astro.props;
+---
+
+<aside class="metadata-panel" aria-label="SOP metadata">
+  <dl>
+    <div>
+      <dt>Owner</dt>
+      <dd>{owner}</dd>
+    </div>
+    <div>
+      <dt>Last updated</dt>
+      <dd>{formatDate(lastUpdated)}</dd>
+    </div>
+    <div>
+      <dt>Review date</dt>
+      <dd>{formatDate(reviewDate)}</dd>
+    </div>
+    <div>
+      <dt>Category</dt>
+      <dd>{category}</dd>
+    </div>
+    <div>
+      <dt>Tools used</dt>
+      <dd>{tools.join(", ")}</dd>
+    </div>
+    <div>
+      <dt>Audience</dt>
+      <dd>{audience.join(", ")}</dd>
+    </div>
+    <div>
+      <dt>Status</dt>
+      <dd><StatusBadge status={status} /></dd>
+    </div>
+    <div>
+      <dt>Version</dt>
+      <dd>{version}</dd>
+    </div>
+    <div>
+      <dt>Estimated time</dt>
+      <dd>{estimatedCompletionTime}</dd>
+    </div>
+  </dl>
+</aside>

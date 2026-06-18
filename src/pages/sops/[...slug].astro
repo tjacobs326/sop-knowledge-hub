@@ -1,0 +1,19 @@
+---
+import SopLayout from "../../layouts/SopLayout.astro";
+import { render } from "astro:content";
+import { categorySlugFromName } from "../../data/categories";
+import { getAllSops } from "../../lib/sops";
+
+export async function getStaticPaths() {
+  const sops = await getAllSops();
+  return sops.map((sop) => ({
+    params: { slug: `${categorySlugFromName(sop.data.category)}/${sop.data.slug}` },
+    props: { sop, allSops: sops },
+  }));
+}
+
+const { sop, allSops } = Astro.props;
+const { Content } = await render(sop);
+---
+
+<SopLayout sop={sop} allSops={allSops} Content={Content} />

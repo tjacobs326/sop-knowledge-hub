@@ -1,0 +1,68 @@
+@media print {
+  :root {
+    --color-text: #000000;
+    --color-ink: #000000;
+    --color-muted: #333333;
+    --color-border: #999999;
+  }
+
+  body {
+    background: #ffffff;
+  }
+
+  .no-print,
+  .site-header,
+  .site-footer,
+  .search-box,
+  .print-actions,
+  .filter-row,
+  .hero__actions,
+  .button,
+  .review-actions {
+    display: none !important;
+  }
+
+  .site-main,
+  .site-main--wide {
+    width: 100%;
+    padding: 0;
+  }
+
+  .sop-document {
+    margin: 0;
+  }
+
+  .sop-document h1 {
+    font-size: 28pt;
+  }
+
+  .sop-layout {
+    display: block;
+  }
+
+  .metadata-panel,
+  .sop-content,
+  .category-card,
+  .sop-card,
+  .related-card {
+    box-shadow: none;
+    border-color: #999999;
+  }
+
+  .metadata-panel {
+    position: static;
+    margin-bottom: 1rem;
+  }
+
+  .sop-section,
+  .procedure-list li,
+  .screenshots figure,
+  .history-list li {
+    break-inside: avoid;
+  }
+
+  a {
+    color: #000000;
+    text-decoration: underline;
+  }
+}

@@ -1,0 +1,42 @@
+<section class="draft-preview sop-document" id="draft-preview" hidden aria-live="polite">
+  <div class="sop-document__header">
+    <p class="eyebrow">Draft Preview</p>
+    <h2 id="preview-title"></h2>
+    <p id="preview-purpose" class="lede"></p>
+  </div>
+  <div class="sop-layout">
+    <aside class="metadata-panel">
+      <dl id="preview-meta"></dl>
+    </aside>
+    <div class="sop-content">
+      <section class="sop-section">
+        <h3>Before You Begin</h3>
+        <p id="preview-before"></p>
+      </section>
+      <section class="sop-section">
+        <h3>Procedure</h3>
+        <ol class="procedure-list" id="preview-steps"></ol>
+      </section>
+      <section class="sop-section">
+        <h3>Troubleshooting / Notes</h3>
+        <p id="preview-notes"></p>
+      </section>
+      <section class="sop-section">
+        <h3>Related SOPs</h3>
+        <ul id="preview-related"></ul>
+      </section>
+      <div class="form-actions no-print">
+        <button class="button button--secondary" type="button" data-draft-action="save">
+          Save Draft
+        </button>
+        <button class="button button--primary" type="button" data-draft-action="submit">
+          Submit for Review
+        </button>
+        <button class="button button--ghost" type="button" data-draft-action="clear">
+          Clear Form
+        </button>
+      </div>
+      <div class="confirmation" id="create-confirmation" role="status" hidden></div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,167 @@
+---
+import Layout from "../components/Layout.astro";
+import SopCard from "../components/SopCard.astro";
+import { getAllSops, getSopUrl } from "../lib/sops";
+import { uniqueSorted } from "../lib/search";
+
+const sops = await getAllSops();
+const initialQuery = Astro.url.searchParams.get("q") ?? "";
+const categories = uniqueSorted(sops.map((sop) => sop.data.category));
+const tools = uniqueSorted(sops.flatMap((sop) => sop.data.tools));
+const owners = uniqueSorted(sops.map((sop) => sop.data.owner));
+const statuses = uniqueSorted(sops.map((sop) => sop.data.status));
+const tags = uniqueSorted(sops.flatMap((sop) => sop.data.tags));
+---
+
+<Layout title="Search SOPs" wide>
+  <section class="page-section">
+    <div class="section-heading">
+      <p class="eyebrow">Search</p>
+      <h1>Search SOPs</h1>
+    </div>
+
+    <form class="search-filters no-print" id="sop-search-form">
+      <div class="field field--full">
+        <label for="search-query">Search by title, tag, tool, owner, category, or keyword</label>
+        <input id="search-query" type="search" value={initialQuery} autocomplete="off" />
+      </div>
+      <div class="field">
+        <label for="filter-category">Category</label>
+        <select id="filter-category">
+          <option value="">All categories</option>
+          {categories.map((category) => <option value={category}>{category}</option>)}
+        </select>
+      </div>
+      <div class="field">
+        <label for="filter-tool">Tool</label>
+        <select id="filter-tool">
+          <option value="">All tools</option>
+          {tools.map((tool) => <option value={tool}>{tool}</option>)}
+        </select>
+      </div>
+      <div class="field">
+        <label for="filter-owner">Owner</label>
+        <select id="filter-owner">
+          <option value="">All owners</option>
+          {owners.map((owner) => <option value={owner}>{owner}</option>)}
+        </select>
+      </div>
+      <div class="field">
+        <label for="filter-status">Status</label>
+        <select id="filter-status">
+          <option value="">All statuses</option>
+          {statuses.map((status) => <option value={status}>{status}</option>)}
+        </select>
+      </div>
+      <div class="field">
+        <label for="filter-tag">Tag</label>
+        <select id="filter-tag">
+          <option value="">All tags</option>
+          {tags.map((tag) => <option value={tag}>{tag}</option>)}
+        </select>
+      </div>
+      <div class="form-actions field--full">
+        <button class="button button--primary" type="submit">Search SOPs</button>
+        <button class="button button--ghost" type="reset">Clear Filters</button>
+      </div>
+    </form>
+
+    <p class="result-count" id="result-count"></p>
+    <div class="sop-grid" id="search-results">
+      {
+        sops.map((sop) => (
+          <div
+            data-search-card
+            data-category={sop.data.category}
+            data-tools={sop.data.tools.join("|")}
+            data-owner={sop.data.owner}
+            data-status={sop.data.status}
+            data-tags={sop.data.tags.join("|")}
+            data-search={`${sop.data.title} ${sop.data.purpose} ${sop.data.category} ${sop.data.tags.join(" ")} ${sop.data.tools.join(" ")} ${sop.data.owner} ${sop.data.audience.join(" ")} ${sop.data.relatedSops.join(" ")} ${sop.body}`.toLowerCase()}
+          >
+            <SopCard
+              title={sop.data.title}
+              purpose={sop.data.purpose}
+              category={sop.data.category}
+              tags={sop.data.tags}
+              owner={sop.data.owner}
+              lastUpdated={sop.data.lastUpdated}
+              reviewDate={sop.data.reviewDate}
+              tools={sop.data.tools}
+              status={sop.data.status}
+              url={getSopUrl(sop)}
+            />
+          </div>
+        ))
+      }
+    </div>
+  </section>
+</Layout>
+
+<script is:inline>
+  const form = document.getElementById("sop-search-form");
+  const queryInput = document.getElementById("search-query");
+  const categoryFilter = document.getElementById("filter-category");
+  const toolFilter = document.getElementById("filter-tool");
+  const ownerFilter = document.getElementById("filter-owner");
+  const statusFilter = document.getElementById("filter-status");
+  const tagFilter = document.getElementById("filter-tag");
+  const resultCount = document.getElementById("result-count");
+  const cards = Array.from(document.querySelectorAll("[data-search-card]"));
+
+  function valueOf(element) {
+    return element instanceof HTMLInputElement || element instanceof HTMLSelectElement
+      ? element.value.trim()
+      : "";
+  }
+
+  function matchesToken(dataValue, filterValue) {
+    if (!filterValue) return true;
+    return String(dataValue || "")
+      .split("|")
+      .includes(filterValue);
+  }
+
+  function applySearch() {
+    const query = valueOf(queryInput).toLowerCase();
+    const category = valueOf(categoryFilter);
+    const tool = valueOf(toolFilter);
+    const owner = valueOf(ownerFilter);
+    const status = valueOf(statusFilter);
+    const tag = valueOf(tagFilter);
+    let visibleCount = 0;
+
+    cards.forEach((card) => {
+      const visible =
+        (!query || card.dataset.search.includes(query)) &&
+        (!category || card.dataset.category === category) &&
+        matchesToken(card.dataset.tools, tool) &&
+        (!owner || card.dataset.owner === owner) &&
+        (!status || card.dataset.status === status) &&
+        matchesToken(card.dataset.tags, tag);
+
+      card.hidden = !visible;
+      if (visible) visibleCount += 1;
+    });
+
+    if (resultCount) {
+      resultCount.textContent = `${visibleCount} SOP${visibleCount === 1 ? "" : "s"} found`;
+    }
+  }
+
+  form?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    applySearch();
+  });
+
+  form?.addEventListener("reset", () => {
+    window.setTimeout(applySearch, 0);
+  });
+
+  [queryInput, categoryFilter, toolFilter, ownerFilter, statusFilter, tagFilter].forEach((element) => {
+    element?.addEventListener("input", applySearch);
+    element?.addEventListener("change", applySearch);
+  });
+
+  applySearch();
+</script>

@@ -1,0 +1,204 @@
+{
+  "startNode": "start",
+  "nodes": {
+    "start": {
+      "question": "What are you trying to do?",
+      "answers": [
+        {
+          "label": "Submit, update, or resolve a ticket",
+          "next": "ticketing-task"
+        },
+        {
+          "label": "Build or revise a course",
+          "next": "course-build-task"
+        },
+        {
+          "label": "Complete a QA review",
+          "next": "qa-task"
+        },
+        {
+          "label": "Use an AI tool",
+          "next": "ai-task"
+        },
+        {
+          "label": "Fix a technical issue",
+          "next": "troubleshooting-task"
+        },
+        {
+          "label": "Find a template",
+          "next": "template-task"
+        },
+        {
+          "label": "Something else",
+          "results": [
+            "sop-course-build-request",
+            "sop-final-course-qa",
+            "sop-ivanti-submit-ticket"
+          ]
+        }
+      ]
+    },
+    "ticketing-task": {
+      "question": "What ticketing task do you need help with?",
+      "answers": [
+        {
+          "label": "Submit a new ticket",
+          "results": ["sop-ivanti-submit-ticket"]
+        },
+        {
+          "label": "Check ticket status",
+          "results": ["sop-ivanti-submit-ticket"]
+        },
+        {
+          "label": "Update an existing ticket",
+          "results": ["sop-ivanti-submit-ticket"]
+        },
+        {
+          "label": "Escalate a ticket",
+          "results": ["sop-ivanti-submit-ticket"]
+        },
+        {
+          "label": "Document resolution notes",
+          "results": ["sop-ivanti-submit-ticket"]
+        }
+      ]
+    },
+    "course-build-task": {
+      "question": "What part of the course build are you working on?",
+      "answers": [
+        {
+          "label": "New course setup",
+          "results": ["sop-course-build-request", "sop-copy-d2l-course-shell"]
+        },
+        {
+          "label": "Content updates",
+          "results": ["sop-copy-d2l-course-shell", "sop-course-build-request"]
+        },
+        {
+          "label": "Assessment setup",
+          "results": ["sop-course-build-request", "sop-final-course-qa"]
+        },
+        {
+          "label": "D2L shell configuration",
+          "results": ["sop-copy-d2l-course-shell"]
+        },
+        {
+          "label": "Accessibility check",
+          "results": ["sop-final-course-qa", "sop-course-build-request"]
+        },
+        {
+          "label": "Final QA",
+          "results": ["sop-final-course-qa"]
+        }
+      ]
+    },
+    "qa-task": {
+      "question": "What type of QA process are you completing?",
+      "answers": [
+        {
+          "label": "Course readiness review",
+          "results": ["sop-final-course-qa", "sop-course-build-request"]
+        },
+        {
+          "label": "Link and content check",
+          "results": ["sop-final-course-qa", "sop-troubleshoot-missing-d2l-content"]
+        },
+        {
+          "label": "Accessibility check",
+          "results": ["sop-final-course-qa"]
+        },
+        {
+          "label": "Final launch review",
+          "results": ["sop-final-course-qa"]
+        },
+        {
+          "label": "Issue documentation",
+          "results": ["sop-final-course-qa", "sop-ivanti-submit-ticket"]
+        }
+      ]
+    },
+    "ai-task": {
+      "question": "What AI-related task are you working on?",
+      "answers": [
+        {
+          "label": "Drafting content",
+          "results": ["sop-use-ai-to-draft-course-content"]
+        },
+        {
+          "label": "Reviewing content",
+          "results": ["sop-use-ai-to-draft-course-content", "sop-final-course-qa"]
+        },
+        {
+          "label": "Summarizing information",
+          "results": ["sop-use-ai-to-draft-course-content"]
+        },
+        {
+          "label": "Building prompts",
+          "results": ["sop-use-ai-to-draft-course-content"]
+        },
+        {
+          "label": "Checking quality",
+          "results": ["sop-use-ai-to-draft-course-content", "sop-final-course-qa"]
+        },
+        {
+          "label": "Understanding approved use",
+          "results": ["sop-use-ai-to-draft-course-content"]
+        }
+      ]
+    },
+    "troubleshooting-task": {
+      "question": "What kind of issue are you experiencing?",
+      "answers": [
+        {
+          "label": "D2L issue",
+          "results": ["sop-troubleshoot-missing-d2l-content", "sop-copy-d2l-course-shell"]
+        },
+        {
+          "label": "Ticketing issue",
+          "results": ["sop-ivanti-submit-ticket"]
+        },
+        {
+          "label": "Access or login issue",
+          "results": ["sop-troubleshoot-missing-d2l-content", "sop-ivanti-submit-ticket"]
+        },
+        {
+          "label": "Course content issue",
+          "results": ["sop-troubleshoot-missing-d2l-content", "sop-final-course-qa"]
+        },
+        {
+          "label": "Template issue",
+          "results": ["sop-course-build-request-template"]
+        },
+        {
+          "label": "Unsure",
+          "results": ["sop-troubleshoot-missing-d2l-content", "sop-ivanti-submit-ticket"]
+        }
+      ]
+    },
+    "template-task": {
+      "question": "What type of template are you looking for?",
+      "answers": [
+        {
+          "label": "Course build template",
+          "results": ["sop-course-build-request-template", "sop-course-build-request"]
+        },
+        {
+          "label": "QA checklist",
+          "results": ["sop-final-course-qa", "sop-course-build-request-template"]
+        },
+        {
+          "label": "Ticket documentation template",
+          "results": ["sop-ivanti-submit-ticket", "sop-course-build-request-template"]
+        },
+        {
+          "label": "AI prompt template",
+          "results": ["sop-use-ai-to-draft-course-content", "sop-course-build-request-template"]
+        },
+        {
+          "label": "Communication template",
+          "results": ["sop-course-build-request-template"]
+        }
+      ]
+    }
+  }
+}

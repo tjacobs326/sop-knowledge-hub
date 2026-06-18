@@ -1,0 +1,37 @@
+---
+const navItems = [
+  { href: "/", label: "Home" },
+  { href: "/search/", label: "Search" },
+  { href: "/finder/", label: "Guided Finder" },
+  { href: "/categories/", label: "Categories" },
+  { href: "/create/", label: "Create New SOP" },
+  { href: "/submit/", label: "Submit SOP Request" },
+  { href: "/admin/review/", label: "Review Queue" },
+];
+
+const pathname = Astro.url.pathname;
+---
+
+<header class="site-header no-print">
+  <div class="site-header__inner">
+    <a class="brand" href="/" aria-label="SOP Knowledge Hub home">
+      <span class="brand__mark" aria-hidden="true">SOP</span>
+      <span>
+        <span class="brand__name">SOP Knowledge Hub</span>
+        <span class="brand__tagline">Find the process, template, or guide you need.</span>
+      </span>
+    </a>
+    <nav class="main-nav" aria-label="Main navigation">
+      {
+        navItems.map((item) => (
+          <a
+            href={item.href}
+            aria-current={pathname === item.href ? "page" : undefined}
+          >
+            {item.label}
+          </a>
+        ))
+      }
+    </nav>
+  </div>
+</header>

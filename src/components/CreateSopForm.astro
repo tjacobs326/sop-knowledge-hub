@@ -1,0 +1,436 @@
+---
+import { categories } from "../data/categories";
+import { DRAFTS_STORAGE_KEY } from "../lib/drafts";
+import { REVIEW_QUEUE_STORAGE_KEY } from "../lib/submissions";
+import SopDraftPreview from "./SopDraftPreview.astro";
+
+const sopTypes = [
+  "Process",
+  "Troubleshooting Guide",
+  "Template",
+  "Checklist",
+  "Job Aid",
+  "Decision Tree",
+];
+
+const draftStatuses = [
+  "Draft",
+  "In Review",
+  "Needs Revision",
+  "Approved",
+  "Published",
+  "Archived",
+];
+---
+
+<section class="tool-surface" aria-labelledby="create-heading">
+  <div class="section-heading">
+    <p class="eyebrow">Internal Creator Workflow</p>
+    <h1 id="create-heading">Create New SOP</h1>
+    <p>Use this form to create a complete SOP draft for review and publishing.</p>
+  </div>
+
+  <form class="form-grid" id="create-sop-form" novalidate>
+    <div class="field field--full">
+      <label for="sop-title">SOP Title</label>
+      <input id="sop-title" name="title" type="text" required />
+    </div>
+    <div class="field field--full">
+      <label for="purpose">Purpose</label>
+      <textarea id="purpose" name="purpose" rows="3" required></textarea>
+    </div>
+    <div class="field">
+      <label for="owner">Owner</label>
+      <input id="owner" name="owner" type="text" required />
+    </div>
+    <div class="field">
+      <label for="category">Category</label>
+      <select id="category" name="category" required>
+        <option value="">Select category</option>
+        {categories.map((category) => <option value={category.name}>{category.name}</option>)}
+      </select>
+    </div>
+    <div class="field">
+      <label for="type">SOP Type</label>
+      <select id="type" name="type" required>
+        <option value="">Select type</option>
+        {sopTypes.map((type) => <option value={type}>{type}</option>)}
+      </select>
+    </div>
+    <div class="field">
+      <label for="review-date">Review Date</label>
+      <input id="review-date" name="reviewDate" type="date" required />
+    </div>
+    <div class="field">
+      <label for="tools">Tools Used</label>
+      <input id="tools" name="tools" type="text" placeholder="Ivanti, Brightspace D2L" />
+    </div>
+    <div class="field">
+      <label for="audience">Audience</label>
+      <input id="audience" name="audience" type="text" placeholder="Instructional Designers, QA Reviewers" />
+    </div>
+    <div class="field">
+      <label for="tags">Tags</label>
+      <input id="tags" name="tags" type="text" placeholder="qa, launch, accessibility" />
+    </div>
+    <div class="field">
+      <label for="estimated-time">Estimated Completion Time</label>
+      <input id="estimated-time" name="estimatedCompletionTime" type="text" placeholder="10 minutes" />
+    </div>
+    <div class="field field--full">
+      <label for="before-you-begin">Before You Begin</label>
+      <textarea id="before-you-begin" name="beforeYouBegin" rows="3"></textarea>
+    </div>
+
+    <fieldset class="field field--full step-builder">
+      <legend>Procedure Steps</legend>
+      <div id="procedure-steps">
+        <div class="procedure-step" data-step>
+          <div class="field">
+            <label>Step title</label>
+            <input name="stepTitle" type="text" required />
+          </div>
+          <div class="field field--full">
+            <label>Step instructions</label>
+            <textarea name="stepInstructions" rows="3" required></textarea>
+          </div>
+          <div class="field">
+            <label>Optional note</label>
+            <input name="stepNote" type="text" />
+          </div>
+          <div class="field">
+            <label>Optional screenshot</label>
+            <input name="stepScreenshot" type="text" placeholder="/images/screenshots/example-placeholder.svg" />
+          </div>
+        </div>
+      </div>
+      <button class="button button--secondary" id="add-step" type="button">Add Step</button>
+    </fieldset>
+
+    <div class="field field--full">
+      <label for="screenshots">Screenshots</label>
+      <textarea id="screenshots" name="screenshots" rows="2" placeholder="/images/screenshots/example-placeholder.svg"></textarea>
+    </div>
+    <div class="field field--full">
+      <label for="troubleshooting-notes">Troubleshooting Notes</label>
+      <textarea id="troubleshooting-notes" name="troubleshootingNotes" rows="3"></textarea>
+    </div>
+    <div class="field">
+      <label for="related-sops">Related SOPs</label>
+      <input id="related-sops" name="relatedSops" type="text" placeholder="Submit a New Ivanti Ticket" />
+    </div>
+    <div class="field">
+      <label for="change-summary">Change Summary</label>
+      <input id="change-summary" name="changeSummary" type="text" />
+    </div>
+    <div class="field">
+      <label for="draft-status">Draft Status</label>
+      <select id="draft-status" name="status">
+        {draftStatuses.map((status) => <option value={status}>{status}</option>)}
+      </select>
+    </div>
+    <div class="field">
+      <label for="version">Version</label>
+      <input id="version" name="version" type="text" value="0.1" />
+    </div>
+    <div class="form-actions field--full">
+      <button class="button button--primary" id="preview-sop" type="button">Preview SOP</button>
+    </div>
+    <div class="form-errors field--full" id="create-errors" role="alert" hidden></div>
+  </form>
+</section>
+
+<SopDraftPreview />
+
+<script
+  is:inline
+  define:vars={{
+    DRAFTS_STORAGE_KEY,
+    REVIEW_QUEUE_STORAGE_KEY,
+  }}
+>
+  const form = document.getElementById("create-sop-form");
+  const errorsEl = document.getElementById("create-errors");
+  const addStepButton = document.getElementById("add-step");
+  const stepContainer = document.getElementById("procedure-steps");
+  const previewButton = document.getElementById("preview-sop");
+  const preview = document.getElementById("draft-preview");
+  const confirmation = document.getElementById("create-confirmation");
+
+  let currentDraft = null;
+
+  const escapeHtml = (value) =>
+    String(value ?? "").replace(/[&<>"']/g, (character) => {
+      const replacements = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      };
+      return replacements[character];
+    });
+
+  const splitList = (value) =>
+    String(value || "")
+      .split(/[\n,]+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+  const slugify = (value) =>
+    String(value)
+      .toLowerCase()
+      .trim()
+      .replace(/&/g, "and")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+
+  function getField(name) {
+    const element = form?.querySelector(`[name="${name}"]`);
+    return element instanceof HTMLInputElement ||
+      element instanceof HTMLSelectElement ||
+      element instanceof HTMLTextAreaElement
+      ? element.value.trim()
+      : "";
+  }
+
+  function collectSteps() {
+    return Array.from(document.querySelectorAll("[data-step]"))
+      .map((step) => {
+        const title = step.querySelector('[name="stepTitle"]')?.value.trim() ?? "";
+        const instructions = step.querySelector('[name="stepInstructions"]')?.value.trim() ?? "";
+        const note = step.querySelector('[name="stepNote"]')?.value.trim() ?? "";
+        const screenshot = step.querySelector('[name="stepScreenshot"]')?.value.trim() ?? "";
+        return { title, instructions, note, screenshot };
+      })
+      .filter((step) => step.title || step.instructions);
+  }
+
+  function validateDraft(draft) {
+    const errors = [];
+
+    if (!draft.title) errors.push("SOP Title is required.");
+    if (!draft.purpose) errors.push("Purpose is required.");
+    if (!draft.owner) errors.push("Owner is required.");
+    if (!draft.category) errors.push("Category is required.");
+    if (!draft.type) errors.push("SOP Type is required.");
+    if (!draft.reviewDate) errors.push("Review Date is required.");
+    if (!draft.procedureSteps.length) errors.push("At least one procedure step is required.");
+    if (draft.procedureSteps.some((step) => !step.title || !step.instructions)) {
+      errors.push("Each procedure step needs a title and instructions.");
+    }
+
+    if (errorsEl) {
+      errorsEl.hidden = errors.length === 0;
+      errorsEl.innerHTML = errors.map((error) => `<p>${escapeHtml(error)}</p>`).join("");
+    }
+
+    return errors.length === 0;
+  }
+
+  function buildDraft(statusOverride) {
+    const today = new Date().toISOString().slice(0, 10);
+    const title = getField("title");
+
+    return {
+      id: `draft-${slugify(title || "untitled")}-${Date.now()}`,
+      title,
+      purpose: getField("purpose"),
+      owner: getField("owner"),
+      category: getField("category"),
+      type: getField("type"),
+      tools: splitList(getField("tools")),
+      audience: splitList(getField("audience")),
+      tags: splitList(getField("tags")),
+      estimatedCompletionTime: getField("estimatedCompletionTime"),
+      beforeYouBegin: getField("beforeYouBegin"),
+      procedureSteps: collectSteps(),
+      screenshots: splitList(getField("screenshots")),
+      troubleshootingNotes: getField("troubleshootingNotes"),
+      relatedSops: splitList(getField("relatedSops")),
+      reviewDate: getField("reviewDate"),
+      status: statusOverride || getField("status") || "Draft",
+      version: getField("version") || "0.1",
+      changeSummary: getField("changeSummary") || "Initial draft created.",
+      createdDate: today,
+      updatedDate: today,
+    };
+  }
+
+  function renderPreview(draft) {
+    document.getElementById("preview-title").textContent = draft.title;
+    document.getElementById("preview-purpose").textContent = draft.purpose;
+    document.getElementById("preview-before").textContent =
+      draft.beforeYouBegin || "No before-you-begin notes entered.";
+    document.getElementById("preview-notes").textContent =
+      draft.troubleshootingNotes || "No troubleshooting notes entered.";
+
+    document.getElementById("preview-meta").innerHTML = [
+      ["Owner", draft.owner],
+      ["Category", draft.category],
+      ["Tools used", draft.tools.join(", ") || "None listed"],
+      ["Audience", draft.audience.join(", ") || "None listed"],
+      ["Status", draft.status],
+      ["Version", draft.version],
+      ["Review date", draft.reviewDate],
+      ["Estimated time", draft.estimatedCompletionTime || "Not estimated"],
+    ]
+      .map(([label, value]) => `<div><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`)
+      .join("");
+
+    document.getElementById("preview-steps").innerHTML = draft.procedureSteps
+      .map(
+        (step) => `
+          <li>
+            <h4>${escapeHtml(step.title)}</h4>
+            <p>${escapeHtml(step.instructions)}</p>
+            ${step.note ? `<p><strong>Note:</strong> ${escapeHtml(step.note)}</p>` : ""}
+            ${
+              step.screenshot
+                ? `<p><strong>Screenshot:</strong> ${escapeHtml(step.screenshot)}</p>`
+                : ""
+            }
+          </li>
+        `,
+      )
+      .join("");
+
+    document.getElementById("preview-related").innerHTML =
+      draft.relatedSops.length > 0
+        ? draft.relatedSops.map((item) => `<li>${escapeHtml(item)}</li>`).join("")
+        : "<li>No related SOPs entered.</li>";
+
+    preview.hidden = false;
+    preview.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function readStorage(key) {
+    try {
+      return JSON.parse(localStorage.getItem(key) || "[]");
+    } catch {
+      return [];
+    }
+  }
+
+  function writeStorage(key, value) {
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+
+  function storeDraft(draft, submitForReview) {
+    const drafts = readStorage(DRAFTS_STORAGE_KEY).filter((item) => item.id !== draft.id);
+    writeStorage(DRAFTS_STORAGE_KEY, [...drafts, draft]);
+
+    if (submitForReview) {
+      const reviewItem = {
+        id: `review-${draft.id}`,
+        source: "Internal SOP Creator",
+        submissionType: "Submit a draft SOP",
+        title: draft.title,
+        department: draft.audience[0],
+        submittedBy: draft.owner,
+        category: draft.category,
+        priority: "Medium",
+        status: "In Review",
+        assignedOwner: draft.owner,
+        createdDate: draft.createdDate,
+        reviewDate: draft.reviewDate,
+        originalId: draft.id,
+      };
+      const reviewItems = readStorage(REVIEW_QUEUE_STORAGE_KEY).filter(
+        (item) => item.id !== reviewItem.id,
+      );
+      writeStorage(REVIEW_QUEUE_STORAGE_KEY, [...reviewItems, reviewItem]);
+    }
+  }
+
+  addStepButton?.addEventListener("click", () => {
+    if (!stepContainer) return;
+
+    const stepCount = stepContainer.querySelectorAll("[data-step]").length + 1;
+    const wrapper = document.createElement("div");
+    wrapper.className = "procedure-step";
+    wrapper.dataset.step = "";
+    wrapper.innerHTML = `
+      <div class="procedure-step__header">
+        <strong>Step ${stepCount}</strong>
+        <button class="button button--ghost" type="button" data-remove-step>Remove</button>
+      </div>
+      <div class="field">
+        <label>Step title</label>
+        <input name="stepTitle" type="text" required />
+      </div>
+      <div class="field field--full">
+        <label>Step instructions</label>
+        <textarea name="stepInstructions" rows="3" required></textarea>
+      </div>
+      <div class="field">
+        <label>Optional note</label>
+        <input name="stepNote" type="text" />
+      </div>
+      <div class="field">
+        <label>Optional screenshot</label>
+        <input name="stepScreenshot" type="text" placeholder="/images/screenshots/example-placeholder.svg" />
+      </div>
+    `;
+    stepContainer.append(wrapper);
+  });
+
+  stepContainer?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+
+    if (target.matches("[data-remove-step]")) {
+      target.closest("[data-step]")?.remove();
+    }
+  });
+
+  previewButton?.addEventListener("click", () => {
+    const draft = buildDraft();
+    if (!validateDraft(draft)) return;
+
+    currentDraft = draft;
+    confirmation.hidden = true;
+    renderPreview(draft);
+  });
+
+  document.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+
+    const actionButton = target.closest("[data-draft-action]");
+    if (!(actionButton instanceof HTMLElement)) return;
+
+    const action = actionButton.dataset.draftAction;
+
+    if (action === "clear") {
+      form?.reset();
+      preview.hidden = true;
+      confirmation.hidden = true;
+      currentDraft = null;
+      return;
+    }
+
+    if (!currentDraft) {
+      const draft = buildDraft(action === "submit" ? "In Review" : "Draft");
+      if (!validateDraft(draft)) return;
+      currentDraft = draft;
+      renderPreview(draft);
+    }
+
+    const draftToStore = {
+      ...currentDraft,
+      status: action === "submit" ? "In Review" : "Draft",
+      updatedDate: new Date().toISOString().slice(0, 10),
+    };
+
+    storeDraft(draftToStore, action === "submit");
+
+    if (confirmation) {
+      confirmation.hidden = false;
+      confirmation.innerHTML =
+        action === "submit"
+          ? "<strong>Your SOP draft has been submitted for review.</strong><p>Next steps: A reviewer will verify the content, request revisions if needed, and publish the SOP once approved.</p>"
+          : "<strong>Your SOP draft has been saved.</strong>";
+    }
+  });
+</script>

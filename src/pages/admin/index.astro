@@ -1,0 +1,20 @@
+---
+import Layout from "../../components/Layout.astro";
+import AdminDashboard from "../../components/AdminDashboard.astro";
+import { mockDrafts } from "../../data/mock-drafts";
+import { mockSubmissions } from "../../data/mock-submissions";
+import { createDraftReviewItem } from "../../lib/drafts";
+import { createSubmissionReviewItem } from "../../lib/submissions";
+import { getAllSops } from "../../lib/sops";
+
+// Future access note: restrict this route to SOP reviewers, publishers, and admins with Cloudflare Access.
+const sops = await getAllSops();
+const reviewItems = [
+  ...mockDrafts.map(createDraftReviewItem),
+  ...mockSubmissions.map(createSubmissionReviewItem),
+];
+---
+
+<Layout title="Admin Dashboard" wide>
+  <AdminDashboard sops={sops} reviewItems={reviewItems} />
+</Layout>

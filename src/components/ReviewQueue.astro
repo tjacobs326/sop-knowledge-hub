@@ -1,0 +1,338 @@
+---
+import { DRAFTS_STORAGE_KEY } from "../lib/drafts";
+import {
+  REVIEW_QUEUE_STORAGE_KEY,
+  SUBMISSIONS_STORAGE_KEY,
+} from "../lib/submissions";
+import type { ReviewQueueItem, SopDraft, SopSubmission } from "../types";
+
+interface Props {
+  initialItems: ReviewQueueItem[];
+  initialSubmissions: SopSubmission[];
+  initialDrafts: SopDraft[];
+}
+
+const { initialItems, initialSubmissions, initialDrafts } = Astro.props;
+
+const filters = [
+  "All",
+  "Internal Drafts",
+  "Outside Department Submissions",
+  "New SOP Requests",
+  "Updates",
+  "Templates",
+  "Urgent",
+  "Approved",
+  "Published",
+  "Archived",
+];
+---
+
+<section class="tool-surface review-queue" aria-labelledby="review-heading">
+  <div class="section-heading">
+    <p class="eyebrow">Review Queue</p>
+    <h1 id="review-heading">Review and Triage Submissions</h1>
+  </div>
+
+  <div class="filter-tabs no-print" role="tablist" aria-label="Review queue filters">
+    {filters.map((filter, index) => (
+      <button
+        class="filter-tab"
+        type="button"
+        role="tab"
+        aria-selected={index === 0 ? "true" : "false"}
+        data-review-filter={filter}
+      >
+        {filter}
+      </button>
+    ))}
+  </div>
+
+  <div id="review-list" class="review-list" aria-live="polite"></div>
+</section>
+
+<script
+  is:inline
+  define:vars={{
+    initialItems,
+    initialSubmissions,
+    initialDrafts,
+    DRAFTS_STORAGE_KEY,
+    SUBMISSIONS_STORAGE_KEY,
+    REVIEW_QUEUE_STORAGE_KEY,
+  }}
+>
+  const list = document.getElementById("review-list");
+  const tabs = Array.from(document.querySelectorAll("[data-review-filter]"));
+  let activeFilter = "All";
+
+  const workflowStatuses = [
+    "Submitted",
+    "Triage",
+    "Assigned",
+    "Drafting",
+    "In Review",
+    "Needs More Information",
+    "Needs Revision",
+    "Approved",
+    "Published",
+    "Archived",
+  ];
+
+  const escapeHtml = (value) =>
+    String(value ?? "").replace(/[&<>"']/g, (character) => {
+      const replacements = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      };
+      return replacements[character];
+    });
+
+  function readStorage(key) {
+    try {
+      return JSON.parse(localStorage.getItem(key) || "[]");
+    } catch {
+      return [];
+    }
+  }
+
+  function writeStorage(key, value) {
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+
+  function mergeById(...groups) {
+    const map = new Map();
+    groups.flat().forEach((item) => {
+      if (item?.id) map.set(item.id, item);
+    });
+    return Array.from(map.values());
+  }
+
+  function getItems() {
+    return mergeById(initialItems, readStorage(REVIEW_QUEUE_STORAGE_KEY));
+  }
+
+  function saveItems(items) {
+    writeStorage(REVIEW_QUEUE_STORAGE_KEY, items);
+  }
+
+  function getSubmissions() {
+    return mergeById(initialSubmissions, readStorage(SUBMISSIONS_STORAGE_KEY));
+  }
+
+  function getDrafts() {
+    return mergeById(initialDrafts, readStorage(DRAFTS_STORAGE_KEY));
+  }
+
+  function filterItem(item) {
+    if (activeFilter === "All") return true;
+    if (activeFilter === "Internal Drafts") return item.source === "Internal SOP Creator";
+    if (activeFilter === "Outside Department Submissions") {
+      return item.source === "Outside Department Submission";
+    }
+    if (activeFilter === "New SOP Requests") return item.submissionType === "Request a new SOP";
+    if (activeFilter === "Updates") return item.submissionType === "Suggest an update to an existing SOP";
+    if (activeFilter === "Templates") return item.submissionType === "Request a template";
+    if (activeFilter === "Urgent") return item.priority === "Urgent";
+    return item.status === activeFilter;
+  }
+
+  function statusOptions(selected) {
+    return workflowStatuses
+      .map(
+        (status) =>
+          `<option value="${status}" ${status === selected ? "selected" : ""}>${status}</option>`,
+      )
+      .join("");
+  }
+
+  function render() {
+    const items = getItems().filter(filterItem);
+
+    if (!list) return;
+
+    list.innerHTML =
+      items.length > 0
+        ? items
+            .map(
+              (item) => `
+              <article class="review-card" data-review-id="${escapeHtml(item.id)}">
+                <div class="review-card__header">
+                  <div>
+                    <p class="eyebrow">${escapeHtml(item.source)}</p>
+                    <h2>${escapeHtml(item.title)}</h2>
+                  </div>
+                  <span class="status-badge">${escapeHtml(item.status)}</span>
+                </div>
+                <dl class="review-meta">
+                  <div><dt>Submission type</dt><dd>${escapeHtml(item.submissionType)}</dd></div>
+                  <div><dt>Department</dt><dd>${escapeHtml(item.department || "Not listed")}</dd></div>
+                  <div><dt>Submitted by</dt><dd>${escapeHtml(item.submittedBy)}</dd></div>
+                  <div><dt>Category</dt><dd>${escapeHtml(item.category)}</dd></div>
+                  <div><dt>Priority</dt><dd>${escapeHtml(item.priority)}</dd></div>
+                  <div><dt>Assigned owner</dt><dd>${escapeHtml(item.assignedOwner || "Unassigned")}</dd></div>
+                  <div><dt>Date submitted</dt><dd>${escapeHtml(item.createdDate)}</dd></div>
+                  <div><dt>Review date</dt><dd>${escapeHtml(item.reviewDate || "Not set")}</dd></div>
+                </dl>
+                <div class="review-actions no-print">
+                  <label>
+                    <span>Move status</span>
+                    <select data-review-status>${statusOptions(item.status)}</select>
+                  </label>
+                  <button class="button button--secondary" type="button" data-review-action="assign">Assign Owner</button>
+                  <button class="button button--secondary" type="button" data-review-action="more-info">Request More Information</button>
+                  <button class="button button--secondary" type="button" data-review-action="drafting">Move to Drafting</button>
+                  <button class="button button--secondary" type="button" data-review-action="review">Mark In Review</button>
+                  <button class="button button--secondary" type="button" data-review-action="revision">Request Revision</button>
+                  <button class="button button--secondary" type="button" data-review-action="approve">Approve</button>
+                  <button class="button button--primary" type="button" data-review-action="publish">Publish</button>
+                  <button class="button button--ghost" type="button" data-review-action="archive">Archive</button>
+                  ${
+                    item.source === "Outside Department Submission"
+                      ? '<button class="button button--primary" type="button" data-review-action="convert">Convert to SOP Draft</button>'
+                      : ""
+                  }
+                </div>
+              </article>
+            `,
+            )
+            .join("")
+        : "<p>No review items match this filter.</p>";
+  }
+
+  function updateItem(id, patch) {
+    const items = getItems().map((item) => (item.id === id ? { ...item, ...patch } : item));
+    saveItems(items);
+    render();
+  }
+
+  function submissionToDraft(submission) {
+    const today = new Date().toISOString().slice(0, 10);
+    return {
+      id: `draft-from-${submission.id}`,
+      title: submission.title,
+      purpose:
+        submission.businessNeed ||
+        submission.purpose ||
+        "Purpose to be refined by the SOP owner.",
+      owner: submission.assignedOwner || "Unassigned SOP Owner",
+      category: submission.category,
+      type: submission.submissionType === "Request a template" ? "Template" : "Process",
+      tools: submission.toolOrSystem ? [submission.toolOrSystem] : [],
+      audience: [submission.department, submission.audience].filter(Boolean),
+      tags: [submission.category, submission.priority, submission.submissionType]
+        .filter(Boolean)
+        .map((value) => String(value).toLowerCase()),
+      estimatedCompletionTime: "To be estimated",
+      beforeYouBegin: submission.beforeYouBegin,
+      procedureSteps: (submission.procedureSteps || []).map((step, index) => ({
+        title: `Step ${index + 1}`,
+        instructions: step,
+      })),
+      troubleshootingNotes: submission.knownIssues,
+      relatedSops: submission.relatedResources || [],
+      reviewDate: submission.reviewDate || today,
+      status: "Draft",
+      version: "0.1",
+      changeSummary: "Converted from outside department submission.",
+      createdDate: today,
+      updatedDate: today,
+      originalSubmissionId: submission.id,
+    };
+  }
+
+  function convertSubmission(item) {
+    const submission = getSubmissions().find((record) => record.id === item.originalId);
+    if (!submission) return;
+
+    const draft = submissionToDraft(submission);
+    const drafts = getDrafts().filter((record) => record.id !== draft.id);
+    writeStorage(DRAFTS_STORAGE_KEY, [...drafts, draft]);
+
+    const reviewItem = {
+      id: `review-${draft.id}`,
+      source: "Internal SOP Creator",
+      submissionType: "Submit a draft SOP",
+      title: draft.title,
+      department: draft.audience[0],
+      submittedBy: draft.owner,
+      category: draft.category,
+      priority: item.priority,
+      status: "Drafting",
+      assignedOwner: draft.owner,
+      createdDate: draft.createdDate,
+      reviewDate: draft.reviewDate,
+      originalId: draft.id,
+    };
+
+    const items = getItems()
+      .map((record) => (record.id === item.id ? { ...record, status: "Drafting" } : record))
+      .filter((record) => record.id !== reviewItem.id);
+    saveItems([...items, reviewItem]);
+    render();
+  }
+
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      activeFilter = tab.dataset.reviewFilter;
+      tabs.forEach((item) => item.setAttribute("aria-selected", String(item === tab)));
+      render();
+    });
+  });
+
+  list?.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLSelectElement)) return;
+
+    const card = target.closest("[data-review-id]");
+    if (!(card instanceof HTMLElement)) return;
+
+    updateItem(card.dataset.reviewId, { status: target.value });
+  });
+
+  list?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+
+    const button = target.closest("[data-review-action]");
+    if (!(button instanceof HTMLElement)) return;
+
+    const card = button.closest("[data-review-id]");
+    if (!(card instanceof HTMLElement)) return;
+
+    const id = card.dataset.reviewId;
+    const item = getItems().find((record) => record.id === id);
+    if (!item) return;
+
+    const action = button.dataset.reviewAction;
+    const actionStatus = {
+      "more-info": "Needs More Information",
+      drafting: "Drafting",
+      review: "In Review",
+      revision: "Needs Revision",
+      approve: "Approved",
+      publish: "Published",
+      archive: "Archived",
+    };
+
+    if (action === "assign") {
+      const owner = window.prompt("Assign owner", item.assignedOwner || "");
+      if (owner !== null) updateItem(id, { assignedOwner: owner || "Unassigned", status: "Assigned" });
+      return;
+    }
+
+    if (action === "convert") {
+      convertSubmission(item);
+      return;
+    }
+
+    if (actionStatus[action]) {
+      updateItem(id, { status: actionStatus[action] });
+    }
+  });
+
+  render();
+</script>

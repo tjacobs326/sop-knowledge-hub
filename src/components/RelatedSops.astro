@@ -1,0 +1,35 @@
+---
+interface RelatedSop {
+  title: string;
+  url: string | null;
+  purpose?: string;
+  status?: string;
+}
+
+interface Props {
+  items: RelatedSop[];
+}
+
+const { items } = Astro.props;
+---
+
+<section class="sop-section" aria-labelledby="related-sops-heading">
+  <h2 id="related-sops-heading">Related SOPs</h2>
+  <div class="related-list">
+    {
+      items.length > 0 ? (
+        items.map((item) => (
+          <article class="related-card">
+            <h3>
+              {item.url ? <a href={item.url}>{item.title}</a> : item.title}
+            </h3>
+            {item.purpose && <p>{item.purpose}</p>}
+            {!item.url && <span class="coming-soon">Coming soon</span>}
+          </article>
+        ))
+      ) : (
+        <p>No related SOPs listed.</p>
+      )
+    }
+  </div>
+</section>

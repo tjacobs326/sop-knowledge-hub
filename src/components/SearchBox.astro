@@ -1,0 +1,30 @@
+---
+interface Props {
+  label?: string;
+  placeholder?: string;
+  buttonLabel?: string;
+  value?: string;
+}
+
+const {
+  label = "Search SOPs",
+  placeholder = "Search by title, tag, tool, owner, category, or keyword",
+  buttonLabel = "Search SOPs",
+  value = "",
+} = Astro.props;
+---
+
+<form class="search-box no-print" action="/search/" method="get">
+  <label for="global-search">{label}</label>
+  <div class="search-box__row">
+    <input
+      id="global-search"
+      name="q"
+      type="search"
+      value={value}
+      placeholder={placeholder}
+      autocomplete="off"
+    />
+    <button class="button button--primary" type="submit">{buttonLabel}</button>
+  </div>
+</form>

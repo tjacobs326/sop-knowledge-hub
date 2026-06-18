@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" role="img" aria-labelledby="title desc">
+  <title id="title">Example screenshot placeholder</title>
+  <desc id="desc">A simple placeholder image for SOP screenshots.</desc>
+  <rect width="960" height="540" fill="#FFF7ED"/>
+  <rect x="48" y="48" width="864" height="444" rx="18" fill="#FFFFFF" stroke="#D1D5DB" stroke-width="3"/>
+  <rect x="92" y="96" width="240" height="32" rx="6" fill="#1A3263"/>
+  <rect x="92" y="154" width="776" height="18" rx="4" fill="#E7D8C9"/>
+  <rect x="92" y="202" width="500" height="22" rx="4" fill="#FAB95B"/>
+  <rect x="92" y="256" width="776" height="150" rx="12" fill="#F8FAFC" stroke="#D1D5DB"/>
+  <circle cx="808" cy="116" r="34" fill="#F16821"/>
+  <text x="92" y="458" fill="#1A3263" font-family="Arial, sans-serif" font-size="28" font-weight="700">SOP screenshot placeholder</text>
+</svg>

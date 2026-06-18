@@ -1,0 +1,67 @@
+---
+import StatusBadge from "./StatusBadge.astro";
+import { formatDate } from "../lib/dates";
+
+interface Props {
+  title: string;
+  purpose: string;
+  category: string;
+  tags?: string[];
+  owner: string;
+  lastUpdated: string;
+  reviewDate: string;
+  tools?: string[];
+  status: string;
+  url: string;
+}
+
+const {
+  title,
+  purpose,
+  category,
+  tags = [],
+  owner,
+  lastUpdated,
+  reviewDate,
+  tools = [],
+  status,
+  url,
+} = Astro.props;
+---
+
+<article class="sop-card">
+  <div class="sop-card__topline">
+    <span>{category}</span>
+    <StatusBadge status={status} />
+  </div>
+  <h3><a href={url}>{title}</a></h3>
+  <p>{purpose}</p>
+  <dl class="compact-meta">
+    <div>
+      <dt>Owner</dt>
+      <dd>{owner}</dd>
+    </div>
+    <div>
+      <dt>Updated</dt>
+      <dd>{formatDate(lastUpdated)}</dd>
+    </div>
+    <div>
+      <dt>Review</dt>
+      <dd>{formatDate(reviewDate)}</dd>
+    </div>
+  </dl>
+  {
+    tools.length > 0 && (
+      <p class="sop-card__tools">
+        <strong>Tools:</strong> {tools.join(", ")}
+      </p>
+    )
+  }
+  {
+    tags.length > 0 && (
+      <ul class="tag-list" aria-label="Tags">
+        {tags.map((tag) => <li>{tag}</li>)}
+      </ul>
+    )
+  }
+</article>

@@ -1,0 +1,129 @@
+---
+import Layout from "../components/Layout.astro";
+import SearchBox from "../components/SearchBox.astro";
+import CategoryCard from "../components/CategoryCard.astro";
+import SopCard from "../components/SopCard.astro";
+import { mostUsedSopIds } from "../data/most-used";
+import { getAllSops, getCategoryCounts, getSopUrl } from "../lib/sops";
+
+const sops = await getAllSops();
+const categoryCounts = getCategoryCounts(sops);
+const mostUsed = mostUsedSopIds
+  .map((id) => sops.find((sop) => sop.data.id === id))
+  .filter((sop): sop is (typeof sops)[number] => Boolean(sop))
+  .slice(0, 4);
+const recentlyUpdated = sops.slice(0, 4);
+---
+
+<Layout title="SOP Knowledge Hub" wide>
+  <section class="hero">
+    <div class="hero__content">
+      <p class="eyebrow">Organization Knowledge Base</p>
+      <h1>SOP Knowledge Hub</h1>
+      <p class="hero__subtitle">Find the process, template, or guide you need.</p>
+      <p>Search by title, tag, tool, owner, category, or keyword.</p>
+      <SearchBox />
+      <div class="hero__actions">
+        <a class="button button--primary" href="/search/">Search SOPs</a>
+        <a class="button button--secondary" href="/finder/">Use Guided Finder</a>
+        <a class="button button--secondary" href="/submit/">Submit SOP Request</a>
+        <a class="button button--ghost" href="/create/">Create New SOP</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="page-section" aria-labelledby="categories-heading">
+    <div class="section-heading">
+      <p class="eyebrow">Browse</p>
+      <h2 id="categories-heading">Categories</h2>
+    </div>
+    <div class="category-grid">
+      {
+        categoryCounts.map((category) => (
+          <CategoryCard
+            name={category.name}
+            slug={category.slug}
+            description={category.description}
+          />
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="page-section" aria-labelledby="needs-heading">
+    <div class="section-heading">
+      <p class="eyebrow">Actions</p>
+      <h2 id="needs-heading">What do you need to do?</h2>
+    </div>
+    <div class="action-grid">
+      <article class="action-card">
+        <h3>Find an SOP</h3>
+        <p>Search or browse approved SOPs by category, tool, tag, owner, or keyword.</p>
+        <a class="button button--primary" href="/search/">Search SOPs</a>
+      </article>
+      <article class="action-card">
+        <h3>Get Help Finding the Right SOP</h3>
+        <p>Answer a few questions and get guided to the most relevant SOP.</p>
+        <a class="button button--secondary" href="/finder/">Use Guided Finder</a>
+      </article>
+      <article class="action-card">
+        <h3>Submit or Create an SOP</h3>
+        <p>Request a new SOP, submit a department process, or create a new SOP draft for review.</p>
+        <div class="button-row">
+          <a class="button button--secondary" href="/submit/">Submit SOP Request</a>
+          <a class="button button--ghost" href="/create/">Create New SOP</a>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="page-section" aria-labelledby="most-used-heading">
+    <div class="section-heading">
+      <p class="eyebrow">Frequently Used</p>
+      <h2 id="most-used-heading">Most Used SOPs</h2>
+    </div>
+    <div class="sop-grid">
+      {
+        mostUsed.map((sop) => (
+          <SopCard
+            title={sop.data.title}
+            purpose={sop.data.purpose}
+            category={sop.data.category}
+            tags={sop.data.tags}
+            owner={sop.data.owner}
+            lastUpdated={sop.data.lastUpdated}
+            reviewDate={sop.data.reviewDate}
+            tools={sop.data.tools}
+            status={sop.data.status}
+            url={getSopUrl(sop)}
+          />
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="page-section" aria-labelledby="recent-heading">
+    <div class="section-heading">
+      <p class="eyebrow">Fresh</p>
+      <h2 id="recent-heading">Recently Updated SOPs</h2>
+    </div>
+    <div class="sop-grid">
+      {
+        recentlyUpdated.map((sop) => (
+          <SopCard
+            title={sop.data.title}
+            purpose={sop.data.purpose}
+            category={sop.data.category}
+            tags={sop.data.tags}
+            owner={sop.data.owner}
+            lastUpdated={sop.data.lastUpdated}
+            reviewDate={sop.data.reviewDate}
+            tools={sop.data.tools}
+            status={sop.data.status}
+            url={getSopUrl(sop)}
+          />
+        ))
+      }
+    </div>
+  </section>
+</Layout>

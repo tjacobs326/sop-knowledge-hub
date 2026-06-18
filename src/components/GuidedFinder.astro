@@ -1,0 +1,149 @@
+---
+interface FinderAnswer {
+  label: string;
+  next?: string;
+  results?: string[];
+}
+
+interface FinderNode {
+  question: string;
+  answers: FinderAnswer[];
+}
+
+interface FinderData {
+  startNode: string;
+  nodes: Record<string, FinderNode>;
+}
+
+interface SopRecord {
+  id: string;
+  title: string;
+  purpose: string;
+  category: string;
+  tags: string[];
+  tools: string[];
+  owner: string;
+  lastUpdated: string;
+  reviewDate: string;
+  status: string;
+  url: string;
+}
+
+interface Props {
+  finderData: FinderData;
+  sops: SopRecord[];
+}
+
+const { finderData, sops } = Astro.props;
+---
+
+<section class="tool-surface guided-finder" aria-labelledby="finder-heading">
+  <div class="section-heading">
+    <p class="eyebrow">Guided Finder</p>
+    <h1 id="finder-heading">What are you trying to do?</h1>
+  </div>
+  <div class="finder-panel">
+    <h2 id="finder-question"></h2>
+    <div id="finder-answers" class="finder-answers"></div>
+    <div id="finder-results" class="finder-results" aria-live="polite"></div>
+    <button class="button button--secondary" id="finder-restart" type="button" hidden>
+      Restart Finder
+    </button>
+  </div>
+</section>
+
+<script is:inline define:vars={{ finderData, sopRecords: sops }}>
+  const questionEl = document.getElementById("finder-question");
+  const answersEl = document.getElementById("finder-answers");
+  const resultsEl = document.getElementById("finder-results");
+  const restartButton = document.getElementById("finder-restart");
+
+  let currentNodeId = finderData.startNode;
+
+  const escapeHtml = (value) =>
+    String(value ?? "").replace(/[&<>"']/g, (character) => {
+      const replacements = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      };
+      return replacements[character];
+    });
+
+  function renderNode(nodeId) {
+    const node = finderData.nodes[nodeId];
+    if (!node || !questionEl || !answersEl || !resultsEl || !restartButton) return;
+
+    currentNodeId = nodeId;
+    questionEl.textContent = node.question;
+    answersEl.innerHTML = node.answers
+      .map(
+        (answer, index) =>
+          `<button class="finder-answer" type="button" data-answer-index="${index}">${escapeHtml(
+            answer.label,
+          )}</button>`,
+      )
+      .join("");
+    resultsEl.innerHTML = "";
+    restartButton.hidden = nodeId === finderData.startNode;
+  }
+
+  function renderResults(ids) {
+    if (!questionEl || !answersEl || !resultsEl || !restartButton) return;
+
+    const records = ids
+      .map((id) => sopRecords.find((record) => record.id === id))
+      .filter(Boolean);
+
+    questionEl.textContent = "Recommended SOPs";
+    answersEl.innerHTML = "";
+    restartButton.hidden = false;
+    resultsEl.innerHTML =
+      records.length > 0
+        ? records
+            .map(
+              (record) => `
+              <article class="sop-card">
+                <div class="sop-card__topline">
+                  <span>${escapeHtml(record.category)}</span>
+                  <span class="status-badge">${escapeHtml(record.status)}</span>
+                </div>
+                <h3><a href="${record.url}">${escapeHtml(record.title)}</a></h3>
+                <p>${escapeHtml(record.purpose)}</p>
+                <p class="sop-card__tools"><strong>Tools:</strong> ${escapeHtml(
+                  record.tools.join(", "),
+                )}</p>
+                <ul class="tag-list" aria-label="Tags">
+                  ${record.tags.map((tag) => `<li>${escapeHtml(tag)}</li>`).join("")}
+                </ul>
+              </article>
+            `,
+            )
+            .join("")
+        : `<p>No matching SOPs are available yet.</p>`;
+  }
+
+  answersEl?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+
+    const answerButton = target.closest("[data-answer-index]");
+    if (!(answerButton instanceof HTMLElement)) return;
+
+    const node = finderData.nodes[currentNodeId];
+    const answer = node.answers[Number(answerButton.dataset.answerIndex)];
+
+    if (answer.next) {
+      renderNode(answer.next);
+      return;
+    }
+
+    renderResults(answer.results ?? []);
+  });
+
+  restartButton?.addEventListener("click", () => renderNode(finderData.startNode));
+
+  renderNode(finderData.startNode);
+</script>

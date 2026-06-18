@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" role="img" aria-labelledby="title desc">
+  <title id="title">Brightspace copy course screenshot placeholder</title>
+  <desc id="desc">Placeholder showing course copy options.</desc>
+  <rect width="960" height="540" fill="#FFFFFF"/>
+  <rect x="48" y="48" width="864" height="444" rx="18" fill="#FFF7ED" stroke="#D1D5DB" stroke-width="3"/>
+  <rect x="86" y="92" width="788" height="56" rx="10" fill="#1A3263"/>
+  <text x="112" y="128" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="24" font-weight="700">Import / Export / Copy Components</text>
+  <rect x="112" y="190" width="736" height="58" rx="10" fill="#FFFFFF" stroke="#D1D5DB"/>
+  <rect x="112" y="276" width="736" height="58" rx="10" fill="#FFFFFF" stroke="#D1D5DB"/>
+  <rect x="112" y="362" width="220" height="48" rx="8" fill="#F16821"/>
+  <text x="162" y="394" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="21" font-weight="700">Copy Course</text>
+</svg>

@@ -1,0 +1,26 @@
+<div class="print-actions no-print" aria-label="Print and PDF actions">
+  <button class="button button--secondary" type="button" data-print-action="print">Print</button>
+  <button class="button button--secondary" type="button" data-print-action="pdf">
+    Download / Save as PDF
+  </button>
+  <p class="print-actions__help" data-print-help hidden>
+    Choose "Save as PDF" in the print dialog.
+  </p>
+</div>
+
+<script>
+  document.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+
+    const button = target.closest("[data-print-action]");
+    if (!(button instanceof HTMLElement)) return;
+
+    const help = button.parentElement?.querySelector("[data-print-help]");
+    if (help instanceof HTMLElement) {
+      help.hidden = button.dataset.printAction !== "pdf";
+    }
+
+    window.print();
+  });
+</script>

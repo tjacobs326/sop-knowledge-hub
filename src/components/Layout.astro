@@ -1,0 +1,39 @@
+---
+import Header from "./Header.astro";
+import Footer from "./Footer.astro";
+import "../styles/vocate-theme.css";
+import "../styles/global.css";
+import "../styles/print.css";
+
+interface Props {
+  title: string;
+  description?: string;
+  wide?: boolean;
+}
+
+const {
+  title,
+  description = "SOP Knowledge Hub helps organization users find, follow, request, create, and review standard operating procedures.",
+  wide = false,
+} = Astro.props;
+
+const pageTitle = title === "SOP Knowledge Hub" ? title : `${title} | SOP Knowledge Hub`;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <title>{pageTitle}</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <Header />
+    <main id="main-content" class:list={["site-main", wide && "site-main--wide"]}>
+      <slot />
+    </main>
+    <Footer />
+  </body>
+</html>

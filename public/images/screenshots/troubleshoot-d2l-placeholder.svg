@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" role="img" aria-labelledby="title desc">
+  <title id="title">D2L troubleshooting screenshot placeholder</title>
+  <desc id="desc">Placeholder showing visibility and release condition checks.</desc>
+  <rect width="960" height="540" fill="#FFFFFF"/>
+  <rect x="50" y="42" width="860" height="456" rx="18" fill="#FFF7ED" stroke="#D1D5DB" stroke-width="3"/>
+  <text x="88" y="98" fill="#1A3263" font-family="Arial, sans-serif" font-size="28" font-weight="700">Content Visibility Settings</text>
+  <rect x="88" y="142" width="784" height="64" rx="10" fill="#FFFFFF" stroke="#D1D5DB"/>
+  <rect x="88" y="238" width="784" height="64" rx="10" fill="#FFFFFF" stroke="#D1D5DB"/>
+  <rect x="88" y="334" width="784" height="64" rx="10" fill="#FFFFFF" stroke="#D1D5DB"/>
+  <rect x="742" y="158" width="88" height="32" rx="16" fill="#166534"/>
+  <rect x="742" y="254" width="88" height="32" rx="16" fill="#92400E"/>
+  <rect x="742" y="350" width="88" height="32" rx="16" fill="#1A3263"/>
+</svg>
