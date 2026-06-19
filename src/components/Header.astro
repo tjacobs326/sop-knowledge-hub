@@ -1,11 +1,14 @@
 ---
-const navItems = [
+const publicNav = [
   { href: "/", label: "Home" },
   { href: "/search/", label: "Search" },
   { href: "/finder/", label: "Guided Finder" },
   { href: "/categories/", label: "Categories" },
-  { href: "/create/", label: "Create New SOP" },
-  { href: "/submit/", label: "Submit SOP Request" },
+];
+
+const creatorNav = [
+  { href: "/submit/", label: "Submit Request" },
+  { href: "/create/", label: "Create SOP" },
   { href: "/admin/review/", label: "Review Queue" },
 ];
 
@@ -22,16 +25,75 @@ const pathname = Astro.url.pathname;
       </span>
     </a>
     <nav class="main-nav" aria-label="Main navigation">
-      {
-        navItems.map((item) => (
-          <a
-            href={item.href}
-            aria-current={pathname === item.href ? "page" : undefined}
-          >
-            {item.label}
-          </a>
-        ))
-      }
+      <div class="main-nav__group" role="list">
+        {
+          publicNav.map((item) => (
+            <a
+              href={item.href}
+              role="listitem"
+              aria-current={pathname === item.href ? "page" : undefined}
+            >
+              {item.label}
+            </a>
+          ))
+        }
+      </div>
+      <div class="main-nav__divider" aria-hidden="true"></div>
+      <div class="main-nav__group main-nav__group--creator" role="list" aria-label="Creator tools">
+        {
+          creatorNav.map((item) => (
+            <a
+              href={item.href}
+              role="listitem"
+              class="nav-creator"
+              aria-current={pathname === item.href ? "page" : undefined}
+            >
+              {item.label}
+            </a>
+          ))
+        }
+      </div>
     </nav>
   </div>
 </header>
+
+<style>
+  .main-nav {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+
+  .main-nav__group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+
+  .main-nav__divider {
+    width: 1px;
+    height: 1.5rem;
+    background: rgba(255, 255, 255, 0.25);
+    margin: 0 0.35rem;
+    flex-shrink: 0;
+  }
+
+  .nav-creator {
+    opacity: 0.85;
+    font-size: 0.85rem !important;
+  }
+
+  .nav-creator:hover,
+  .nav-creator[aria-current="page"] {
+    opacity: 1;
+  }
+
+  @media (max-width: 860px) {
+    .main-nav__divider {
+      width: 100%;
+      height: 1px;
+      margin: 0.2rem 0;
+    }
+  }
+</style>

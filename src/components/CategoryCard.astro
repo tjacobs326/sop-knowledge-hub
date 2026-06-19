@@ -5,12 +5,68 @@ interface Props {
   name: string;
   slug: string;
   description: string;
+  icon?: string;
+  color?: string;
+  count?: number;
 }
 
-const { name, slug, description } = Astro.props;
+const { name, slug, description, icon, color = "#f8fafc", count } = Astro.props;
 ---
 
-<article class="category-card">
+<article class="category-card" style={`--card-accent: ${color}`}>
+  {icon && <span class="category-card__icon" aria-hidden="true">{icon}</span>}
   <h3><a href={getCategoryUrl(slug)}>{name}</a></h3>
   <p>{description}</p>
+  <div class="category-card__footer">
+    {count !== undefined && (
+      <span class="category-card__count">{count} {count === 1 ? "SOP" : "SOPs"}</span>
+    )}
+    <span class="category-card__arrow" aria-hidden="true">→</span>
+  </div>
 </article>
+
+<style>
+  .category-card {
+    background: var(--card-accent, var(--color-panel));
+    border-top: 3px solid color-mix(in srgb, var(--card-accent) 60%, #999);
+  }
+
+  .category-card__icon {
+    display: block;
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    line-height: 1;
+  }
+
+  .category-card__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: auto;
+    padding-top: 0.75rem;
+  }
+
+  .category-card__count {
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: var(--color-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .category-card__arrow {
+    color: var(--color-kindle);
+    font-weight: 800;
+    font-size: 1.1rem;
+    transition: transform 0.15s ease;
+  }
+
+  .category-card:hover .category-card__arrow {
+    transform: translateX(4px);
+  }
+
+  .category-card {
+    display: flex;
+    flex-direction: column;
+  }
+</style>

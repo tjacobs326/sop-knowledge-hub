@@ -13,6 +13,7 @@ interface Props {
   tools?: string[];
   status: string;
   url: string;
+  estimatedCompletionTime?: string;
 }
 
 const {
@@ -26,16 +27,17 @@ const {
   tools = [],
   status,
   url,
+  estimatedCompletionTime,
 } = Astro.props;
 ---
 
 <article class="sop-card">
   <div class="sop-card__topline">
-    <span>{category}</span>
+    <span class="sop-card__category">{category}</span>
     <StatusBadge status={status} />
   </div>
   <h3><a href={url}>{title}</a></h3>
-  <p>{purpose}</p>
+  <p class="sop-card__purpose">{purpose}</p>
   <dl class="compact-meta">
     <div>
       <dt>Owner</dt>
@@ -51,6 +53,14 @@ const {
     </div>
   </dl>
   {
+    estimatedCompletionTime && (
+      <p class="sop-card__time">
+        <span class="sop-card__time-icon" aria-hidden="true">⏱</span>
+        {estimatedCompletionTime}
+      </p>
+    )
+  }
+  {
     tools.length > 0 && (
       <p class="sop-card__tools">
         <strong>Tools:</strong> {tools.join(", ")}
@@ -65,3 +75,33 @@ const {
     )
   }
 </article>
+
+<style>
+  .sop-card__category {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--color-ink);
+    background: var(--color-linen);
+    border: 1px solid var(--color-dune);
+    border-radius: 999px;
+    padding: 0.15rem 0.55rem;
+  }
+
+  .sop-card__purpose {
+    flex: 1;
+    color: var(--color-muted);
+  }
+
+  .sop-card__time {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0.5rem 0 0;
+    font-size: 0.84rem;
+    color: var(--color-muted);
+  }
+
+  .sop-card__time-icon {
+    font-size: 0.9rem;
+  }
+</style>

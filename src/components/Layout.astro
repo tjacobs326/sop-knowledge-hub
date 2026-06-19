@@ -18,6 +18,7 @@ const {
 } = Astro.props;
 
 const pageTitle = title === "SOP Knowledge Hub" ? title : `${title} | SOP Knowledge Hub`;
+const canonicalUrl = new URL(Astro.url.pathname, Astro.site ?? "https://sop-hub.example.edu");
 ---
 
 <!doctype html>
@@ -26,6 +27,21 @@ const pageTitle = title === "SOP Knowledge Hub" ? title : `${title} | SOP Knowle
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalUrl} />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonicalUrl} />
+
+    <!-- Favicon (inline SVG data URI — no separate file needed) -->
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23fab95b'/><text x='16' y='22' text-anchor='middle' font-family='system-ui,sans-serif' font-weight='900' font-size='13' fill='%231a3263'>SOP</text></svg>"
+    />
+
     <title>{pageTitle}</title>
   </head>
   <body>

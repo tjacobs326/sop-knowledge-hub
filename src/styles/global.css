@@ -187,6 +187,63 @@ img {
   border-bottom: 1px solid rgba(26, 50, 99, 0.12);
 }
 
+.hero-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  margin: 1.75rem 0 0;
+  padding: 0;
+  border: 1px solid rgba(26, 50, 99, 0.14);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--color-white);
+  box-shadow: var(--shadow-soft);
+  max-width: 640px;
+}
+
+.hero-stats__item {
+  flex: 1 1 130px;
+  padding: 1rem 1.25rem;
+  border-right: 1px solid rgba(26, 50, 99, 0.1);
+}
+
+.hero-stats__item:last-child {
+  border-right: none;
+}
+
+.hero-stats dt {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-muted);
+  margin-bottom: 0.3rem;
+}
+
+.hero-stats dd {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--color-ink);
+  line-height: 1;
+}
+
+@media (max-width: 520px) {
+  .hero-stats {
+    max-width: 100%;
+  }
+
+  .hero-stats__item {
+    flex: 1 1 50%;
+    border-bottom: 1px solid rgba(26, 50, 99, 0.1);
+  }
+
+  .hero-stats__item:nth-child(even) {
+    border-right: none;
+  }
+}
+
 .hero__content {
   width: min(100%, 900px);
 }
@@ -261,15 +318,18 @@ img {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 0.4rem;
   min-height: 2.6rem;
-  padding: 0.7rem 0.95rem;
+  padding: 0.7rem 1.1rem;
   color: var(--color-ink);
-  font-weight: 800;
+  font-weight: 700;
+  font-size: 0.95rem;
   text-decoration: none;
   background: var(--color-white);
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
+  border: 1.5px solid var(--color-border);
+  border-radius: 7px;
   cursor: pointer;
+  transition: background var(--transition), color var(--transition), border-color var(--transition), box-shadow var(--transition);
 }
 
 .button:hover {
@@ -367,6 +427,14 @@ textarea {
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   box-shadow: var(--shadow-soft);
+  transition: box-shadow var(--transition), transform var(--transition);
+}
+
+.category-card:hover,
+.sop-card:hover,
+.action-card:hover {
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-2px);
 }
 
 .category-card,

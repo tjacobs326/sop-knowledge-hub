@@ -12,7 +12,10 @@ const mostUsed = mostUsedSopIds
   .map((id) => sops.find((sop) => sop.data.id === id))
   .filter((sop): sop is (typeof sops)[number] => Boolean(sop))
   .slice(0, 4);
-const recentlyUpdated = sops.slice(0, 4);
+const recentlyUpdated = [...sops]
+  .sort((a, b) => new Date(b.data.lastUpdated).getTime() - new Date(a.data.lastUpdated).getTime())
+  .slice(0, 4);
+const totalPublished = sops.filter((s) => s.data.status === "Published").length;
 ---
 
 <Layout title="SOP Knowledge Hub" wide>
@@ -21,7 +24,7 @@ const recentlyUpdated = sops.slice(0, 4);
       <p class="eyebrow">Organization Knowledge Base</p>
       <h1>SOP Knowledge Hub</h1>
       <p class="hero__subtitle">Find the process, template, or guide you need.</p>
-      <p>Search by title, tag, tool, owner, category, or keyword.</p>
+      <p>Search by title, tag, tool, owner, category, or keyword — all in one place.</p>
       <SearchBox />
       <div class="hero__actions">
         <a class="button button--primary" href="/search/">Search SOPs</a>
@@ -30,6 +33,24 @@ const recentlyUpdated = sops.slice(0, 4);
         <a class="button button--ghost" href="/create/">Create New SOP</a>
       </div>
     </div>
+    <dl class="hero-stats" aria-label="Knowledge base overview">
+      <div class="hero-stats__item">
+        <dt>Published SOPs</dt>
+        <dd>{totalPublished}</dd>
+      </div>
+      <div class="hero-stats__item">
+        <dt>Categories</dt>
+        <dd>{categoryCounts.length}</dd>
+      </div>
+      <div class="hero-stats__item">
+        <dt>Guided Finder</dt>
+        <dd>Available</dd>
+      </div>
+      <div class="hero-stats__item">
+        <dt>Always</dt>
+        <dd>Up to Date</dd>
+      </div>
+    </dl>
   </section>
 
   <section class="page-section" aria-labelledby="categories-heading">
@@ -44,6 +65,9 @@ const recentlyUpdated = sops.slice(0, 4);
             name={category.name}
             slug={category.slug}
             description={category.description}
+            icon={category.icon}
+            color={category.color}
+            count={category.count}
           />
         ))
       }
@@ -96,6 +120,7 @@ const recentlyUpdated = sops.slice(0, 4);
             tools={sop.data.tools}
             status={sop.data.status}
             url={getSopUrl(sop)}
+            estimatedCompletionTime={sop.data.estimatedCompletionTime}
           />
         ))
       }
@@ -121,6 +146,7 @@ const recentlyUpdated = sops.slice(0, 4);
             tools={sop.data.tools}
             status={sop.data.status}
             url={getSopUrl(sop)}
+            estimatedCompletionTime={sop.data.estimatedCompletionTime}
           />
         ))
       }

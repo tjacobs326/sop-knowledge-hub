@@ -4,13 +4,92 @@ const year = new Date().getFullYear();
 
 <footer class="site-footer no-print">
   <div class="site-footer__inner">
-    <div>
+    <div class="footer-brand">
       <strong>SOP Knowledge Hub</strong>
-      <p>Internal support contact: sop-support@example.edu</p>
+      <p>Accessible, searchable, print-friendly SOP management.</p>
     </div>
-    <div>
-      <p>Built for accessible, searchable, print-friendly SOP maintenance.</p>
-      <p>Last updated placeholder: {year}</p>
+    <nav class="footer-nav" aria-label="Footer navigation">
+      <strong class="footer-nav__heading">Quick Links</strong>
+      <ul>
+        <li><a href="/search/">Search SOPs</a></li>
+        <li><a href="/finder/">Guided Finder</a></li>
+        <li><a href="/categories/">Browse Categories</a></li>
+        <li><a href="/submit/">Submit a Request</a></li>
+      </ul>
+    </nav>
+    <div class="footer-meta">
+      <p>Need help? Contact <a href="mailto:sop-support@organization.edu">SOP Support</a></p>
+      <p class="footer-copy">&copy; {year} SOP Knowledge Hub</p>
     </div>
   </div>
 </footer>
+
+<style>
+  .site-footer__inner {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    align-items: start;
+    gap: 2rem;
+    padding: 2rem 0;
+  }
+
+  .footer-brand strong {
+    display: block;
+    font-size: 1rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .footer-nav__heading {
+    display: block;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.55);
+    margin-bottom: 0.6rem;
+  }
+
+  .footer-nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .footer-nav a {
+    color: rgba(255,255,255,0.8);
+    text-decoration: none;
+    font-size: 0.9rem;
+  }
+
+  .footer-nav a:hover {
+    color: var(--color-beacon);
+  }
+
+  .footer-meta a {
+    color: var(--color-beacon);
+  }
+
+  .footer-copy {
+    margin-top: 0.5rem;
+    font-size: 0.82rem;
+    color: rgba(255,255,255,0.45);
+  }
+
+  @media (max-width: 860px) {
+    .site-footer__inner {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .footer-brand {
+      grid-column: 1 / -1;
+    }
+  }
+
+  @media (max-width: 520px) {
+    .site-footer__inner {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
