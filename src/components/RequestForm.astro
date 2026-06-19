@@ -126,9 +126,24 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
       <label for="documentation-location">Existing documentation location</label>
       <input id="documentation-location" name="documentationLocation" type="text" />
     </div>
-    <div class="field">
-      <label for="attachments">Screenshots or attachments</label>
-      <input id="attachments" name="screenshots" type="text" />
+    <div class="field field--full">
+      <label for="attachments-file">Screenshots or attachments</label>
+      <div class="screenshot-input" data-attachment-input>
+        <textarea id="attachments" name="screenshots" hidden></textarea>
+        <input id="attachments-file" name="attachmentFiles" type="file" multiple />
+        <p class="field-help" id="attachments-help">
+          Upload files from your computer, or paste a screenshot into the box below.
+        </p>
+        <div
+          class="screenshot-paste-target"
+          tabindex="0"
+          data-attachment-paste
+          aria-describedby="attachments-help"
+        >
+          Paste a screenshot here or upload files above.
+        </div>
+        <div class="attachment-list" data-attachment-list hidden></div>
+      </div>
     </div>
     <div class="field field--full">
       <label for="additional-notes">Additional notes</label>
@@ -153,6 +168,12 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
   const form = document.getElementById("request-form");
   const errorsEl = document.getElementById("request-errors");
   const confirmationEl = document.getElementById("request-confirmation");
+  const attachmentsInput = document.getElementById("attachments");
+  const attachmentFileInput = document.getElementById("attachments-file");
+  const attachmentList = document.querySelector("[data-attachment-list]");
+  const attachmentPasteTarget = document.querySelector("[data-attachment-paste]");
+
+  const attachments = [];
 
   const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (character) => {
@@ -169,6 +190,12 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
   const splitList = (value) =>
     String(value || "")
       .split(/[\n,]+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+  const splitAttachmentList = (value) =>
+    String(value || "")
+      .split(/\n+/)
       .map((item) => item.trim())
       .filter(Boolean);
 
@@ -191,6 +218,85 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
 
   function writeStorage(key, value) {
     localStorage.setItem(key, JSON.stringify(value));
+  }
+
+  function formatFileSize(size) {
+    if (!Number.isFinite(size)) return "";
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  function syncAttachmentsField() {
+    if (attachmentsInput instanceof HTMLTextAreaElement) {
+      attachmentsInput.value = attachments
+        .map((attachment) => attachment.value || attachment.label)
+        .filter(Boolean)
+        .join("\n");
+    }
+  }
+
+  function renderAttachments() {
+    if (!(attachmentList instanceof HTMLElement)) return;
+
+    syncAttachmentsField();
+    attachmentList.hidden = attachments.length === 0;
+    attachmentList.innerHTML = attachments
+      .map((attachment, index) => {
+        const image =
+          attachment.kind === "image"
+            ? `<img src="${escapeHtml(attachment.value)}" alt="${escapeHtml(attachment.label)} preview" />`
+            : "";
+        return `
+          <figure class="attachment-preview">
+            ${image}
+            <figcaption>
+              <span>${escapeHtml(attachment.label)}</span>
+              <button class="button button--ghost" type="button" data-remove-attachment="${index}">
+                Remove
+              </button>
+            </figcaption>
+          </figure>
+        `;
+      })
+      .join("");
+
+    if (attachmentPasteTarget instanceof HTMLElement) {
+      attachmentPasteTarget.textContent =
+        attachments.length > 0
+          ? "Attachment added. Paste another screenshot here or upload more files."
+          : "Paste a screenshot here or upload files above.";
+    }
+  }
+
+  function addAttachment(attachment) {
+    attachments.push(attachment);
+    renderAttachments();
+    if (errorsEl) {
+      errorsEl.hidden = true;
+      errorsEl.innerHTML = "";
+    }
+  }
+
+  function readAttachmentFile(file) {
+    if (file.type.startsWith("image/")) {
+      const reader = new FileReader();
+      reader.addEventListener("load", () => {
+        addAttachment({
+          kind: "image",
+          label: file.name || "Pasted screenshot",
+          value: typeof reader.result === "string" ? reader.result : "",
+        });
+      });
+      reader.readAsDataURL(file);
+      return;
+    }
+
+    addAttachment({
+      kind: "file",
+      label: `${file.name} (${file.type || "file"}, ${formatFileSize(file.size)})`,
+      value: `${file.name} (${file.type || "file"}, ${formatFileSize(file.size)})`,
+    });
   }
 
   function validateSubmission(submission) {
@@ -245,7 +351,7 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
       knownIssues: getField("knownIssues"),
       relatedResources: splitList(getField("relatedResources")),
       documentationLocation: getField("documentationLocation"),
-      screenshots: splitList(getField("screenshots")),
+      screenshots: splitAttachmentList(getField("screenshots")),
       additionalNotes: getField("additionalNotes"),
       status: "Submitted",
       assignedOwner: "",
@@ -283,9 +389,53 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
     writeStorage(REVIEW_QUEUE_STORAGE_KEY, [...reviewItems, reviewItem]);
 
     form.reset();
+    attachments.splice(0, attachments.length);
+    renderAttachments();
+    if (attachmentFileInput instanceof HTMLInputElement) {
+      attachmentFileInput.value = "";
+    }
     confirmationEl.hidden = false;
     confirmationEl.innerHTML =
       "<strong>Your SOP submission has been received.</strong><p>Next steps: The SOP team will triage your submission, assign an owner, review the details, and follow up if more information is needed.</p>";
     confirmationEl.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+
+  attachmentFileInput?.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+
+    Array.from(target.files || []).forEach(readAttachmentFile);
+  });
+
+  attachmentPasteTarget?.addEventListener("paste", (event) => {
+    const file = Array.from(event.clipboardData?.files || []).find((item) =>
+      item.type.startsWith("image/"),
+    );
+
+    if (!file) return;
+
+    event.preventDefault();
+    readAttachmentFile(file);
+  });
+
+  attachmentList?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+
+    const button = target.closest("[data-remove-attachment]");
+    if (!(button instanceof HTMLElement)) return;
+
+    const index = Number(button.dataset.removeAttachment);
+    if (!Number.isInteger(index)) return;
+
+    attachments.splice(index, 1);
+    renderAttachments();
+  });
+
+  form?.addEventListener("reset", () => {
+    window.setTimeout(() => {
+      attachments.splice(0, attachments.length);
+      renderAttachments();
+    }, 0);
   });
 </script>

@@ -232,6 +232,7 @@ const filters = [
         title: `Step ${index + 1}`,
         instructions: step,
       })),
+      screenshots: submission.screenshots || [],
       troubleshootingNotes: submission.knownIssues,
       relatedSops: submission.relatedResources || [],
       reviewDate: submission.reviewDate || today,

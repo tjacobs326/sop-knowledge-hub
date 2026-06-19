@@ -1,0 +1,53 @@
+---
+import Layout from "../../../components/Layout.astro";
+import { mockDrafts } from "../../../data/mock-drafts";
+import { mockSubmissions } from "../../../data/mock-submissions";
+import { createDraftReviewItem } from "../../../lib/drafts";
+import { createSubmissionReviewItem } from "../../../lib/submissions";
+
+// Future access note: restrict this route to SOP reviewers and admins with Cloudflare Access.
+const items = [
+  ...mockDrafts.map(createDraftReviewItem),
+  ...mockSubmissions.map(createSubmissionReviewItem),
+].filter((item) =>
+  ["Submitted", "Triage", "In Review", "Needs More Information", "Needs Revision"].includes(
+    item.status,
+  ),
+);
+---
+
+<Layout title="Needs Review" wide>
+  <section class="tool-surface" aria-labelledby="needs-review-heading">
+    <div class="section-heading">
+      <p class="eyebrow">Creators / Reviewers</p>
+      <h1 id="needs-review-heading">Needs Review</h1>
+      <p>Prioritized submissions and drafts that need reviewer attention.</p>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Item</th>
+            <th scope="col">Type</th>
+            <th scope="col">Status</th>
+            <th scope="col">Priority</th>
+            <th scope="col">Owner</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item) => (
+            <tr>
+              <td>{item.title}</td>
+              <td>{item.submissionType}</td>
+              <td>{item.status}</td>
+              <td>{item.priority}</td>
+              <td>{item.assignedOwner || "Unassigned"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</Layout>
+

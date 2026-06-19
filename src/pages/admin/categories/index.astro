@@ -1,0 +1,36 @@
+---
+import Layout from "../../../components/Layout.astro";
+import { categories } from "../../../data/categories";
+
+// Future access note: restrict this route to admins with Cloudflare Access.
+---
+
+<Layout title="Admin Categories" wide>
+  <section class="tool-surface" aria-labelledby="admin-categories-heading">
+    <div class="section-heading">
+      <p class="eyebrow">Admin</p>
+      <h1 id="admin-categories-heading">Categories</h1>
+      <p>Manage the SOP category structure used across search, finder, and request intake.</p>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Category</th>
+            <th scope="col">Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          {categories.map((category) => (
+            <tr>
+              <td>{category.name}</td>
+              <td>{category.description}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</Layout>
+

@@ -1,0 +1,85 @@
+---
+import Layout from "../../components/Layout.astro";
+import { mockDrafts } from "../../data/mock-drafts";
+import { DRAFTS_STORAGE_KEY } from "../../lib/drafts";
+
+// Future access note: restrict this route to SOP creators and reviewers with Cloudflare Access.
+---
+
+<Layout title="My Drafts" wide>
+  <section class="tool-surface" aria-labelledby="drafts-heading">
+    <div class="section-heading">
+      <p class="eyebrow">Creators / Reviewers</p>
+      <h1 id="drafts-heading">My Drafts</h1>
+      <p>Review saved SOP drafts and continue work before submitting them for review.</p>
+    </div>
+
+    <div class="form-actions">
+      <a class="button button--primary" href="/create/">Create SOP</a>
+      <a class="button button--secondary" href="/admin/review/">Review Queue</a>
+    </div>
+
+    <div class="table-wrap" data-drafts-table>
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Draft</th>
+            <th scope="col">Category</th>
+            <th scope="col">Status</th>
+            <th scope="col">Owner</th>
+            <th scope="col">Review Date</th>
+          </tr>
+        </thead>
+        <tbody id="drafts-list">
+          {mockDrafts.map((draft) => (
+            <tr>
+              <td>{draft.title}</td>
+              <td>{draft.category}</td>
+              <td>{draft.status}</td>
+              <td>{draft.owner}</td>
+              <td>{draft.reviewDate}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</Layout>
+
+<script is:inline define:vars={{ DRAFTS_STORAGE_KEY }}>
+  const list = document.getElementById("drafts-list");
+
+  const escapeHtml = (value) =>
+    String(value ?? "").replace(/[&<>"']/g, (character) => {
+      const replacements = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      };
+      return replacements[character];
+    });
+
+  try {
+    const localDrafts = JSON.parse(localStorage.getItem(DRAFTS_STORAGE_KEY) || "[]");
+    if (Array.isArray(localDrafts) && localDrafts.length > 0 && list) {
+      list.innerHTML = localDrafts
+        .map(
+          (draft) => `
+            <tr>
+              <td>${escapeHtml(draft.title)}</td>
+              <td>${escapeHtml(draft.category)}</td>
+              <td>${escapeHtml(draft.status)}</td>
+              <td>${escapeHtml(draft.owner)}</td>
+              <td>${escapeHtml(draft.reviewDate)}</td>
+            </tr>
+          `,
+        )
+        .join("");
+    }
+  } catch {
+    // Keep the sample rows if local draft storage is unavailable.
+  }
+</script>
+

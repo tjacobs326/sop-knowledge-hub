@@ -1,0 +1,27 @@
+---
+import Layout from "../../../components/Layout.astro";
+import { getAllSops } from "../../../lib/sops";
+
+// Future access note: restrict this route to admins with Cloudflare Access.
+const sops = await getAllSops();
+const tagCounts = new Map<string, number>();
+sops.forEach((sop) => {
+  sop.data.tags.forEach((tag) => tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1));
+});
+const tags = [...tagCounts.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+---
+
+<Layout title="Tags" wide>
+  <section class="tool-surface" aria-labelledby="tags-heading">
+    <div class="section-heading">
+      <p class="eyebrow">Admin</p>
+      <h1 id="tags-heading">Tags</h1>
+      <p>Review the tags currently used to organize SOPs.</p>
+    </div>
+
+    <ul class="tag-list" aria-label="SOP tags">
+      {tags.map(([tag, count]) => <li>{tag} ({count})</li>)}
+    </ul>
+  </section>
+</Layout>
+

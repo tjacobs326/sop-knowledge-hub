@@ -1,17 +1,37 @@
 ---
-const publicNav = [
-  { href: "/search/", label: "Search" },
-  { href: "/finder/", label: "Guided Finder" },
-  { href: "/categories/", label: "Categories" },
-];
-
-const creatorNav = [
-  { href: "/submit/", label: "Submit Request" },
-  { href: "/create/", label: "Create SOP" },
-  { href: "/admin/review/", label: "Review Queue" },
+const navGroups = [
+  {
+    label: "Normal Users",
+    items: [
+      { href: "/search/", label: "Search SOPs" },
+      { href: "/finder/", label: "Guided Finder" },
+      { href: "/categories/", label: "Categories" },
+      { href: "/submit/", label: "Submit Request" },
+    ],
+  },
+  {
+    label: "Creators / Reviewers",
+    items: [
+      { href: "/create/", label: "Create SOP" },
+      { href: "/drafts/", label: "My Drafts" },
+      { href: "/admin/review/", label: "Review Queue" },
+      { href: "/admin/needs-review/", label: "Needs Review" },
+    ],
+  },
+  {
+    label: "Admins",
+    items: [
+      { href: "/admin/users/", label: "Users" },
+      { href: "/admin/categories/", label: "Categories" },
+      { href: "/admin/tags/", label: "Tags" },
+      { href: "/admin/analytics/", label: "Analytics" },
+      { href: "/admin/settings/", label: "Settings" },
+    ],
+  },
 ];
 
 const pathname = Astro.url.pathname;
+const isCurrent = (href: string) => pathname === href || (href !== "/" && pathname.startsWith(href));
 ---
 
 <header class="site-header no-print">
@@ -23,83 +43,26 @@ const pathname = Astro.url.pathname;
         <span class="brand__tagline">Find the process, template, or guide you need.</span>
       </span>
     </a>
-    <nav class="main-nav" aria-label="Main navigation">
-      <div class="main-nav__group" role="list">
-        {
-          publicNav.map((item) => (
-            <a
-              href={item.href}
-              role="listitem"
-              aria-current={pathname === item.href ? "page" : undefined}
-            >
-              {item.label}
-            </a>
-          ))
-        }
-      </div>
-      <div class="main-nav__divider" aria-hidden="true"></div>
-      <div class="main-nav__group main-nav__group--creator" role="list" aria-label="Creator tools">
-        {
-          creatorNav.map((item) => (
-            <a
-              href={item.href}
-              role="listitem"
-              class="nav-creator"
-              aria-current={pathname === item.href ? "page" : undefined}
-            >
-              {item.label}
-            </a>
-          ))
-        }
-      </div>
+    <nav class="main-nav" aria-label="Role-based navigation">
+      {
+        navGroups.map((group) => (
+          <section class="main-nav__role" aria-label={group.label}>
+            <span class="main-nav__role-label">{group.label}</span>
+            <div class="main-nav__links" role="list">
+              {group.items.map((item) => (
+                <a
+                  href={item.href}
+                  role="listitem"
+                  aria-current={isCurrent(item.href) ? "page" : undefined}
+                >
+                  {item.label}
+                </a>
+              ))}
+            </div>
+          </section>
+        ))
+      }
     </nav>
   </div>
 </header>
 
-<style>
-  .main-nav {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.25rem;
-    min-width: 0;
-  }
-
-  .main-nav__group {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem;
-    min-width: 0;
-  }
-
-  .main-nav__divider {
-    width: 1px;
-    height: 1.5rem;
-    background: rgba(255, 255, 255, 0.25);
-    margin: 0 0.35rem;
-    flex-shrink: 0;
-  }
-
-  .nav-creator {
-    opacity: 0.85;
-    font-size: 0.85rem !important;
-  }
-
-  .nav-creator:hover,
-  .nav-creator[aria-current="page"] {
-    opacity: 1;
-  }
-
-  @media (max-width: 860px) {
-    .main-nav__group {
-      width: 100%;
-    }
-
-    .main-nav__divider {
-      width: 100%;
-      height: 1px;
-      margin: 0.2rem 0;
-    }
-  }
-
-</style>

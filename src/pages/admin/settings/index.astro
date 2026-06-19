@@ -1,0 +1,30 @@
+---
+import Layout from "../../../components/Layout.astro";
+
+// Future access note: restrict this route to admins with Cloudflare Access.
+const settings = [
+  ["Access model", "Use Cloudflare Access groups for Normal Users, Creators / Reviewers, and Admins."],
+  ["Review workflow", "Route submitted requests into the review queue before publishing."],
+  ["Taxonomy", "Maintain categories and tags as shared admin-controlled lists."],
+];
+---
+
+<Layout title="Settings" wide>
+  <section class="tool-surface" aria-labelledby="settings-heading">
+    <div class="section-heading">
+      <p class="eyebrow">Admin</p>
+      <h1 id="settings-heading">Settings</h1>
+      <p>Configuration areas for the internal SOP system.</p>
+    </div>
+
+    <div class="quick-link-grid">
+      {settings.map(([label, description]) => (
+        <article class="quick-link quick-link--panel">
+          <strong>{label}</strong>
+          <span>{description}</span>
+        </article>
+      ))}
+    </div>
+  </section>
+</Layout>
+

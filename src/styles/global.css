@@ -150,7 +150,30 @@ img {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.main-nav__role {
+  display: grid;
   gap: 0.35rem;
+  align-content: start;
+  min-width: 0;
+}
+
+.main-nav__role-label {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.main-nav__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
   min-width: 0;
 }
 
@@ -159,13 +182,15 @@ img {
   align-items: center;
   justify-content: center;
   min-height: 2.75rem;
-  padding: 0.55rem 0.7rem;
+  padding: 0.52rem 0.62rem;
   color: var(--color-white);
-  font-size: 0.92rem;
+  font-size: 0.84rem;
+  font-weight: 800;
   line-height: 1.15;
   text-decoration: none;
   border-radius: 6px;
   text-align: center;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .main-nav a:hover,
@@ -679,6 +704,47 @@ legend {
   background: var(--color-panel);
 }
 
+.field-help {
+  margin: -0.25rem 0 0;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.attachment-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.attachment-preview {
+  margin: 0;
+  overflow: hidden;
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.attachment-preview img {
+  width: 100%;
+  max-height: 22rem;
+  object-fit: contain;
+  background: var(--color-panel);
+}
+
+.attachment-preview figcaption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  color: var(--color-muted);
+  background: var(--color-panel);
+}
+
+.attachment-preview figcaption span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .form-errors,
 .confirmation {
   padding: 0.8rem 1rem;
@@ -901,6 +967,88 @@ legend {
   margin-top: 2rem;
 }
 
+.analytics-note {
+  margin: 0 0 1rem;
+  padding: 0.75rem 0.9rem;
+  color: var(--color-muted);
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.analytics-card {
+  display: grid;
+  align-content: start;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.analytics-card h2 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 1.2rem;
+}
+
+.rating-summary {
+  display: grid;
+  gap: 0.25rem;
+  padding: 1rem;
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.rating-summary strong {
+  color: var(--color-ink);
+  font-size: 1.6rem;
+}
+
+.rating-summary span,
+.empty-state {
+  color: var(--color-muted);
+}
+
+.category-breakdown {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.category-bar {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.85rem;
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.category-bar div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.category-bar strong {
+  color: var(--color-ink);
+}
+
+.category-bar span {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.category-bar meter {
+  width: 100%;
+  height: 0.7rem;
+}
+
 .quick-link-grid {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
 }
@@ -918,6 +1066,18 @@ legend {
 
 .quick-link:hover {
   background: var(--color-beacon);
+}
+
+.quick-link--panel {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.quick-link--panel span {
+  color: var(--color-muted);
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.45;
 }
 
 .table-wrap {
@@ -1035,6 +1195,14 @@ th {
     justify-content: flex-start;
   }
 
+  .main-nav__role {
+    width: 100%;
+  }
+
+  .main-nav__links {
+    width: 100%;
+  }
+
   .hero h1,
   .section-heading h1,
   .sop-document h1 {
@@ -1052,6 +1220,10 @@ th {
   .form-grid,
   .search-filters,
   .procedure-step {
+    grid-template-columns: 1fr;
+  }
+
+  .analytics-grid {
     grid-template-columns: 1fr;
   }
 

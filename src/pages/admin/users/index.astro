@@ -1,0 +1,30 @@
+---
+import Layout from "../../../components/Layout.astro";
+
+// Future access note: restrict this route to admins with Cloudflare Access.
+const roles = [
+  ["Normal Users", "Search SOPs, use Guided Finder, browse categories, and submit requests."],
+  ["Creators / Reviewers", "Create SOPs, manage drafts, review submissions, and publish approved work."],
+  ["Admins", "Manage users, taxonomy, analytics, and system settings."],
+];
+---
+
+<Layout title="Users" wide>
+  <section class="tool-surface" aria-labelledby="users-heading">
+    <div class="section-heading">
+      <p class="eyebrow">Admin</p>
+      <h1 id="users-heading">Users</h1>
+      <p>Plan role access and user groups for the SOP Knowledge Hub.</p>
+    </div>
+
+    <div class="quick-link-grid">
+      {roles.map(([role, description]) => (
+        <article class="quick-link quick-link--panel">
+          <strong>{role}</strong>
+          <span>{description}</span>
+        </article>
+      ))}
+    </div>
+  </section>
+</Layout>
+
