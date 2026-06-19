@@ -1,6 +1,5 @@
 ---
 const publicNav = [
-  { href: "/", label: "Home" },
   { href: "/search/", label: "Search" },
   { href: "/finder/", label: "Guided Finder" },
   { href: "/categories/", label: "Categories" },
@@ -63,12 +62,14 @@ const pathname = Astro.url.pathname;
     align-items: center;
     flex-wrap: wrap;
     gap: 0.25rem;
+    min-width: 0;
   }
 
   .main-nav__group {
     display: flex;
     flex-wrap: wrap;
     gap: 0.25rem;
+    min-width: 0;
   }
 
   .main-nav__divider {
@@ -90,10 +91,15 @@ const pathname = Astro.url.pathname;
   }
 
   @media (max-width: 860px) {
+    .main-nav__group {
+      width: 100%;
+    }
+
     .main-nav__divider {
       width: 100%;
       height: 1px;
       margin: 0.2rem 0;
     }
   }
+
 </style>

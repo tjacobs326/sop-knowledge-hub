@@ -5,6 +5,7 @@ import PrintActions from "../components/PrintActions.astro";
 import RelatedSops from "../components/RelatedSops.astro";
 import ChangeHistory from "../components/ChangeHistory.astro";
 import { resolveRelatedSops, type SopEntry } from "../lib/sops";
+import { EDIT_SOP_STORAGE_KEY } from "../lib/drafts";
 
 interface Props {
   sop: SopEntry;
@@ -14,6 +15,64 @@ interface Props {
 
 const { sop, allSops, Content } = Astro.props;
 const relatedSops = resolveRelatedSops(sop, allSops);
+const sopBody = sop.body ?? "";
+
+function getSection(markdown: string, heading: string) {
+  const pattern = new RegExp(`## ${heading}\\r?\\n+([\\s\\S]*?)(?=\\r?\\n## |$)`, "i");
+  return markdown.match(pattern)?.[1]?.trim() ?? "";
+}
+
+function stripMarkdown(value: string) {
+  return value
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/\[(.*?)\]\((.*?)\)/g, "$1")
+    .trim();
+}
+
+function parseProcedureSteps(markdown: string) {
+  const procedure = getSection(markdown, "Procedure");
+  const matches = Array.from(procedure.matchAll(/^\d+\.\s+(.+)$/gm));
+
+  return matches.length > 0
+    ? matches.map((match) => ({
+        title: stripMarkdown(match[1]),
+        instructions: stripMarkdown(match[1]),
+        note: "",
+        screenshot: "",
+      }))
+    : [
+        {
+          title: "Review published SOP content",
+          instructions: stripMarkdown(procedure || markdown),
+          note: "",
+          screenshot: "",
+        },
+      ];
+}
+
+const editPayload = {
+  sourceId: sop.data.id,
+  sourceSlug: sop.data.slug,
+  sourceTitle: sop.data.title,
+  title: sop.data.title,
+  purpose: sop.data.purpose,
+  owner: sop.data.owner,
+  category: sop.data.category,
+  type: sop.data.type,
+  reviewDate: sop.data.reviewDate,
+  tools: sop.data.tools,
+  audience: sop.data.audience,
+  tags: sop.data.tags,
+  estimatedCompletionTime: sop.data.estimatedCompletionTime,
+  beforeYouBegin: getSection(sopBody, "Before You Begin"),
+  procedureSteps: parseProcedureSteps(sopBody),
+  screenshots: sop.data.screenshots.map((screenshot) => screenshot.src),
+  troubleshootingNotes: getSection(sopBody, "Troubleshooting / Notes"),
+  relatedSops: sop.data.relatedSops,
+  status: "Draft",
+  version: sop.data.version,
+  changeSummary: `Update published SOP: ${sop.data.title}`,
+};
 ---
 
 <Layout title={sop.data.title} description={sop.data.purpose}>
@@ -23,6 +82,15 @@ const relatedSops = resolveRelatedSops(sop, allSops);
       <h1>{sop.data.title}</h1>
       <p class="lede">{sop.data.purpose}</p>
       <PrintActions />
+      <div class="sop-edit-actions no-print">
+        <a
+          class="button button--primary"
+          href={`/create/?edit=${encodeURIComponent(sop.data.id)}`}
+          data-edit-published-sop
+        >
+          Edit Published SOP
+        </a>
+      </div>
     </div>
 
     <div class="sop-layout">
@@ -66,3 +134,29 @@ const relatedSops = resolveRelatedSops(sop, allSops);
     </div>
   </article>
 </Layout>
+
+<script
+  is:inline
+  type="application/json"
+  id={`edit-source-${sop.data.id}`}
+  set:html={JSON.stringify(editPayload)}
+/>
+
+<script is:inline define:vars={{ EDIT_SOP_STORAGE_KEY, sourceId: sop.data.id }}>
+  document.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+
+    const editLink = target.closest("[data-edit-published-sop]");
+    if (!(editLink instanceof HTMLAnchorElement)) return;
+
+    const payload = document.getElementById(`edit-source-${sourceId}`)?.textContent;
+    if (!payload) return;
+
+    try {
+      sessionStorage.setItem(EDIT_SOP_STORAGE_KEY, payload);
+    } catch {
+      // Continue to the creator route; it will show an empty form if storage is blocked.
+    }
+  });
+</script>

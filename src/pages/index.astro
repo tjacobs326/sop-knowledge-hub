@@ -26,12 +26,6 @@ const totalPublished = sops.filter((s) => s.data.status === "Published").length;
       <p class="hero__subtitle">Find the process, template, or guide you need.</p>
       <p>Search by title, tag, tool, owner, category, or keyword — all in one place.</p>
       <SearchBox />
-      <div class="hero__actions">
-        <a class="button button--primary" href="/search/">Search SOPs</a>
-        <a class="button button--secondary" href="/finder/">Use Guided Finder</a>
-        <a class="button button--secondary" href="/submit/">Submit SOP Request</a>
-        <a class="button button--ghost" href="/create/">Create New SOP</a>
-      </div>
     </div>
     <dl class="hero-stats" aria-label="Knowledge base overview">
       <div class="hero-stats__item">
@@ -71,33 +65,6 @@ const totalPublished = sops.filter((s) => s.data.status === "Published").length;
           />
         ))
       }
-    </div>
-  </section>
-
-  <section class="page-section" aria-labelledby="needs-heading">
-    <div class="section-heading">
-      <p class="eyebrow">Actions</p>
-      <h2 id="needs-heading">What do you need to do?</h2>
-    </div>
-    <div class="action-grid">
-      <article class="action-card">
-        <h3>Find an SOP</h3>
-        <p>Search or browse approved SOPs by category, tool, tag, owner, or keyword.</p>
-        <a class="button button--primary" href="/search/">Search SOPs</a>
-      </article>
-      <article class="action-card">
-        <h3>Get Help Finding the Right SOP</h3>
-        <p>Answer a few questions and get guided to the most relevant SOP.</p>
-        <a class="button button--secondary" href="/finder/">Use Guided Finder</a>
-      </article>
-      <article class="action-card">
-        <h3>Submit or Create an SOP</h3>
-        <p>Request a new SOP, submit a department process, or create a new SOP draft for review.</p>
-        <div class="button-row">
-          <a class="button button--secondary" href="/submit/">Submit SOP Request</a>
-          <a class="button button--ghost" href="/create/">Create New SOP</a>
-        </div>
-      </article>
     </div>
   </section>
 

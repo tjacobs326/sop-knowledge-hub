@@ -1,6 +1,6 @@
 ---
 import { categories } from "../data/categories";
-import { DRAFTS_STORAGE_KEY } from "../lib/drafts";
+import { DRAFTS_STORAGE_KEY, EDIT_SOP_STORAGE_KEY } from "../lib/drafts";
 import { REVIEW_QUEUE_STORAGE_KEY } from "../lib/submissions";
 import SopDraftPreview from "./SopDraftPreview.astro";
 
@@ -27,7 +27,7 @@ const draftStatuses = [
   <div class="section-heading">
     <p class="eyebrow">Internal Creator Workflow</p>
     <h1 id="create-heading">Create New SOP</h1>
-    <p>Use this form to create a complete SOP draft for review and publishing.</p>
+    <p id="create-description">Use this form to create a complete SOP draft for review and publishing.</p>
   </div>
 
   <form class="form-grid" id="create-sop-form" novalidate>
@@ -98,9 +98,23 @@ const draftStatuses = [
             <label>Optional note</label>
             <input name="stepNote" type="text" />
           </div>
-          <div class="field">
-            <label>Optional screenshot</label>
-            <input name="stepScreenshot" type="text" placeholder="/images/screenshots/example-placeholder.svg" />
+          <div class="field field--full">
+            <label>Step screenshot</label>
+            <div class="screenshot-input" data-screenshot-input>
+              <input name="stepScreenshot" type="hidden" />
+              <input name="stepScreenshotFile" type="file" accept="image/*" />
+              <div class="screenshot-paste-target" tabindex="0" data-screenshot-paste>
+                Paste a screenshot here or upload an image file.
+              </div>
+              <figure class="screenshot-preview" data-screenshot-preview hidden>
+                <img alt="Step screenshot preview" data-screenshot-image />
+                <figcaption>
+                  <button class="button button--ghost" type="button" data-remove-screenshot>
+                    Remove Screenshot
+                  </button>
+                </figcaption>
+              </figure>
+            </div>
           </div>
         </div>
       </div>
@@ -146,10 +160,13 @@ const draftStatuses = [
   is:inline
   define:vars={{
     DRAFTS_STORAGE_KEY,
+    EDIT_SOP_STORAGE_KEY,
     REVIEW_QUEUE_STORAGE_KEY,
   }}
 >
   const form = document.getElementById("create-sop-form");
+  const createHeading = document.getElementById("create-heading");
+  const createDescription = document.getElementById("create-description");
   const errorsEl = document.getElementById("create-errors");
   const addStepButton = document.getElementById("add-step");
   const stepContainer = document.getElementById("procedure-steps");
@@ -194,6 +211,17 @@ const draftStatuses = [
       : "";
   }
 
+  function setField(name, value) {
+    const element = form?.querySelector(`[name="${name}"]`);
+    if (
+      element instanceof HTMLInputElement ||
+      element instanceof HTMLSelectElement ||
+      element instanceof HTMLTextAreaElement
+    ) {
+      element.value = String(value ?? "");
+    }
+  }
+
   function collectSteps() {
     return Array.from(document.querySelectorAll("[data-step]"))
       .map((step) => {
@@ -204,6 +232,172 @@ const draftStatuses = [
         return { title, instructions, note, screenshot };
       })
       .filter((step) => step.title || step.instructions);
+  }
+
+  function getStepFromElement(element) {
+    return element instanceof HTMLElement ? element.closest("[data-step]") : null;
+  }
+
+  function updateStepScreenshotPreview(step) {
+    if (!(step instanceof HTMLElement)) return;
+
+    const screenshotInput = step.querySelector('[name="stepScreenshot"]');
+    const preview = step.querySelector("[data-screenshot-preview]");
+    const image = step.querySelector("[data-screenshot-image]");
+    const pasteTarget = step.querySelector("[data-screenshot-paste]");
+    const screenshot =
+      screenshotInput instanceof HTMLInputElement ? screenshotInput.value.trim() : "";
+
+    if (!(preview instanceof HTMLElement) || !(image instanceof HTMLImageElement)) return;
+
+    if (screenshot) {
+      image.src = screenshot;
+      preview.hidden = false;
+      if (pasteTarget instanceof HTMLElement) {
+        pasteTarget.textContent = "Screenshot added. Paste a replacement here or upload a new file.";
+      }
+    } else {
+      image.removeAttribute("src");
+      preview.hidden = true;
+      if (pasteTarget instanceof HTMLElement) {
+        pasteTarget.textContent = "Paste a screenshot here or upload an image file.";
+      }
+    }
+  }
+
+  function setStepScreenshot(step, value) {
+    if (!(step instanceof HTMLElement)) return;
+
+    const screenshotInput = step.querySelector('[name="stepScreenshot"]');
+    if (screenshotInput instanceof HTMLInputElement) {
+      screenshotInput.value = value;
+      updateStepScreenshotPreview(step);
+    }
+  }
+
+  function readImageFile(file, step) {
+    if (!file.type.startsWith("image/")) {
+      if (errorsEl) {
+        errorsEl.hidden = false;
+        errorsEl.innerHTML = "<p>Please choose or paste an image file for the step screenshot.</p>";
+      }
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+      setStepScreenshot(step, typeof reader.result === "string" ? reader.result : "");
+      if (errorsEl) {
+        errorsEl.hidden = true;
+        errorsEl.innerHTML = "";
+      }
+    });
+    reader.readAsDataURL(file);
+  }
+
+  function createStepElement(step = {}, index = 1) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "procedure-step";
+    wrapper.dataset.step = "";
+    wrapper.innerHTML = `
+      <div class="procedure-step__header">
+        <strong>Step ${index}</strong>
+        ${index > 1 ? '<button class="button button--ghost" type="button" data-remove-step>Remove</button>' : ""}
+      </div>
+      <div class="field">
+        <label>Step title</label>
+        <input name="stepTitle" type="text" required />
+      </div>
+      <div class="field field--full">
+        <label>Step instructions</label>
+        <textarea name="stepInstructions" rows="3" required></textarea>
+      </div>
+      <div class="field">
+        <label>Optional note</label>
+        <input name="stepNote" type="text" />
+      </div>
+      <div class="field field--full">
+        <label>Step screenshot</label>
+        <div class="screenshot-input" data-screenshot-input>
+          <input name="stepScreenshot" type="hidden" />
+          <input name="stepScreenshotFile" type="file" accept="image/*" />
+          <div class="screenshot-paste-target" tabindex="0" data-screenshot-paste>
+            Paste a screenshot here or upload an image file.
+          </div>
+          <figure class="screenshot-preview" data-screenshot-preview hidden>
+            <img alt="Step screenshot preview" data-screenshot-image />
+            <figcaption>
+              <button class="button button--ghost" type="button" data-remove-screenshot>
+                Remove Screenshot
+              </button>
+            </figcaption>
+          </figure>
+        </div>
+      </div>
+    `;
+
+    wrapper.querySelector('[name="stepTitle"]').value = step.title || "";
+    wrapper.querySelector('[name="stepInstructions"]').value = step.instructions || "";
+    wrapper.querySelector('[name="stepNote"]').value = step.note || "";
+    wrapper.querySelector('[name="stepScreenshot"]').value = step.screenshot || "";
+    updateStepScreenshotPreview(wrapper);
+
+    return wrapper;
+  }
+
+  function renderSteps(steps) {
+    if (!stepContainer) return;
+
+    const safeSteps = Array.isArray(steps) && steps.length > 0 ? steps : [{}];
+    stepContainer.innerHTML = "";
+    safeSteps.forEach((step, index) => {
+      stepContainer.append(createStepElement(step, index + 1));
+    });
+  }
+
+  function loadEditSource() {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has("edit")) return;
+
+    let source = null;
+    try {
+      source = JSON.parse(sessionStorage.getItem(EDIT_SOP_STORAGE_KEY) || "null");
+    } catch {
+      source = null;
+    }
+
+    if (!source) {
+      if (createHeading) createHeading.textContent = "Edit Published SOP";
+      if (createDescription) {
+        createDescription.textContent =
+          "Open an SOP and use its Edit Published SOP button to prefill this draft editor.";
+      }
+      return;
+    }
+
+    if (createHeading) createHeading.textContent = "Edit Published SOP";
+    if (createDescription) {
+      createDescription.textContent = `Create a reviewed draft update for "${source.sourceTitle || source.title}". The published SOP stays unchanged until the revised draft is approved.`;
+    }
+
+    setField("title", source.title);
+    setField("purpose", source.purpose);
+    setField("owner", source.owner);
+    setField("category", source.category);
+    setField("type", source.type);
+    setField("reviewDate", source.reviewDate);
+    setField("tools", (source.tools || []).join(", "));
+    setField("audience", (source.audience || []).join(", "));
+    setField("tags", (source.tags || []).join(", "));
+    setField("estimatedCompletionTime", source.estimatedCompletionTime);
+    setField("beforeYouBegin", source.beforeYouBegin);
+    setField("screenshots", (source.screenshots || []).join("\n"));
+    setField("troubleshootingNotes", source.troubleshootingNotes);
+    setField("relatedSops", (source.relatedSops || []).join(", "));
+    setField("changeSummary", source.changeSummary);
+    setField("status", "Draft");
+    setField("version", source.version);
+    renderSteps(source.procedureSteps);
   }
 
   function validateDraft(draft) {
@@ -287,7 +481,7 @@ const draftStatuses = [
             ${step.note ? `<p><strong>Note:</strong> ${escapeHtml(step.note)}</p>` : ""}
             ${
               step.screenshot
-                ? `<p><strong>Screenshot:</strong> ${escapeHtml(step.screenshot)}</p>`
+                ? `<figure class="step-screenshot"><img src="${escapeHtml(step.screenshot)}" alt="Screenshot for ${escapeHtml(step.title)}" /><figcaption>Step screenshot</figcaption></figure>`
                 : ""
             }
           </li>
@@ -347,32 +541,7 @@ const draftStatuses = [
     if (!stepContainer) return;
 
     const stepCount = stepContainer.querySelectorAll("[data-step]").length + 1;
-    const wrapper = document.createElement("div");
-    wrapper.className = "procedure-step";
-    wrapper.dataset.step = "";
-    wrapper.innerHTML = `
-      <div class="procedure-step__header">
-        <strong>Step ${stepCount}</strong>
-        <button class="button button--ghost" type="button" data-remove-step>Remove</button>
-      </div>
-      <div class="field">
-        <label>Step title</label>
-        <input name="stepTitle" type="text" required />
-      </div>
-      <div class="field field--full">
-        <label>Step instructions</label>
-        <textarea name="stepInstructions" rows="3" required></textarea>
-      </div>
-      <div class="field">
-        <label>Optional note</label>
-        <input name="stepNote" type="text" />
-      </div>
-      <div class="field">
-        <label>Optional screenshot</label>
-        <input name="stepScreenshot" type="text" placeholder="/images/screenshots/example-placeholder.svg" />
-      </div>
-    `;
-    stepContainer.append(wrapper);
+    stepContainer.append(createStepElement({}, stepCount));
   });
 
   stepContainer?.addEventListener("click", (event) => {
@@ -382,6 +551,38 @@ const draftStatuses = [
     if (target.matches("[data-remove-step]")) {
       target.closest("[data-step]")?.remove();
     }
+
+    if (target.matches("[data-remove-screenshot]")) {
+      setStepScreenshot(getStepFromElement(target), "");
+      const step = getStepFromElement(target);
+      const fileInput = step?.querySelector('[name="stepScreenshotFile"]');
+      if (fileInput instanceof HTMLInputElement) {
+        fileInput.value = "";
+      }
+    }
+  });
+
+  stepContainer?.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement) || target.name !== "stepScreenshotFile") return;
+
+    const file = target.files?.[0];
+    if (file) {
+      readImageFile(file, getStepFromElement(target));
+    }
+  });
+
+  stepContainer?.addEventListener("paste", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement) || !target.closest("[data-screenshot-paste]")) return;
+
+    const file = Array.from(event.clipboardData?.files || []).find((item) =>
+      item.type.startsWith("image/"),
+    );
+    if (!file) return;
+
+    event.preventDefault();
+    readImageFile(file, getStepFromElement(target));
   });
 
   previewButton?.addEventListener("click", () => {
@@ -433,4 +634,6 @@ const draftStatuses = [
           : "<strong>Your SOP draft has been saved.</strong>";
     }
   });
+
+  loadEditSource();
 </script>

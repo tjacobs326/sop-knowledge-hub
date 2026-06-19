@@ -1,6 +1,7 @@
 import type { ReviewQueueItem, SopDraft } from "../types";
 
 export const DRAFTS_STORAGE_KEY = "sopHubDrafts";
+export const EDIT_SOP_STORAGE_KEY = "sopHubEditSource";
 
 export function createDraftReviewItem(draft: SopDraft): ReviewQueueItem {
   return {

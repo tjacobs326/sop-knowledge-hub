@@ -88,6 +88,7 @@ export interface SopDraft {
   estimatedCompletionTime?: string;
   beforeYouBegin?: string;
   procedureSteps: ProcedureStep[];
+  screenshots?: string[];
   troubleshootingNotes?: string;
   relatedSops: string[];
   reviewDate: string;
