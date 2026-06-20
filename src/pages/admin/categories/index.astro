@@ -13,24 +13,295 @@ import { categories } from "../../../data/categories";
       <p>Manage the SOP category structure used across search, finder, and request intake.</p>
     </div>
 
+    <div class="form-actions">
+      <button class="button button--primary" type="button" id="create-category">
+        Create Category
+      </button>
+    </div>
+
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
             <th scope="col">Category</th>
             <th scope="col">Description</th>
+            <th scope="col">Action</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody id="admin-category-list">
           {categories.map((category) => (
-            <tr>
+            <tr data-edit-category={category.slug} tabindex="0">
               <td>{category.name}</td>
               <td>{category.description}</td>
+              <td>
+                <button class="button button--secondary" type="button" data-edit-category={category.slug}>
+                  Edit Category
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
     </div>
+
+    <form class="form-grid" id="category-editor" hidden>
+      <h2 class="form-section-title field--full" id="category-editor-heading">Edit Category</h2>
+      <input id="category-original-slug" name="originalSlug" type="hidden" />
+      <div class="field">
+        <label for="category-name">Category name</label>
+        <input id="category-name" name="name" type="text" required />
+      </div>
+      <div class="field">
+        <label for="category-slug">Slug</label>
+        <input id="category-slug" name="slug" type="text" required />
+      </div>
+      <div class="field">
+        <label for="category-icon">Icon</label>
+        <input id="category-icon" name="icon" type="text" />
+      </div>
+      <div class="field">
+        <label for="category-color">Color</label>
+        <input id="category-color" name="color" type="color" />
+      </div>
+      <div class="field field--full">
+        <label for="category-description">Description</label>
+        <textarea id="category-description" name="description" rows="3" required></textarea>
+      </div>
+      <div class="form-actions field--full">
+        <button class="button button--primary" type="submit">Save Category</button>
+        <button class="button button--danger" type="button" id="delete-category">
+          Delete Category
+        </button>
+        <button class="button button--ghost" type="button" id="cancel-category-edit">
+          Cancel
+        </button>
+      </div>
+      <div class="confirmation field--full" id="category-confirmation" role="status" hidden></div>
+    </form>
   </section>
 </Layout>
 
+<script is:inline define:vars={{ initialCategories: categories }}>
+  const CATEGORY_ADMIN_STORAGE_KEY = "sopHubAdminCategories";
+  const list = document.getElementById("admin-category-list");
+  const editor = document.getElementById("category-editor");
+  const editorHeading = document.getElementById("category-editor-heading");
+  const createButton = document.getElementById("create-category");
+  const deleteButton = document.getElementById("delete-category");
+  const cancelButton = document.getElementById("cancel-category-edit");
+  const confirmation = document.getElementById("category-confirmation");
+
+  const escapeHtml = (value) =>
+    String(value ?? "").replace(/[&<>"']/g, (character) => {
+      const replacements = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      };
+      return replacements[character];
+    });
+
+  const slugify = (value) =>
+    String(value)
+      .toLowerCase()
+      .trim()
+      .replace(/&/g, "and")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+
+  function readCategories() {
+    try {
+      const stored = JSON.parse(localStorage.getItem(CATEGORY_ADMIN_STORAGE_KEY) || "null");
+      return Array.isArray(stored) && stored.length > 0 ? stored : initialCategories;
+    } catch {
+      return initialCategories;
+    }
+  }
+
+  function writeCategories(value) {
+    localStorage.setItem(CATEGORY_ADMIN_STORAGE_KEY, JSON.stringify(value));
+  }
+
+  function setField(name, value) {
+    const element = editor?.querySelector(`[name="${name}"]`);
+    if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+      element.value = String(value ?? "");
+    }
+  }
+
+  function getField(name) {
+    const element = editor?.querySelector(`[name="${name}"]`);
+    return element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement
+      ? element.value.trim()
+      : "";
+  }
+
+  function renderCategories() {
+    if (!list) return;
+
+    list.innerHTML = readCategories()
+      .map(
+        (category) => `
+          <tr data-edit-category="${escapeHtml(category.slug)}" tabindex="0">
+            <td>${escapeHtml(category.icon || "")} ${escapeHtml(category.name)}</td>
+            <td>${escapeHtml(category.description)}</td>
+            <td>
+              <button class="button button--secondary" type="button" data-edit-category="${escapeHtml(
+                category.slug,
+              )}">
+                Edit Category
+              </button>
+            </td>
+          </tr>
+        `,
+      )
+      .join("");
+  }
+
+  function showEditor() {
+    if (!(editor instanceof HTMLFormElement)) return;
+
+    editor.hidden = false;
+    editor.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function openCreateEditor() {
+    if (!(editor instanceof HTMLFormElement)) return;
+
+    editor.reset();
+    setField("originalSlug", "");
+    setField("name", "");
+    setField("slug", "");
+    setField("description", "");
+    setField("icon", "");
+    setField("color", "#f8fafc");
+
+    if (editorHeading) editorHeading.textContent = "Create Category";
+    if (deleteButton instanceof HTMLButtonElement) deleteButton.hidden = true;
+    if (confirmation) confirmation.hidden = true;
+    showEditor();
+  }
+
+  function openEditor(slug) {
+    const category = readCategories().find((item) => item.slug === slug);
+    if (!category || !(editor instanceof HTMLFormElement)) return;
+
+    setField("originalSlug", category.slug);
+    setField("name", category.name);
+    setField("slug", category.slug);
+    setField("description", category.description);
+    setField("icon", category.icon);
+    setField("color", category.color || "#f8fafc");
+
+    if (editorHeading) editorHeading.textContent = `Edit ${category.name}`;
+    if (deleteButton instanceof HTMLButtonElement) deleteButton.hidden = false;
+    if (confirmation) confirmation.hidden = true;
+    showEditor();
+  }
+
+  createButton?.addEventListener("click", openCreateEditor);
+
+  list?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+
+    const row = target.closest("[data-edit-category]");
+    if (!(row instanceof HTMLElement)) return;
+
+    openEditor(row.dataset.editCategory);
+  });
+
+  list?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+
+    const target = event.target;
+    if (!(target instanceof HTMLElement) || !target.matches("tr[data-edit-category]")) return;
+
+    event.preventDefault();
+    openEditor(target.dataset.editCategory);
+  });
+
+  editor?.addEventListener("input", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement) || target.name !== "name") return;
+
+    const slug = getField("slug");
+    const originalSlug = getField("originalSlug");
+    if (!slug || slug === originalSlug) {
+      setField("slug", slugify(target.value));
+    }
+  });
+
+  editor?.addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    const originalSlug = getField("originalSlug");
+    const updated = {
+      name: getField("name"),
+      slug: slugify(getField("slug") || getField("name")),
+      description: getField("description"),
+      icon: getField("icon"),
+      color: getField("color") || "#f8fafc",
+    };
+
+    let categories = readCategories();
+    const slugAlreadyExists = categories.some(
+      (category) => category.slug === updated.slug && category.slug !== originalSlug,
+    );
+
+    if (slugAlreadyExists) {
+      if (confirmation) {
+        confirmation.hidden = false;
+        confirmation.innerHTML =
+          "<strong>Slug already exists.</strong><p>Use a unique slug before saving this category.</p>";
+      }
+      return;
+    }
+
+    categories = originalSlug
+      ? categories.map((category) => (category.slug === originalSlug ? updated : category))
+      : [...categories, updated];
+    writeCategories(categories);
+    renderCategories();
+    setField("originalSlug", updated.slug);
+    if (editorHeading) editorHeading.textContent = `Edit ${updated.name}`;
+    if (deleteButton instanceof HTMLButtonElement) deleteButton.hidden = false;
+
+    if (confirmation) {
+      confirmation.hidden = false;
+      confirmation.innerHTML =
+        "<strong>Category saved.</strong><p>This admin category change is saved in this browser.</p>";
+    }
+  });
+
+  deleteButton?.addEventListener("click", () => {
+    const originalSlug = getField("originalSlug");
+    const categoryName = getField("name") || "this category";
+    if (!originalSlug) return;
+
+    const confirmed = window.confirm(
+      `Delete "${categoryName}"? SOPs using this category will not be reassigned automatically.`,
+    );
+    if (!confirmed) return;
+
+    const categories = readCategories().filter((category) => category.slug !== originalSlug);
+    writeCategories(categories);
+    renderCategories();
+
+    if (editor instanceof HTMLFormElement) {
+      editor.reset();
+      editor.hidden = true;
+    }
+  });
+
+  cancelButton?.addEventListener("click", () => {
+    if (editor instanceof HTMLFormElement) {
+      editor.hidden = true;
+      editor.reset();
+    }
+  });
+
+  renderCategories();
+</script>

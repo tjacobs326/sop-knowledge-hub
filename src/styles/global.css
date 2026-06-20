@@ -399,6 +399,17 @@ img {
   border-color: #e7a94d;
 }
 
+.button--danger {
+  color: var(--color-white);
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+.button--danger:hover {
+  color: var(--color-white);
+  background: #b91c1c;
+}
+
 .button--ghost {
   color: var(--color-ink);
   background: transparent;

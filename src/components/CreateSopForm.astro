@@ -175,6 +175,8 @@ const draftStatuses = [
   const confirmation = document.getElementById("create-confirmation");
 
   let currentDraft = null;
+  let editingDraftId = "";
+  let editingCreatedDate = "";
 
   const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (character) => {
@@ -375,9 +377,17 @@ const draftStatuses = [
       return;
     }
 
-    if (createHeading) createHeading.textContent = "Edit Published SOP";
+    const isDraftEdit = source.editMode === "draft";
+    editingDraftId = isDraftEdit ? source.id || "" : "";
+    editingCreatedDate = isDraftEdit ? source.createdDate || "" : "";
+
+    if (createHeading) {
+      createHeading.textContent = isDraftEdit ? "Edit SOP Draft" : "Edit Published SOP";
+    }
     if (createDescription) {
-      createDescription.textContent = `Create a reviewed draft update for "${source.sourceTitle || source.title}". The published SOP stays unchanged until the revised draft is approved.`;
+      createDescription.textContent = isDraftEdit
+        ? `Continue editing "${source.title}". Saving will update this draft in My Drafts.`
+        : `Create a reviewed draft update for "${source.sourceTitle || source.title}". The published SOP stays unchanged until the revised draft is approved.`;
     }
 
     setField("title", source.title);
@@ -395,7 +405,7 @@ const draftStatuses = [
     setField("troubleshootingNotes", source.troubleshootingNotes);
     setField("relatedSops", (source.relatedSops || []).join(", "));
     setField("changeSummary", source.changeSummary);
-    setField("status", "Draft");
+    setField("status", isDraftEdit ? source.status || "Draft" : "Draft");
     setField("version", source.version);
     renderSteps(source.procedureSteps);
   }
@@ -427,7 +437,7 @@ const draftStatuses = [
     const title = getField("title");
 
     return {
-      id: `draft-${slugify(title || "untitled")}-${Date.now()}`,
+      id: editingDraftId || `draft-${slugify(title || "untitled")}-${Date.now()}`,
       title,
       purpose: getField("purpose"),
       owner: getField("owner"),
@@ -446,7 +456,7 @@ const draftStatuses = [
       status: statusOverride || getField("status") || "Draft",
       version: getField("version") || "0.1",
       changeSummary: getField("changeSummary") || "Initial draft created.",
-      createdDate: today,
+      createdDate: editingCreatedDate || today,
       updatedDate: today,
     };
   }
@@ -620,7 +630,7 @@ const draftStatuses = [
 
     const draftToStore = {
       ...currentDraft,
-      status: action === "submit" ? "In Review" : "Draft",
+      status: action === "submit" ? "In Review" : currentDraft.status || getField("status") || "Draft",
       updatedDate: new Date().toISOString().slice(0, 10),
     };
 

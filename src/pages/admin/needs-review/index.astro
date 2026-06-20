@@ -2,8 +2,12 @@
 import Layout from "../../../components/Layout.astro";
 import { mockDrafts } from "../../../data/mock-drafts";
 import { mockSubmissions } from "../../../data/mock-submissions";
-import { createDraftReviewItem } from "../../../lib/drafts";
-import { createSubmissionReviewItem } from "../../../lib/submissions";
+import { createDraftReviewItem, DRAFTS_STORAGE_KEY, EDIT_SOP_STORAGE_KEY } from "../../../lib/drafts";
+import {
+  createSubmissionReviewItem,
+  REVIEW_QUEUE_STORAGE_KEY,
+  SUBMISSIONS_STORAGE_KEY,
+} from "../../../lib/submissions";
 
 // Future access note: restrict this route to SOP reviewers and admins with Cloudflare Access.
 const items = [
@@ -33,9 +37,10 @@ const items = [
             <th scope="col">Status</th>
             <th scope="col">Priority</th>
             <th scope="col">Owner</th>
+            <th scope="col">Action</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody id="needs-review-list">
           {items.map((item) => (
             <tr>
               <td>{item.title}</td>
@@ -43,6 +48,11 @@ const items = [
               <td>{item.status}</td>
               <td>{item.priority}</td>
               <td>{item.assignedOwner || "Unassigned"}</td>
+              <td>
+                <button class="button button--secondary" type="button" data-edit-review={item.id}>
+                  Edit Item
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -51,3 +61,196 @@ const items = [
   </section>
 </Layout>
 
+<script
+  is:inline
+  define:vars={{
+    initialItems: items,
+    initialDrafts: mockDrafts,
+    initialSubmissions: mockSubmissions,
+    DRAFTS_STORAGE_KEY,
+    EDIT_SOP_STORAGE_KEY,
+    REVIEW_QUEUE_STORAGE_KEY,
+    SUBMISSIONS_STORAGE_KEY,
+  }}
+>
+  const list = document.getElementById("needs-review-list");
+  const needsReviewStatuses = [
+    "Submitted",
+    "Triage",
+    "In Review",
+    "Needs More Information",
+    "Needs Revision",
+  ];
+
+  const escapeHtml = (value) =>
+    String(value ?? "").replace(/[&<>"']/g, (character) => {
+      const replacements = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      };
+      return replacements[character];
+    });
+
+  function readStorage(key) {
+    try {
+      return JSON.parse(localStorage.getItem(key) || "[]");
+    } catch {
+      return [];
+    }
+  }
+
+  function writeStorage(key, value) {
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+
+  function mergeById(...groups) {
+    const map = new Map();
+    groups.flat().forEach((item) => {
+      if (item?.id) map.set(item.id, item);
+    });
+    return Array.from(map.values());
+  }
+
+  function getDrafts() {
+    return mergeById(initialDrafts, readStorage(DRAFTS_STORAGE_KEY));
+  }
+
+  function getSubmissions() {
+    return mergeById(initialSubmissions, readStorage(SUBMISSIONS_STORAGE_KEY));
+  }
+
+  function getReviewItems() {
+    return mergeById(initialItems, readStorage(REVIEW_QUEUE_STORAGE_KEY)).filter((item) =>
+      needsReviewStatuses.includes(item.status),
+    );
+  }
+
+  function submissionToDraft(submission) {
+    const today = new Date().toISOString().slice(0, 10);
+    return {
+      id: `draft-from-${submission.id}`,
+      title: submission.title,
+      purpose:
+        submission.businessNeed ||
+        submission.purpose ||
+        "Purpose to be refined by the SOP owner.",
+      owner: submission.assignedOwner || "Unassigned SOP Owner",
+      category: submission.category,
+      type: submission.submissionType === "Request a template" ? "Template" : "Process",
+      tools: submission.toolOrSystem ? [submission.toolOrSystem] : [],
+      audience: [submission.department, submission.audience].filter(Boolean),
+      tags: [submission.category, submission.priority, submission.submissionType]
+        .filter(Boolean)
+        .map((value) => String(value).toLowerCase()),
+      estimatedCompletionTime: "To be estimated",
+      beforeYouBegin: submission.beforeYouBegin,
+      procedureSteps: (submission.procedureSteps || []).map((step, index) => ({
+        title: `Step ${index + 1}`,
+        instructions: step,
+      })),
+      screenshots: submission.screenshots || [],
+      troubleshootingNotes: submission.knownIssues,
+      relatedSops: submission.relatedResources || [],
+      reviewDate: submission.reviewDate || today,
+      status: "Draft",
+      version: "0.1",
+      changeSummary: "Converted from outside department submission.",
+      createdDate: today,
+      updatedDate: today,
+      originalSubmissionId: submission.id,
+    };
+  }
+
+  function renderItems() {
+    if (!list) return;
+
+    const items = getReviewItems();
+    list.innerHTML =
+      items.length > 0
+        ? items
+            .map(
+              (item) => `
+                <tr>
+                  <td>${escapeHtml(item.title)}</td>
+                  <td>${escapeHtml(item.submissionType)}</td>
+                  <td>${escapeHtml(item.status)}</td>
+                  <td>${escapeHtml(item.priority)}</td>
+                  <td>${escapeHtml(item.assignedOwner || "Unassigned")}</td>
+                  <td>
+                    <button class="button button--secondary" type="button" data-edit-review="${escapeHtml(
+                      item.id,
+                    )}">
+                      Edit Item
+                    </button>
+                  </td>
+                </tr>
+              `,
+            )
+            .join("")
+        : `<tr><td colspan="6">No items currently need review.</td></tr>`;
+  }
+
+  function openDraftEditor(draft) {
+    sessionStorage.setItem(
+      EDIT_SOP_STORAGE_KEY,
+      JSON.stringify({
+        ...draft,
+        editMode: "draft",
+      }),
+    );
+    window.location.href = `/create/?edit=draft&id=${encodeURIComponent(draft.id)}`;
+  }
+
+  function convertSubmissionAndOpen(item) {
+    const submission = getSubmissions().find((record) => record.id === item.originalId);
+    if (!submission) return;
+
+    const draft = submissionToDraft(submission);
+    const drafts = getDrafts().filter((record) => record.id !== draft.id);
+    writeStorage(DRAFTS_STORAGE_KEY, [...drafts, draft]);
+
+    const reviewItem = {
+      id: `review-${draft.id}`,
+      source: "Internal SOP Creator",
+      submissionType: "Submit a draft SOP",
+      title: draft.title,
+      department: draft.audience[0],
+      submittedBy: draft.owner,
+      category: draft.category,
+      priority: item.priority,
+      status: "Drafting",
+      assignedOwner: draft.owner,
+      createdDate: draft.createdDate,
+      reviewDate: draft.reviewDate,
+      originalId: draft.id,
+    };
+    const reviewItems = mergeById(readStorage(REVIEW_QUEUE_STORAGE_KEY), [reviewItem]);
+    writeStorage(REVIEW_QUEUE_STORAGE_KEY, reviewItems);
+
+    openDraftEditor(draft);
+  }
+
+  list?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+
+    const button = target.closest("[data-edit-review]");
+    if (!(button instanceof HTMLElement)) return;
+
+    const item = getReviewItems().find((record) => record.id === button.dataset.editReview);
+    if (!item) return;
+
+    if (item.source === "Internal SOP Creator") {
+      const draft = getDrafts().find((record) => record.id === item.originalId);
+      if (draft) openDraftEditor(draft);
+      return;
+    }
+
+    convertSubmissionAndOpen(item);
+  });
+
+  renderItems();
+</script>

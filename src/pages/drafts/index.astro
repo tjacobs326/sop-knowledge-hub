@@ -1,7 +1,7 @@
 ---
 import Layout from "../../components/Layout.astro";
 import { mockDrafts } from "../../data/mock-drafts";
-import { DRAFTS_STORAGE_KEY } from "../../lib/drafts";
+import { DRAFTS_STORAGE_KEY, EDIT_SOP_STORAGE_KEY } from "../../lib/drafts";
 
 // Future access note: restrict this route to SOP creators and reviewers with Cloudflare Access.
 ---
@@ -28,6 +28,7 @@ import { DRAFTS_STORAGE_KEY } from "../../lib/drafts";
             <th scope="col">Status</th>
             <th scope="col">Owner</th>
             <th scope="col">Review Date</th>
+            <th scope="col">Action</th>
           </tr>
         </thead>
         <tbody id="drafts-list">
@@ -38,6 +39,11 @@ import { DRAFTS_STORAGE_KEY } from "../../lib/drafts";
               <td>{draft.status}</td>
               <td>{draft.owner}</td>
               <td>{draft.reviewDate}</td>
+              <td>
+                <button class="button button--secondary" type="button" data-edit-draft={draft.id}>
+                  Edit Draft
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -46,8 +52,9 @@ import { DRAFTS_STORAGE_KEY } from "../../lib/drafts";
   </section>
 </Layout>
 
-<script is:inline define:vars={{ DRAFTS_STORAGE_KEY }}>
+<script is:inline define:vars={{ DRAFTS_STORAGE_KEY, EDIT_SOP_STORAGE_KEY, mockDrafts }}>
   const list = document.getElementById("drafts-list");
+  let currentDrafts = [...mockDrafts];
 
   const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (character) => {
@@ -64,6 +71,7 @@ import { DRAFTS_STORAGE_KEY } from "../../lib/drafts";
   try {
     const localDrafts = JSON.parse(localStorage.getItem(DRAFTS_STORAGE_KEY) || "[]");
     if (Array.isArray(localDrafts) && localDrafts.length > 0 && list) {
+      currentDrafts = localDrafts;
       list.innerHTML = localDrafts
         .map(
           (draft) => `
@@ -73,6 +81,13 @@ import { DRAFTS_STORAGE_KEY } from "../../lib/drafts";
               <td>${escapeHtml(draft.status)}</td>
               <td>${escapeHtml(draft.owner)}</td>
               <td>${escapeHtml(draft.reviewDate)}</td>
+              <td>
+                <button class="button button--secondary" type="button" data-edit-draft="${escapeHtml(
+                  draft.id,
+                )}">
+                  Edit Draft
+                </button>
+              </td>
             </tr>
           `,
         )
@@ -81,5 +96,24 @@ import { DRAFTS_STORAGE_KEY } from "../../lib/drafts";
   } catch {
     // Keep the sample rows if local draft storage is unavailable.
   }
-</script>
 
+  list?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+
+    const button = target.closest("[data-edit-draft]");
+    if (!(button instanceof HTMLElement)) return;
+
+    const draft = currentDrafts.find((item) => item.id === button.dataset.editDraft);
+    if (!draft) return;
+
+    sessionStorage.setItem(
+      EDIT_SOP_STORAGE_KEY,
+      JSON.stringify({
+        ...draft,
+        editMode: "draft",
+      }),
+    );
+    window.location.href = `/create/?edit=draft&id=${encodeURIComponent(draft.id)}`;
+  });
+</script>
