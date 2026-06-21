@@ -2,60 +2,33 @@
 import Layout from "../../../components/Layout.astro";
 import { mockDrafts } from "../../../data/mock-drafts";
 import { mockSubmissions } from "../../../data/mock-submissions";
+import {
+  approvalCycles,
+  searchLogs,
+  sopUsageSignals,
+  topMissingRequests,
+} from "../../../data/mock-platform";
 import { daysUntil, formatDate } from "../../../lib/dates";
 import { getAllSops, getSopUrl } from "../../../lib/sops";
 
 // Future access note: restrict this route to admins with Cloudflare Access.
 const sops = await getAllSops();
 
-const usageSignals = [
-  { id: "sop-ivanti-submit-ticket", views: 184, helpful: 41, notHelpful: 3 },
-  { id: "sop-final-course-qa", views: 159, helpful: 36, notHelpful: 5 },
-  { id: "sop-copy-d2l-course-shell", views: 132, helpful: 29, notHelpful: 2 },
-  { id: "sop-troubleshoot-missing-d2l-content", views: 118, helpful: 24, notHelpful: 6 },
-  { id: "sop-use-ai-to-draft-course-content", views: 94, helpful: 21, notHelpful: 4 },
-  { id: "sop-course-build-request", views: 86, helpful: 18, notHelpful: 2 },
-  { id: "sop-course-build-request-template", views: 61, helpful: 13, notHelpful: 1 },
-];
+const searchTerms = searchLogs
+  .filter((log) => log.resultType === "Result")
+  .map((log) => [log.query, Math.max(log.resultCount, 1)] as const);
 
-const searchTerms: Array<[string, number]> = [
-  ["ivanti ticket", 72],
-  ["final qa checklist", 48],
-  ["copy d2l course", 44],
-  ["missing content", 31],
-  ["ai prompt", 27],
-];
-
-const noResultSearches: Array<[string, number]> = [
-  ["gradebook export", 14],
-  ["access request form", 11],
-  ["new employee checklist", 9],
-  ["rubric setup", 7],
-  ["course archive", 5],
-];
-
-const approvalCycles = [
-  { title: "Complete Final Course QA", submitted: "2026-06-03", approved: "2026-06-10" },
-  { title: "Use AI to Draft Course Content", submitted: "2026-06-05", approved: "2026-06-13" },
-  { title: "Copy a Brightspace D2L Course Shell", submitted: "2026-06-04", approved: "2026-06-09" },
-  { title: "Prepare a Course Build Request", submitted: "2026-06-06", approved: "2026-06-14" },
-];
-
-const topMissingRequests: Array<[string, number]> = [
-  ["Gradebook export process", 14],
-  ["New employee SOP checklist", 9],
-  ["Rubric setup standards", 8],
-  ["Course archive request", 6],
-  ["Canvas to D2L migration steps", 4],
-];
+const noResultSearches = searchLogs
+  .filter((log) => log.resultType === "No Result")
+  .map((log) => [log.query, Math.max(log.resultCount, 1)] as const);
 
 const sopById = new Map(sops.map((sop) => [sop.data.id, sop]));
-const mostViewed = usageSignals
-  .map((signal) => ({ ...signal, sop: sopById.get(signal.id) }))
+const mostViewed = sopUsageSignals
+  .map((signal) => ({ ...signal, sop: sopById.get(signal.sopId) }))
   .filter((item) => item.sop)
   .sort((a, b) => b.views - a.views);
 
-const ratingTotals = usageSignals.reduce(
+const ratingTotals = sopUsageSignals.reduce(
   (total, item) => ({
     helpful: total.helpful + item.helpful,
     notHelpful: total.notHelpful + item.notHelpful,
@@ -91,7 +64,7 @@ const categoryCounts = [...new Set(sops.map((sop) => sop.data.category))]
 const maxCategoryCount = Math.max(...categoryCounts.map((item) => item.count), 1);
 
 const topStats = [
-  ["Total SOP Views", usageSignals.reduce((total, item) => total + item.views, 0)],
+  ["Total SOP Views", sopUsageSignals.reduce((total, item) => total + item.views, 0)],
   ["Helpful Rating", `${helpfulRate}%`],
   ["Avg. Time to Approval", `${averageApprovalDays} days`],
   ["Past Review Date", pastReview.length],
@@ -308,7 +281,7 @@ const topStats = [
               </tr>
             </thead>
             <tbody>
-              {topMissingRequests.map(([title, count]) => (
+              {topMissingRequests.map(({ title, count }) => (
                 <tr>
                   <td>{title}</td>
                   <td>{count}</td>

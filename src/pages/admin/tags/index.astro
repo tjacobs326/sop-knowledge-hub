@@ -1,5 +1,6 @@
 ---
 import Layout from "../../../components/Layout.astro";
+import { tags as platformTags } from "../../../data/mock-platform";
 import { getAllSops } from "../../../lib/sops";
 
 // Future access note: restrict this route to admins with Cloudflare Access.
@@ -11,10 +12,11 @@ sops.forEach((sop) => {
 const tags = [...tagCounts.entries()]
   .sort((a, b) => a[0].localeCompare(b[0]))
   .map(([name, usageCount]) => ({
+    ...platformTags.find((tag) => tag.name === name),
     name,
     usageCount,
-    status: "Active",
-    notes: "",
+    status: platformTags.find((tag) => tag.name === name)?.status ?? "Active",
+    notes: platformTags.find((tag) => tag.name === name)?.notes ?? "",
   }));
 
 const statusOptions = ["Active", "Needs Review", "Deprecated"];
@@ -153,6 +155,14 @@ const statusOptions = ["Active", "Needs Review", "Deprecated"];
       : "";
   }
 
+  function slugify(value) {
+    return String(value || "tag")
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  }
+
   function renderTags() {
     if (!list) return;
 
@@ -243,11 +253,18 @@ const statusOptions = ["Active", "Needs Review", "Deprecated"];
     event.preventDefault();
 
     const originalName = getField("originalName");
+    const existingTag = readTags().find((tag) => tag.name === originalName);
+    const slug = slugify(getField("name"));
     const updated = {
+      ...existingTag,
+      id: existingTag?.id || `tag-${slug}`,
       name: getField("name"),
+      slug,
       usageCount: Number(getField("usageCount") || 0),
       status: getField("status") || "Active",
       notes: getField("notes"),
+      createdAt: existingTag?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
     let tags = readTags();

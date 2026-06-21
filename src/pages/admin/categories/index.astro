@@ -238,12 +238,20 @@ import { categories } from "../../../data/categories";
     event.preventDefault();
 
     const originalSlug = getField("originalSlug");
+    const existingCategory = readCategories().find((category) => category.slug === originalSlug);
+    const slug = slugify(getField("slug") || getField("name"));
     const updated = {
+      ...existingCategory,
+      id: existingCategory?.id || `category-${slug}`,
       name: getField("name"),
-      slug: slugify(getField("slug") || getField("name")),
+      slug,
       description: getField("description"),
       icon: getField("icon"),
       color: getField("color") || "#f8fafc",
+      sortOrder: existingCategory?.sortOrder || readCategories().length * 10 + 10,
+      status: existingCategory?.status || "Active",
+      createdAt: existingCategory?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
     let categories = readCategories();

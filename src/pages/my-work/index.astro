@@ -2,6 +2,7 @@
 import Layout from "../../components/Layout.astro";
 import { mockDrafts } from "../../data/mock-drafts";
 import { mockSubmissions } from "../../data/mock-submissions";
+import { userAccounts } from "../../data/mock-users";
 import { DRAFTS_STORAGE_KEY } from "../../lib/drafts";
 import { getAllSops, getSopUrl } from "../../lib/sops";
 import { REVIEW_QUEUE_STORAGE_KEY, SUBMISSIONS_STORAGE_KEY, createSubmissionReviewItem } from "../../lib/submissions";
@@ -20,26 +21,7 @@ const reviewItems = [
   ...mockSubmissions.map(createSubmissionReviewItem),
 ];
 
-const currentUsers = [
-  {
-    name: "Tarek Jacobs",
-    email: "tjacobs@example.org",
-    department: "Instructional Technology",
-    accessLevel: "Admin",
-  },
-  {
-    name: "Maya Patel",
-    email: "maya.patel@example.edu",
-    department: "Curriculum Design",
-    accessLevel: "Creator / Reviewer",
-  },
-  {
-    name: "Jordan Lee",
-    email: "jordan.lee@example.edu",
-    department: "Student Services",
-    accessLevel: "Normal User",
-  },
-];
+const currentUsers = userAccounts.filter((user) => user.status === "Active");
 
 const sopRecords = sops.map((sop) => ({
   id: sop.data.id,

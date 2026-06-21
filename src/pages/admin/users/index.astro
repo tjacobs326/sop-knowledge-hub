@@ -1,51 +1,14 @@
 ---
 import Layout from "../../../components/Layout.astro";
-import { USER_STORAGE_KEY, accessLevels, userAccounts } from "../../../data/mock-users";
+import {
+  USER_STORAGE_KEY,
+  accessLevels,
+  permissionOptions,
+  roles,
+  userAccounts,
+} from "../../../data/mock-users";
 
 // Future access note: restrict this route to admins with Cloudflare Access.
-const roles = [
-  {
-    id: "normal-users",
-    name: "Normal Users",
-    accessGroup: "All staff",
-    landingPage: "/search/",
-    description: "Search SOPs, use Guided Finder, browse categories, and submit requests.",
-    permissions: ["Search SOPs", "Use Guided Finder", "Browse Categories", "Submit Requests"],
-  },
-  {
-    id: "creators-reviewers",
-    name: "Creators / Reviewers",
-    accessGroup: "SOP creators and reviewers",
-    landingPage: "/drafts/",
-    description: "Create SOPs, manage drafts, review submissions, and publish approved work.",
-    permissions: ["Create SOPs", "Edit Drafts", "Review Queue", "Needs Review"],
-  },
-  {
-    id: "admins",
-    name: "Admins",
-    accessGroup: "SOP administrators",
-    landingPage: "/admin/users/",
-    description: "Manage users, taxonomy, analytics, and system settings.",
-    permissions: ["Manage Users", "Manage Categories", "Manage Tags", "View Analytics", "Settings"],
-  },
-];
-
-const permissionOptions = [
-  "Search SOPs",
-  "Use Guided Finder",
-  "Browse Categories",
-  "Submit Requests",
-  "Create SOPs",
-  "Edit Drafts",
-  "Review Queue",
-  "Needs Review",
-  "Manage Users",
-  "Manage Categories",
-  "Manage Tags",
-  "View Analytics",
-  "Settings",
-];
-
 ---
 
 <Layout title="Users" wide>
@@ -337,11 +300,7 @@ const permissionOptions = [
   }
 
   function permissionsForAccessLevel(accessLevel) {
-    const role = readRoles().find((item) => {
-      if (accessLevel === "Normal User") return item.id === "normal-users";
-      if (accessLevel === "Creator / Reviewer") return item.id === "creators-reviewers";
-      return item.id === "admins";
-    });
+    const role = readRoles().find((item) => item.accessLevel === accessLevel);
     return role?.permissions || [];
   }
 
@@ -528,13 +487,16 @@ const permissionOptions = [
     event.preventDefault();
 
     const roleId = getField("id");
+    const existingRole = readRoles().find((role) => role.id === roleId);
     const updated = {
+      ...existingRole,
       id: roleId,
       name: getField("name"),
       accessGroup: getField("accessGroup"),
       landingPage: getField("landingPage"),
       description: getField("description"),
       permissions: getPermissions(),
+      updatedAt: new Date().toISOString(),
     };
 
     const roles = readRoles().map((role) => (role.id === roleId ? updated : role));
@@ -560,14 +522,22 @@ const permissionOptions = [
     event.preventDefault();
 
     const existingId = getUserField("id");
+    const existingUser = readUsers().find((user) => user.id === existingId);
+    const accessLevel = getUserField("accessLevel");
+    const role = readRoles().find((item) => item.accessLevel === accessLevel);
     const updated = {
+      ...existingUser,
       id: existingId || userIdFromEmail(getUserField("email")),
       name: getUserField("name"),
       email: getUserField("email"),
       department: getUserField("department"),
-      accessLevel: getUserField("accessLevel"),
+      accessLevel,
+      roleIds: role ? [role.id] : existingUser?.roleIds || [],
+      teamIds: existingUser?.teamIds || [],
       permissions: getUserPermissions(),
       status: getUserField("status") || "Active",
+      createdAt: existingUser?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
     let users = readUsers();
