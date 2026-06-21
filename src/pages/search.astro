@@ -20,7 +20,7 @@ const tags = uniqueSorted(sops.flatMap((sop) => sop.data.tags));
       <h1>Search SOPs</h1>
     </div>
 
-    <form class="search-filters no-print" id="sop-search-form">
+    <form class="search-filters search-filters--sticky no-print" id="sop-search-form">
       <div class="field field--full">
         <label for="search-query">Search by title, tag, tool, owner, category, or keyword</label>
         <input id="search-query" type="search" value={initialQuery} autocomplete="off" />
@@ -67,6 +67,10 @@ const tags = uniqueSorted(sops.flatMap((sop) => sop.data.tags));
     </form>
 
     <p class="result-count" id="result-count"></p>
+    <div class="empty-state empty-state--search" id="search-empty" hidden>
+      <strong>No SOPs found</strong>
+      <p>Try clearing a filter or searching by a broader tool, tag, owner, or keyword.</p>
+    </div>
     <div class="sop-grid" id="search-results">
       {
         sops.map((sop) => (
@@ -107,6 +111,7 @@ const tags = uniqueSorted(sops.flatMap((sop) => sop.data.tags));
   const statusFilter = document.getElementById("filter-status");
   const tagFilter = document.getElementById("filter-tag");
   const resultCount = document.getElementById("result-count");
+  const emptyState = document.getElementById("search-empty");
   const cards = Array.from(document.querySelectorAll("[data-search-card]"));
 
   function valueOf(element) {
@@ -146,6 +151,9 @@ const tags = uniqueSorted(sops.flatMap((sop) => sop.data.tags));
 
     if (resultCount) {
       resultCount.textContent = `${visibleCount} SOP${visibleCount === 1 ? "" : "s"} found`;
+    }
+    if (emptyState) {
+      emptyState.hidden = visibleCount !== 0;
     }
   }
 

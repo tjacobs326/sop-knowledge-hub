@@ -1,0 +1,55 @@
+---
+const labels: Record<string, string> = {
+  admin: "Admin",
+  "ai-assist": "AI Assist",
+  analytics: "Analytics",
+  categories: "Categories",
+  create: "Create SOP",
+  drafts: "My Drafts",
+  finder: "Guided Finder",
+  "my-work": "My Work",
+  "needs-review": "Needs Review",
+  review: "Review Queue",
+  search: "Search SOPs",
+  settings: "Settings",
+  sops: "SOPs",
+  submit: "Submit Request",
+  tags: "Tags",
+  users: "Users",
+};
+
+const pathname = Astro.url.pathname.replace(/\/$/, "");
+const segments = pathname.split("/").filter(Boolean);
+const crumbs = segments.map((segment, index) => {
+  const href = `/${segments.slice(0, index + 1).join("/")}/`;
+  const fallback = segment
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+
+  return {
+    href,
+    label: labels[segment] ?? fallback,
+    current: index === segments.length - 1,
+  };
+});
+---
+
+{
+  crumbs.length > 0 && (
+    <nav class="breadcrumbs no-print" aria-label="Breadcrumb">
+      <ol>
+        <li><a href="/">Home</a></li>
+        {crumbs.map((crumb) => (
+          <li>
+            {crumb.current ? (
+              <span aria-current="page">{crumb.label}</span>
+            ) : (
+              <a href={crumb.href}>{crumb.label}</a>
+            )}
+          </li>
+        ))}
+      </ol>
+    </nav>
+  )
+}

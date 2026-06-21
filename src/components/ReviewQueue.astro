@@ -4,6 +4,7 @@ import {
   REVIEW_QUEUE_STORAGE_KEY,
   SUBMISSIONS_STORAGE_KEY,
 } from "../lib/submissions";
+import { USER_STORAGE_KEY, userAccounts } from "../data/mock-users";
 import type { ReviewQueueItem, SopDraft, SopSubmission } from "../types";
 
 interface Props {
@@ -26,12 +27,33 @@ const filters = [
   "Published",
   "Archived",
 ];
+
+const queueCounts = [
+  ["New", 4],
+  ["Needs Review", 2],
+  ["Urgent", 1],
+  ["Approved", 6],
+  ["Archived", 3],
+];
+const reviewerMembers = userAccounts.filter(
+  (user) => user.accessLevel === "Creator / Reviewer" && user.status === "Active",
+);
 ---
 
 <section class="tool-surface review-queue" aria-labelledby="review-heading">
   <div class="section-heading">
     <p class="eyebrow">Review Queue</p>
-    <h1 id="review-heading">Review and Triage Submissions</h1>
+    <h1 id="review-heading">Admin Review Control Center</h1>
+    <p>Review, assign, approve, request changes, and archive SOP work from one queue.</p>
+  </div>
+
+  <div class="stat-grid review-summary" aria-label="Review queue counts">
+    {queueCounts.map(([label, value]) => (
+      <article class="stat-card review-summary__card">
+        <span>{label}</span>
+        <strong>{value}</strong>
+      </article>
+    ))}
   </div>
 
   <div class="filter-tabs no-print" role="tablist" aria-label="Review queue filters">
@@ -60,6 +82,8 @@ const filters = [
     DRAFTS_STORAGE_KEY,
     SUBMISSIONS_STORAGE_KEY,
     REVIEW_QUEUE_STORAGE_KEY,
+    USER_STORAGE_KEY,
+    initialReviewerMembers: reviewerMembers,
   }}
 >
   const list = document.getElementById("review-list");
@@ -127,6 +151,12 @@ const filters = [
     return mergeById(initialDrafts, readStorage(DRAFTS_STORAGE_KEY));
   }
 
+  function getReviewerMembers() {
+    return mergeById(initialReviewerMembers, readStorage(USER_STORAGE_KEY))
+      .filter((user) => user.accessLevel === "Creator / Reviewer" && user.status !== "Archived")
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
   function filterItem(item) {
     if (activeFilter === "All") return true;
     if (activeFilter === "Internal Drafts") return item.source === "Internal SOP Creator";
@@ -149,6 +179,29 @@ const filters = [
       .join("");
   }
 
+  function statusBadge(status) {
+    const className = String(status || "Unknown").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    return `<span class="status-badge status-badge--${escapeHtml(className)}">${escapeHtml(status || "Unknown")}</span>`;
+  }
+
+  function priorityBadge(priority) {
+    const className = String(priority || "Medium").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    return `<span class="status-badge status-badge--priority-${escapeHtml(className)}">${escapeHtml(priority || "Medium")}</span>`;
+  }
+
+  function assigneeOptions(selected) {
+    const members = getReviewerMembers();
+    return [
+      `<option value="">Unassigned</option>`,
+      ...members.map(
+        (member) =>
+          `<option value="${escapeHtml(member.name)}" ${member.name === selected ? "selected" : ""}>${escapeHtml(
+            member.name,
+          )} - ${escapeHtml(member.department)}</option>`,
+      ),
+    ].join("");
+  }
+
   function render() {
     const items = getItems().filter(filterItem);
 
@@ -165,30 +218,33 @@ const filters = [
                     <p class="eyebrow">${escapeHtml(item.source)}</p>
                     <h2>${escapeHtml(item.title)}</h2>
                   </div>
-                  <span class="status-badge">${escapeHtml(item.status)}</span>
+                  ${statusBadge(item.status)}
                 </div>
                 <dl class="review-meta">
+                  <div><dt>SOP Title</dt><dd>${escapeHtml(item.title)}</dd></div>
                   <div><dt>Submission type</dt><dd>${escapeHtml(item.submissionType)}</dd></div>
-                  <div><dt>Department</dt><dd>${escapeHtml(item.department || "Not listed")}</dd></div>
                   <div><dt>Submitted by</dt><dd>${escapeHtml(item.submittedBy)}</dd></div>
+                  <div><dt>Department</dt><dd>${escapeHtml(item.department || "Not listed")}</dd></div>
                   <div><dt>Category</dt><dd>${escapeHtml(item.category)}</dd></div>
-                  <div><dt>Priority</dt><dd>${escapeHtml(item.priority)}</dd></div>
-                  <div><dt>Assigned owner</dt><dd>${escapeHtml(item.assignedOwner || "Unassigned")}</dd></div>
-                  <div><dt>Date submitted</dt><dd>${escapeHtml(item.createdDate)}</dd></div>
-                  <div><dt>Review date</dt><dd>${escapeHtml(item.reviewDate || "Not set")}</dd></div>
+                  <div><dt>Priority</dt><dd>${priorityBadge(item.priority)}</dd></div>
+                  <div><dt>Assigned reviewer</dt><dd>${escapeHtml(item.assignedOwner || "Unassigned")}</dd></div>
+                  <div><dt>Submitted date</dt><dd>${escapeHtml(item.createdDate)}</dd></div>
+                  <div><dt>Due date</dt><dd>${escapeHtml(item.reviewDate || "Not set")}</dd></div>
+                  <div><dt>Status</dt><dd>${statusBadge(item.status)}</dd></div>
                 </dl>
                 <div class="review-actions no-print">
                   <label>
                     <span>Move status</span>
                     <select data-review-status>${statusOptions(item.status)}</select>
                   </label>
-                  <button class="button button--secondary" type="button" data-review-action="assign">Assign Owner</button>
-                  <button class="button button--secondary" type="button" data-review-action="more-info">Request More Information</button>
-                  <button class="button button--secondary" type="button" data-review-action="drafting">Move to Drafting</button>
-                  <button class="button button--secondary" type="button" data-review-action="review">Mark In Review</button>
-                  <button class="button button--secondary" type="button" data-review-action="revision">Request Revision</button>
+                  <label>
+                    <span>Assigned reviewer</span>
+                    <select data-review-assignee>${assigneeOptions(item.assignedOwner)}</select>
+                  </label>
+                  <button class="button button--primary" type="button" data-review-action="review">Review</button>
+                  <button class="button button--secondary" type="button" data-review-action="assign">Assign</button>
                   <button class="button button--secondary" type="button" data-review-action="approve">Approve</button>
-                  <button class="button button--primary" type="button" data-review-action="publish">Publish</button>
+                  <button class="button button--secondary" type="button" data-review-action="revision">Request Changes</button>
                   <button class="button button--ghost" type="button" data-review-action="archive">Archive</button>
                   ${
                     item.source === "Outside Department Submission"
@@ -287,6 +343,7 @@ const filters = [
   list?.addEventListener("change", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLSelectElement)) return;
+    if (!target.hasAttribute("data-review-status")) return;
 
     const card = target.closest("[data-review-id]");
     if (!(card instanceof HTMLElement)) return;
@@ -320,8 +377,9 @@ const filters = [
     };
 
     if (action === "assign") {
-      const owner = window.prompt("Assign owner", item.assignedOwner || "");
-      if (owner !== null) updateItem(id, { assignedOwner: owner || "Unassigned", status: "Assigned" });
+      const assigneeSelect = card.querySelector("[data-review-assignee]");
+      const owner = assigneeSelect instanceof HTMLSelectElement ? assigneeSelect.value : "";
+      updateItem(id, { assignedOwner: owner || "Unassigned", status: "Assigned" });
       return;
     }
 

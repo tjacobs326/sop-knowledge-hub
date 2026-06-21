@@ -1,6 +1,7 @@
 ---
 import Header from "./Header.astro";
 import Footer from "./Footer.astro";
+import Breadcrumbs from "./Breadcrumbs.astro";
 import "../styles/vocate-theme.css";
 import "../styles/global.css";
 import "../styles/print.css";
@@ -48,6 +49,7 @@ const canonicalUrl = new URL(Astro.url.pathname, Astro.site ?? "https://sop-hub.
     <a class="skip-link" href="#main-content">Skip to main content</a>
     <Header />
     <main id="main-content" class:list={["site-main", wide && "site-main--wide"]}>
+      <Breadcrumbs />
       <slot />
     </main>
     <Footer />

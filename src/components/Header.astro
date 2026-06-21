@@ -34,6 +34,7 @@ const navGroups = [
 
 const pathname = Astro.url.pathname;
 const isCurrent = (href: string) => pathname === href || (href !== "/" && pathname.startsWith(href));
+const roleClass = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 ---
 
 <header class="site-header no-print">
@@ -48,7 +49,7 @@ const isCurrent = (href: string) => pathname === href || (href !== "/" && pathna
     <nav class="main-nav" aria-label="Role-based navigation">
       {
         navGroups.map((group) => (
-          <section class="main-nav__role" aria-label={group.label}>
+          <section class:list={["main-nav__role", `main-nav__role--${roleClass(group.label)}`]} aria-label={group.label}>
             <span class="main-nav__role-label">{group.label}</span>
             <div class="main-nav__links" role="list">
               {group.items.map((item) => (

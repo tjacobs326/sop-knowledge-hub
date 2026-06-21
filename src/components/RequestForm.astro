@@ -127,12 +127,12 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
       <input id="documentation-location" name="documentationLocation" type="text" />
     </div>
     <div class="field field--full">
-      <label for="attachments-file">Screenshots or attachments</label>
+      <label for="attachments-file">Screenshots, videos, or attachments</label>
       <div class="screenshot-input" data-attachment-input>
         <textarea id="attachments" name="screenshots" hidden></textarea>
-        <input id="attachments-file" name="attachmentFiles" type="file" multiple />
+        <input id="attachments-file" name="attachmentFiles" type="file" accept="image/*,video/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt" multiple />
         <p class="field-help" id="attachments-help">
-          Upload files from your computer, or paste a screenshot into the box below.
+          Upload files or videos from your computer, or paste a screenshot into the box below.
         </p>
         <div
           class="screenshot-paste-target"
@@ -140,7 +140,7 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
           data-attachment-paste
           aria-describedby="attachments-help"
         >
-          Paste a screenshot here or upload files above.
+          Paste a screenshot here or upload files and videos above.
         </div>
         <div class="attachment-list" data-attachment-list hidden></div>
       </div>
@@ -247,9 +247,14 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
           attachment.kind === "image"
             ? `<img src="${escapeHtml(attachment.value)}" alt="${escapeHtml(attachment.label)} preview" />`
             : "";
+        const video =
+          attachment.kind === "video"
+            ? `<video controls src="${escapeHtml(attachment.value)}"></video>`
+            : "";
         return `
           <figure class="attachment-preview">
             ${image}
+            ${video}
             <figcaption>
               <span>${escapeHtml(attachment.label)}</span>
               <button class="button button--ghost" type="button" data-remove-attachment="${index}">
@@ -264,8 +269,8 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
     if (attachmentPasteTarget instanceof HTMLElement) {
       attachmentPasteTarget.textContent =
         attachments.length > 0
-          ? "Attachment added. Paste another screenshot here or upload more files."
-          : "Paste a screenshot here or upload files above.";
+          ? "Attachment added. Paste another screenshot here or upload more files or videos."
+          : "Paste a screenshot here or upload files and videos above.";
     }
   }
 
@@ -285,6 +290,19 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
         addAttachment({
           kind: "image",
           label: file.name || "Pasted screenshot",
+          value: typeof reader.result === "string" ? reader.result : "",
+        });
+      });
+      reader.readAsDataURL(file);
+      return;
+    }
+
+    if (file.type.startsWith("video/")) {
+      const reader = new FileReader();
+      reader.addEventListener("load", () => {
+        addAttachment({
+          kind: "video",
+          label: `${file.name || "Uploaded video"} (${formatFileSize(file.size)})`,
           value: typeof reader.result === "string" ? reader.result : "",
         });
       });

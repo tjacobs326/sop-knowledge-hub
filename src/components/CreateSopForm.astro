@@ -99,18 +99,21 @@ const draftStatuses = [
             <input name="stepNote" type="text" />
           </div>
           <div class="field field--full">
-            <label>Step screenshot</label>
+            <label>Step media</label>
             <div class="screenshot-input" data-screenshot-input>
               <input name="stepScreenshot" type="hidden" />
-              <input name="stepScreenshotFile" type="file" accept="image/*" />
+              <input name="stepVideo" type="hidden" />
+              <input name="stepVideoLabel" type="hidden" />
+              <input name="stepScreenshotFile" type="file" accept="image/*,video/*" />
               <div class="screenshot-paste-target" tabindex="0" data-screenshot-paste>
-                Paste a screenshot here or upload an image file.
+                Paste a screenshot here or upload an image or video file.
               </div>
               <figure class="screenshot-preview" data-screenshot-preview hidden>
                 <img alt="Step screenshot preview" data-screenshot-image />
+                <video controls data-screenshot-video hidden></video>
                 <figcaption>
                   <button class="button button--ghost" type="button" data-remove-screenshot>
-                    Remove Screenshot
+                    Remove Media
                   </button>
                 </figcaption>
               </figure>
@@ -231,7 +234,9 @@ const draftStatuses = [
         const instructions = step.querySelector('[name="stepInstructions"]')?.value.trim() ?? "";
         const note = step.querySelector('[name="stepNote"]')?.value.trim() ?? "";
         const screenshot = step.querySelector('[name="stepScreenshot"]')?.value.trim() ?? "";
-        return { title, instructions, note, screenshot };
+        const video = step.querySelector('[name="stepVideo"]')?.value.trim() ?? "";
+        const videoLabel = step.querySelector('[name="stepVideoLabel"]')?.value.trim() ?? "";
+        return { title, instructions, note, screenshot, video, videoLabel };
       })
       .filter((step) => step.title || step.instructions);
   }
@@ -244,36 +249,109 @@ const draftStatuses = [
     if (!(step instanceof HTMLElement)) return;
 
     const screenshotInput = step.querySelector('[name="stepScreenshot"]');
+    const videoInput = step.querySelector('[name="stepVideo"]');
+    const videoLabelInput = step.querySelector('[name="stepVideoLabel"]');
     const preview = step.querySelector("[data-screenshot-preview]");
     const image = step.querySelector("[data-screenshot-image]");
+    const video = step.querySelector("[data-screenshot-video]");
     const pasteTarget = step.querySelector("[data-screenshot-paste]");
     const screenshot =
       screenshotInput instanceof HTMLInputElement ? screenshotInput.value.trim() : "";
+    const videoSource = videoInput instanceof HTMLInputElement ? videoInput.value.trim() : "";
+    const videoLabel =
+      videoLabelInput instanceof HTMLInputElement ? videoLabelInput.value.trim() : "Step video";
 
-    if (!(preview instanceof HTMLElement) || !(image instanceof HTMLImageElement)) return;
+    if (
+      !(preview instanceof HTMLElement) ||
+      !(image instanceof HTMLImageElement) ||
+      !(video instanceof HTMLVideoElement)
+    ) {
+      return;
+    }
 
     if (screenshot) {
       image.src = screenshot;
+      image.hidden = false;
+      video.hidden = true;
+      video.removeAttribute("src");
       preview.hidden = false;
       if (pasteTarget instanceof HTMLElement) {
         pasteTarget.textContent = "Screenshot added. Paste a replacement here or upload a new file.";
       }
+    } else if (videoSource) {
+      video.src = videoSource;
+      video.hidden = false;
+      image.hidden = true;
+      image.removeAttribute("src");
+      preview.hidden = false;
+      if (pasteTarget instanceof HTMLElement) {
+        pasteTarget.textContent = `${videoLabel} added. Upload a replacement image or video file.`;
+      }
     } else {
       image.removeAttribute("src");
+      image.hidden = false;
+      video.removeAttribute("src");
+      video.hidden = true;
       preview.hidden = true;
       if (pasteTarget instanceof HTMLElement) {
-        pasteTarget.textContent = "Paste a screenshot here or upload an image file.";
+        pasteTarget.textContent = "Paste a screenshot here or upload an image or video file.";
       }
     }
   }
 
-  function setStepScreenshot(step, value) {
+  function setStepMedia(step, { screenshot = "", video = "", videoLabel = "" }) {
     if (!(step instanceof HTMLElement)) return;
 
     const screenshotInput = step.querySelector('[name="stepScreenshot"]');
+    const videoInput = step.querySelector('[name="stepVideo"]');
+    const videoLabelInput = step.querySelector('[name="stepVideoLabel"]');
     if (screenshotInput instanceof HTMLInputElement) {
-      screenshotInput.value = value;
-      updateStepScreenshotPreview(step);
+      screenshotInput.value = screenshot;
+    }
+    if (videoInput instanceof HTMLInputElement) {
+      videoInput.value = video;
+    }
+    if (videoLabelInput instanceof HTMLInputElement) {
+      videoLabelInput.value = videoLabel;
+    }
+    updateStepScreenshotPreview(step);
+  }
+
+  function setStepScreenshot(step, value) {
+    setStepMedia(step, { screenshot: value });
+  }
+
+  function setStepVideo(step, value, label) {
+    setStepMedia(step, { video: value, videoLabel: label });
+  }
+
+  function readVideoFile(file, step) {
+    if (!file.type.startsWith("video/")) return;
+
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+      setStepVideo(step, typeof reader.result === "string" ? reader.result : "", file.name || "Step video");
+      if (errorsEl) {
+        errorsEl.hidden = true;
+        errorsEl.innerHTML = "";
+      }
+    });
+    reader.readAsDataURL(file);
+  }
+
+  function readStepMediaFile(file, step) {
+    if (file.type.startsWith("image/")) {
+      readImageFile(file, step);
+      return;
+    }
+    if (file.type.startsWith("video/")) {
+      readVideoFile(file, step);
+      return;
+    }
+
+    if (errorsEl) {
+      errorsEl.hidden = false;
+      errorsEl.innerHTML = "<p>Please choose an image or video file for this step.</p>";
     }
   }
 
@@ -322,15 +400,18 @@ const draftStatuses = [
         <label>Step screenshot</label>
         <div class="screenshot-input" data-screenshot-input>
           <input name="stepScreenshot" type="hidden" />
-          <input name="stepScreenshotFile" type="file" accept="image/*" />
+          <input name="stepVideo" type="hidden" />
+          <input name="stepVideoLabel" type="hidden" />
+          <input name="stepScreenshotFile" type="file" accept="image/*,video/*" />
           <div class="screenshot-paste-target" tabindex="0" data-screenshot-paste>
-            Paste a screenshot here or upload an image file.
+            Paste a screenshot here or upload an image or video file.
           </div>
           <figure class="screenshot-preview" data-screenshot-preview hidden>
             <img alt="Step screenshot preview" data-screenshot-image />
+            <video controls data-screenshot-video hidden></video>
             <figcaption>
               <button class="button button--ghost" type="button" data-remove-screenshot>
-                Remove Screenshot
+                Remove Media
               </button>
             </figcaption>
           </figure>
@@ -342,6 +423,8 @@ const draftStatuses = [
     wrapper.querySelector('[name="stepInstructions"]').value = step.instructions || "";
     wrapper.querySelector('[name="stepNote"]').value = step.note || "";
     wrapper.querySelector('[name="stepScreenshot"]').value = step.screenshot || "";
+    wrapper.querySelector('[name="stepVideo"]').value = step.video || "";
+    wrapper.querySelector('[name="stepVideoLabel"]').value = step.videoLabel || "";
     updateStepScreenshotPreview(wrapper);
 
     return wrapper;
@@ -494,6 +577,11 @@ const draftStatuses = [
                 ? `<figure class="step-screenshot"><img src="${escapeHtml(step.screenshot)}" alt="Screenshot for ${escapeHtml(step.title)}" /><figcaption>Step screenshot</figcaption></figure>`
                 : ""
             }
+            ${
+              step.video
+                ? `<figure class="step-screenshot"><video controls src="${escapeHtml(step.video)}"></video><figcaption>${escapeHtml(step.videoLabel || "Step video")}</figcaption></figure>`
+                : ""
+            }
           </li>
         `,
       )
@@ -563,8 +651,8 @@ const draftStatuses = [
     }
 
     if (target.matches("[data-remove-screenshot]")) {
-      setStepScreenshot(getStepFromElement(target), "");
       const step = getStepFromElement(target);
+      setStepMedia(step, {});
       const fileInput = step?.querySelector('[name="stepScreenshotFile"]');
       if (fileInput instanceof HTMLInputElement) {
         fileInput.value = "";
@@ -578,7 +666,7 @@ const draftStatuses = [
 
     const file = target.files?.[0];
     if (file) {
-      readImageFile(file, getStepFromElement(target));
+      readStepMediaFile(file, getStepFromElement(target));
     }
   });
 

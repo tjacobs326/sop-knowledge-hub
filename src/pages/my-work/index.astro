@@ -289,6 +289,11 @@ const sopRecords = sops.map((sop) => ({
     return `<a class="button button--secondary" href="${escapeHtml(href)}">${escapeHtml(label)}</a>`;
   }
 
+  function statusBadge(status) {
+    const className = String(status || "Unknown").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    return `<span class="status-badge status-badge--${escapeHtml(className)}">${escapeHtml(status || "Unknown")}</span>`;
+  }
+
   function renderRows(id, rows, columns, emptyText) {
     const list = document.getElementById(id);
     if (!list) return;
@@ -303,7 +308,7 @@ const sopRecords = sops.map((sop) => ({
             `,
           )
           .join("")
-      : `<tr><td colspan="${columns.length}">${escapeHtml(emptyText)}</td></tr>`;
+      : `<tr><td colspan="${columns.length}"><div class="empty-state empty-state--table"><strong>No work here</strong><p>${escapeHtml(emptyText)}</p></div></td></tr>`;
   }
 
   function setCount(id, value) {
@@ -359,7 +364,7 @@ const sopRecords = sops.map((sop) => ({
       submitted,
       [
         (item) => escapeHtml(item.title),
-        (item) => escapeHtml(item.status),
+        (item) => statusBadge(item.status),
         (item) => escapeHtml(item.priority),
         (item) => escapeHtml(formatDateClient(item.updatedDate)),
         (item) => actionButton(`/admin/review/?request=${encodeURIComponent(item.id)}`, "Edit Request"),
@@ -372,7 +377,7 @@ const sopRecords = sops.map((sop) => ({
       myDrafts,
       [
         (item) => escapeHtml(item.title),
-        (item) => escapeHtml(item.status),
+        (item) => statusBadge(item.status),
         (item) => escapeHtml(formatDateClient(item.reviewDate)),
         (item) => `<a class="button button--secondary" href="/create/?edit=draft&id=${encodeURIComponent(item.id)}">Edit Draft</a>`,
       ],
@@ -384,7 +389,7 @@ const sopRecords = sops.map((sop) => ({
       assigned,
       [
         (item) => escapeHtml(item.title),
-        (item) => escapeHtml(item.status),
+        (item) => statusBadge(item.status),
         (item) => escapeHtml(formatDateClient(item.reviewDate)),
         (item) => escapeHtml(item.assignedOwner || "Unassigned"),
         () => actionButton("/admin/needs-review/", "Edit Item"),
@@ -398,7 +403,7 @@ const sopRecords = sops.map((sop) => ({
       [
         (item) => `<a href="${escapeHtml(item.url)}">${escapeHtml(item.title)}</a>`,
         (item) => escapeHtml(item.category),
-        (item) => escapeHtml(item.status),
+        (item) => statusBadge(item.status),
         (item) => escapeHtml(formatDateClient(item.reviewDate)),
         (item) => actionButton(`${item.url}?edit=published`, "Edit SOP"),
       ],
@@ -410,7 +415,7 @@ const sopRecords = sops.map((sop) => ({
       needsReview,
       [
         (item) => escapeHtml(item.title),
-        (item) => escapeHtml(item.status),
+        (item) => statusBadge(item.status),
         (item) => escapeHtml(item.priority || "Medium"),
         (item) => escapeHtml(formatDateClient(item.reviewDate)),
         () => actionButton("/admin/needs-review/", "Edit Review"),
@@ -425,7 +430,7 @@ const sopRecords = sops.map((sop) => ({
         (item) => (item.url ? `<a href="${escapeHtml(item.url)}">${escapeHtml(item.title)}</a>` : escapeHtml(item.title)),
         (item) => escapeHtml(item.owner || "Unassigned"),
         (item) => escapeHtml(formatDateClient(item.reviewDate)),
-        (item) => escapeHtml(item.status),
+        (item) => statusBadge(item.status),
         (item) => actionButton(item.url || "/admin/needs-review/", "Edit Review"),
       ],
       "No overdue reviews for this user.",

@@ -1,5 +1,6 @@
 ---
 import Layout from "../../../components/Layout.astro";
+import { USER_STORAGE_KEY, accessLevels, userAccounts } from "../../../data/mock-users";
 
 // Future access note: restrict this route to admins with Cloudflare Access.
 const roles = [
@@ -45,37 +46,6 @@ const permissionOptions = [
   "Settings",
 ];
 
-const accessLevels = ["Normal User", "Creator / Reviewer", "Admin"];
-
-const userAccounts = [
-  {
-    id: "tarek-jacobs",
-    name: "Tarek Jacobs",
-    email: "tjacobs@example.org",
-    department: "Instructional Technology",
-    accessLevel: "Admin",
-    permissions: ["Manage Users", "Manage Categories", "Manage Tags", "View Analytics", "Settings"],
-    status: "Active",
-  },
-  {
-    id: "course-qa-team",
-    name: "Course QA Team",
-    email: "courseqa@example.org",
-    department: "Quality Assurance",
-    accessLevel: "Creator / Reviewer",
-    permissions: ["Create SOPs", "Edit Drafts", "Review Queue", "Needs Review"],
-    status: "Active",
-  },
-  {
-    id: "staff-user",
-    name: "Staff User",
-    email: "staff@example.org",
-    department: "Academic Operations",
-    accessLevel: "Normal User",
-    permissions: ["Search SOPs", "Use Guided Finder", "Browse Categories", "Submit Requests"],
-    status: "Active",
-  },
-];
 ---
 
 <Layout title="Users" wide>
@@ -256,9 +226,8 @@ const userAccounts = [
   </section>
 </Layout>
 
-<script is:inline define:vars={{ initialRoles: roles, initialUsers: userAccounts }}>
+<script is:inline define:vars={{ initialRoles: roles, initialUsers: userAccounts, USER_STORAGE_KEY }}>
   const ROLE_STORAGE_KEY = "sopHubAdminRoles";
-  const USER_STORAGE_KEY = "sopHubAdminUsers";
   const roleList = document.getElementById("role-list");
   const editor = document.getElementById("role-editor");
   const editorHeading = document.getElementById("role-editor-heading");
