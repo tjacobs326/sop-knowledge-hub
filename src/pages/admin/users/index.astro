@@ -3,9 +3,78 @@ import Layout from "../../../components/Layout.astro";
 
 // Future access note: restrict this route to admins with Cloudflare Access.
 const roles = [
-  ["Normal Users", "Search SOPs, use Guided Finder, browse categories, and submit requests."],
-  ["Creators / Reviewers", "Create SOPs, manage drafts, review submissions, and publish approved work."],
-  ["Admins", "Manage users, taxonomy, analytics, and system settings."],
+  {
+    id: "normal-users",
+    name: "Normal Users",
+    accessGroup: "All staff",
+    landingPage: "/search/",
+    description: "Search SOPs, use Guided Finder, browse categories, and submit requests.",
+    permissions: ["Search SOPs", "Use Guided Finder", "Browse Categories", "Submit Requests"],
+  },
+  {
+    id: "creators-reviewers",
+    name: "Creators / Reviewers",
+    accessGroup: "SOP creators and reviewers",
+    landingPage: "/drafts/",
+    description: "Create SOPs, manage drafts, review submissions, and publish approved work.",
+    permissions: ["Create SOPs", "Edit Drafts", "Review Queue", "Needs Review"],
+  },
+  {
+    id: "admins",
+    name: "Admins",
+    accessGroup: "SOP administrators",
+    landingPage: "/admin/users/",
+    description: "Manage users, taxonomy, analytics, and system settings.",
+    permissions: ["Manage Users", "Manage Categories", "Manage Tags", "View Analytics", "Settings"],
+  },
+];
+
+const permissionOptions = [
+  "Search SOPs",
+  "Use Guided Finder",
+  "Browse Categories",
+  "Submit Requests",
+  "Create SOPs",
+  "Edit Drafts",
+  "Review Queue",
+  "Needs Review",
+  "Manage Users",
+  "Manage Categories",
+  "Manage Tags",
+  "View Analytics",
+  "Settings",
+];
+
+const accessLevels = ["Normal User", "Creator / Reviewer", "Admin"];
+
+const userAccounts = [
+  {
+    id: "tarek-jacobs",
+    name: "Tarek Jacobs",
+    email: "tjacobs@example.org",
+    department: "Instructional Technology",
+    accessLevel: "Admin",
+    permissions: ["Manage Users", "Manage Categories", "Manage Tags", "View Analytics", "Settings"],
+    status: "Active",
+  },
+  {
+    id: "course-qa-team",
+    name: "Course QA Team",
+    email: "courseqa@example.org",
+    department: "Quality Assurance",
+    accessLevel: "Creator / Reviewer",
+    permissions: ["Create SOPs", "Edit Drafts", "Review Queue", "Needs Review"],
+    status: "Active",
+  },
+  {
+    id: "staff-user",
+    name: "Staff User",
+    email: "staff@example.org",
+    department: "Academic Operations",
+    accessLevel: "Normal User",
+    permissions: ["Search SOPs", "Use Guided Finder", "Browse Categories", "Submit Requests"],
+    status: "Active",
+  },
 ];
 ---
 
@@ -17,14 +86,574 @@ const roles = [
       <p>Plan role access and user groups for the SOP Knowledge Hub.</p>
     </div>
 
-    <div class="quick-link-grid">
-      {roles.map(([role, description]) => (
-        <article class="quick-link quick-link--panel">
-          <strong>{role}</strong>
-          <span>{description}</span>
-        </article>
+    <div class="quick-link-grid" id="role-list">
+      {roles.map((role) => (
+        <button class="quick-link quick-link--panel role-card" type="button" data-edit-role={role.id}>
+          <strong>{role.name}</strong>
+          <span>{role.description}</span>
+          <small>{role.accessGroup}</small>
+        </button>
       ))}
     </div>
+
+    <form class="form-grid" id="role-editor" hidden>
+      <h2 class="form-section-title field--full" id="role-editor-heading">Edit Role</h2>
+      <input id="role-id" name="id" type="hidden" />
+      <div class="field">
+        <label for="role-name">Role name</label>
+        <input id="role-name" name="name" type="text" required />
+      </div>
+      <div class="field">
+        <label for="role-access-group">Access group</label>
+        <input id="role-access-group" name="accessGroup" type="text" required />
+      </div>
+      <div class="field">
+        <label for="role-landing-page">Default landing page</label>
+        <input id="role-landing-page" name="landingPage" type="text" required />
+      </div>
+      <div class="field field--full">
+        <label for="role-description">Description</label>
+        <textarea id="role-description" name="description" rows="3" required></textarea>
+      </div>
+      <fieldset class="field field--full checkbox-grid">
+        <legend>Permissions</legend>
+        {permissionOptions.map((permission) => (
+          <label>
+            <input type="checkbox" name="permissions" value={permission} />
+            <span>{permission}</span>
+          </label>
+        ))}
+      </fieldset>
+      <div class="form-actions field--full">
+        <button class="button button--primary" type="submit">Save Role</button>
+        <button class="button button--ghost" type="button" id="cancel-role-edit">
+          Cancel
+        </button>
+      </div>
+      <div class="confirmation field--full" id="role-confirmation" role="status" hidden></div>
+    </form>
+
+    <section class="dashboard-section" aria-labelledby="user-accounts-heading">
+      <div class="section-heading">
+        <h2 id="user-accounts-heading">Enrolled Users</h2>
+        <p>Track who has access to the SOP Knowledge Hub and what each account can do.</p>
+      </div>
+
+      <div class="stat-grid user-summary" id="user-summary" aria-label="User account summary">
+        <article class="stat-card">
+          <span>Total users</span>
+          <strong id="total-users">{userAccounts.length}</strong>
+        </article>
+        <article class="stat-card">
+          <span>Admins</span>
+          <strong id="total-admins">
+            {userAccounts.filter((user) => user.accessLevel === "Admin").length}
+          </strong>
+        </article>
+        <article class="stat-card">
+          <span>Creators / Reviewers</span>
+          <strong id="total-creators">
+            {userAccounts.filter((user) => user.accessLevel === "Creator / Reviewer").length}
+          </strong>
+        </article>
+        <article class="stat-card">
+          <span>Normal users</span>
+          <strong id="total-normal-users">
+            {userAccounts.filter((user) => user.accessLevel === "Normal User").length}
+          </strong>
+        </article>
+      </div>
+
+      <div class="form-actions admin-toolbar">
+        <button class="button button--primary" type="button" id="create-user">
+          Add User
+        </button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Email</th>
+              <th scope="col">Department</th>
+              <th scope="col">Level of access</th>
+              <th scope="col">Permissions</th>
+              <th scope="col">Status</th>
+              <th scope="col">Action</th>
+            </tr>
+          </thead>
+          <tbody id="user-account-list">
+            {userAccounts.map((user) => (
+              <tr data-edit-user={user.id} tabindex="0">
+                <td>{user.name}</td>
+                <td>{user.email}</td>
+                <td>{user.department}</td>
+                <td>{user.accessLevel}</td>
+                <td>{user.permissions.join(", ")}</td>
+                <td>{user.status}</td>
+                <td>
+                  <button class="button button--secondary" type="button" data-edit-user={user.id}>
+                    Edit User
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <form class="form-grid" id="user-editor" hidden>
+        <h2 class="form-section-title field--full" id="user-editor-heading">Edit User</h2>
+        <input id="user-id" name="id" type="hidden" />
+        <div class="field">
+          <label for="user-name">User name</label>
+          <input id="user-name" name="name" type="text" required />
+        </div>
+        <div class="field">
+          <label for="user-email">Email</label>
+          <input id="user-email" name="email" type="email" required />
+        </div>
+        <div class="field">
+          <label for="user-department">Department</label>
+          <input id="user-department" name="department" type="text" required />
+        </div>
+        <div class="field">
+          <label for="user-access-level">Level of access</label>
+          <select id="user-access-level" name="accessLevel">
+            {accessLevels.map((level) => <option value={level}>{level}</option>)}
+          </select>
+        </div>
+        <div class="field">
+          <label for="user-status">Status</label>
+          <select id="user-status" name="status">
+            <option value="Active">Active</option>
+            <option value="Suspended">Suspended</option>
+            <option value="Pending">Pending</option>
+          </select>
+        </div>
+        <fieldset class="field field--full checkbox-grid" id="user-permissions">
+          <legend>Account permissions</legend>
+          {permissionOptions.map((permission) => (
+            <label>
+              <input type="checkbox" name="userPermissions" value={permission} />
+              <span>{permission}</span>
+            </label>
+          ))}
+        </fieldset>
+        <div class="form-actions field--full">
+          <button class="button button--primary" type="submit">Save User</button>
+          <button class="button button--danger" type="button" id="delete-user">
+            Remove User
+          </button>
+          <button class="button button--ghost" type="button" id="cancel-user-edit">
+            Cancel
+          </button>
+        </div>
+        <div class="confirmation field--full" id="user-confirmation" role="status" hidden></div>
+      </form>
+    </section>
   </section>
 </Layout>
 
+<script is:inline define:vars={{ initialRoles: roles, initialUsers: userAccounts }}>
+  const ROLE_STORAGE_KEY = "sopHubAdminRoles";
+  const USER_STORAGE_KEY = "sopHubAdminUsers";
+  const roleList = document.getElementById("role-list");
+  const editor = document.getElementById("role-editor");
+  const editorHeading = document.getElementById("role-editor-heading");
+  const cancelButton = document.getElementById("cancel-role-edit");
+  const confirmation = document.getElementById("role-confirmation");
+  const userList = document.getElementById("user-account-list");
+  const userEditor = document.getElementById("user-editor");
+  const userEditorHeading = document.getElementById("user-editor-heading");
+  const createUserButton = document.getElementById("create-user");
+  const deleteUserButton = document.getElementById("delete-user");
+  const cancelUserButton = document.getElementById("cancel-user-edit");
+  const userConfirmation = document.getElementById("user-confirmation");
+
+  const escapeHtml = (value) =>
+    String(value ?? "").replace(/[&<>"']/g, (character) => {
+      const replacements = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      };
+      return replacements[character];
+    });
+
+  function readRoles() {
+    try {
+      const stored = JSON.parse(localStorage.getItem(ROLE_STORAGE_KEY) || "null");
+      return Array.isArray(stored) && stored.length > 0 ? stored : initialRoles;
+    } catch {
+      return initialRoles;
+    }
+  }
+
+  function writeRoles(roles) {
+    localStorage.setItem(ROLE_STORAGE_KEY, JSON.stringify(roles));
+  }
+
+  function readUsers() {
+    try {
+      const stored = JSON.parse(localStorage.getItem(USER_STORAGE_KEY) || "null");
+      return Array.isArray(stored) && stored.length > 0 ? stored : initialUsers;
+    } catch {
+      return initialUsers;
+    }
+  }
+
+  function writeUsers(users) {
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(users));
+  }
+
+  function setField(name, value) {
+    const element = editor?.querySelector(`[name="${name}"]`);
+    if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+      element.value = String(value ?? "");
+    }
+  }
+
+  function getField(name) {
+    const element = editor?.querySelector(`[name="${name}"]`);
+    return element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement
+      ? element.value.trim()
+      : "";
+  }
+
+  function setPermissions(permissions) {
+    editor?.querySelectorAll('input[name="permissions"]').forEach((input) => {
+      if (input instanceof HTMLInputElement) {
+        input.checked = permissions.includes(input.value);
+      }
+    });
+  }
+
+  function getPermissions() {
+    return Array.from(editor?.querySelectorAll('input[name="permissions"]:checked') || [])
+      .filter((input) => input instanceof HTMLInputElement)
+      .map((input) => input.value);
+  }
+
+  function setUserField(name, value) {
+    const element = userEditor?.querySelector(`[name="${name}"]`);
+    if (
+      element instanceof HTMLInputElement ||
+      element instanceof HTMLSelectElement ||
+      element instanceof HTMLTextAreaElement
+    ) {
+      element.value = String(value ?? "");
+    }
+  }
+
+  function getUserField(name) {
+    const element = userEditor?.querySelector(`[name="${name}"]`);
+    return element instanceof HTMLInputElement ||
+      element instanceof HTMLSelectElement ||
+      element instanceof HTMLTextAreaElement
+      ? element.value.trim()
+      : "";
+  }
+
+  function userIdFromEmail(email) {
+    return String(email || "user")
+      .toLowerCase()
+      .trim()
+      .replace(/@.*/, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  }
+
+  function permissionsForAccessLevel(accessLevel) {
+    const role = readRoles().find((item) => {
+      if (accessLevel === "Normal User") return item.id === "normal-users";
+      if (accessLevel === "Creator / Reviewer") return item.id === "creators-reviewers";
+      return item.id === "admins";
+    });
+    return role?.permissions || [];
+  }
+
+  function setUserPermissions(permissions) {
+    userEditor?.querySelectorAll('input[name="userPermissions"]').forEach((input) => {
+      if (input instanceof HTMLInputElement) {
+        input.checked = permissions.includes(input.value);
+      }
+    });
+  }
+
+  function getUserPermissions() {
+    return Array.from(userEditor?.querySelectorAll('input[name="userPermissions"]:checked') || [])
+      .filter((input) => input instanceof HTMLInputElement)
+      .map((input) => input.value);
+  }
+
+  function renderRoles() {
+    if (!roleList) return;
+
+    roleList.innerHTML = readRoles()
+      .map(
+        (role) => `
+          <button class="quick-link quick-link--panel role-card" type="button" data-edit-role="${escapeHtml(
+            role.id,
+          )}">
+            <strong>${escapeHtml(role.name)}</strong>
+            <span>${escapeHtml(role.description)}</span>
+            <small>${escapeHtml(role.accessGroup)}</small>
+          </button>
+        `,
+      )
+      .join("");
+  }
+
+  function updateUserSummary(users) {
+    const totalUsers = document.getElementById("total-users");
+    const totalAdmins = document.getElementById("total-admins");
+    const totalCreators = document.getElementById("total-creators");
+    const totalNormalUsers = document.getElementById("total-normal-users");
+
+    if (totalUsers) totalUsers.textContent = String(users.length);
+    if (totalAdmins) {
+      totalAdmins.textContent = String(
+        users.filter((user) => user.accessLevel === "Admin").length,
+      );
+    }
+    if (totalCreators) {
+      totalCreators.textContent = String(
+        users.filter((user) => user.accessLevel === "Creator / Reviewer").length,
+      );
+    }
+    if (totalNormalUsers) {
+      totalNormalUsers.textContent = String(
+        users.filter((user) => user.accessLevel === "Normal User").length,
+      );
+    }
+  }
+
+  function renderUsers() {
+    if (!userList) return;
+
+    const users = readUsers().sort((a, b) => a.name.localeCompare(b.name));
+    updateUserSummary(users);
+
+    userList.innerHTML = users
+      .map(
+        (user) => `
+          <tr data-edit-user="${escapeHtml(user.id)}" tabindex="0">
+            <td>${escapeHtml(user.name)}</td>
+            <td>${escapeHtml(user.email)}</td>
+            <td>${escapeHtml(user.department)}</td>
+            <td>${escapeHtml(user.accessLevel)}</td>
+            <td>${escapeHtml((user.permissions || []).join(", "))}</td>
+            <td>${escapeHtml(user.status || "Active")}</td>
+            <td>
+              <button class="button button--secondary" type="button" data-edit-user="${escapeHtml(
+                user.id,
+              )}">
+                Edit User
+              </button>
+            </td>
+          </tr>
+        `,
+      )
+      .join("");
+  }
+
+  function openEditor(roleId) {
+    const role = readRoles().find((item) => item.id === roleId);
+    if (!role || !(editor instanceof HTMLFormElement)) return;
+
+    setField("id", role.id);
+    setField("name", role.name);
+    setField("accessGroup", role.accessGroup);
+    setField("landingPage", role.landingPage);
+    setField("description", role.description);
+    setPermissions(role.permissions || []);
+
+    if (editorHeading) editorHeading.textContent = `Edit ${role.name}`;
+    if (confirmation) confirmation.hidden = true;
+    editor.hidden = false;
+    editor.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function openCreateUserEditor() {
+    if (!(userEditor instanceof HTMLFormElement)) return;
+
+    userEditor.reset();
+    setUserField("id", "");
+    setUserField("name", "");
+    setUserField("email", "");
+    setUserField("department", "");
+    setUserField("accessLevel", "Normal User");
+    setUserField("status", "Active");
+    setUserPermissions(permissionsForAccessLevel("Normal User"));
+
+    if (userEditorHeading) userEditorHeading.textContent = "Add User";
+    if (deleteUserButton instanceof HTMLButtonElement) deleteUserButton.hidden = true;
+    if (userConfirmation) userConfirmation.hidden = true;
+    userEditor.hidden = false;
+    userEditor.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function openUserEditor(userId) {
+    const user = readUsers().find((item) => item.id === userId);
+    if (!user || !(userEditor instanceof HTMLFormElement)) return;
+
+    setUserField("id", user.id);
+    setUserField("name", user.name);
+    setUserField("email", user.email);
+    setUserField("department", user.department);
+    setUserField("accessLevel", user.accessLevel);
+    setUserField("status", user.status || "Active");
+    setUserPermissions(user.permissions || permissionsForAccessLevel(user.accessLevel));
+
+    if (userEditorHeading) userEditorHeading.textContent = `Edit ${user.name}`;
+    if (deleteUserButton instanceof HTMLButtonElement) deleteUserButton.hidden = false;
+    if (userConfirmation) userConfirmation.hidden = true;
+    userEditor.hidden = false;
+    userEditor.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  roleList?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+
+    const button = target.closest("[data-edit-role]");
+    if (!(button instanceof HTMLElement)) return;
+
+    openEditor(button.dataset.editRole);
+  });
+
+  createUserButton?.addEventListener("click", openCreateUserEditor);
+
+  userList?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+
+    const row = target.closest("[data-edit-user]");
+    if (!(row instanceof HTMLElement)) return;
+
+    openUserEditor(row.dataset.editUser);
+  });
+
+  userList?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+
+    const target = event.target;
+    if (!(target instanceof HTMLElement) || !target.matches("tr[data-edit-user]")) return;
+
+    event.preventDefault();
+    openUserEditor(target.dataset.editUser);
+  });
+
+  userEditor?.querySelector('[name="accessLevel"]')?.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLSelectElement)) return;
+
+    setUserPermissions(permissionsForAccessLevel(target.value));
+  });
+
+  editor?.addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    const roleId = getField("id");
+    const updated = {
+      id: roleId,
+      name: getField("name"),
+      accessGroup: getField("accessGroup"),
+      landingPage: getField("landingPage"),
+      description: getField("description"),
+      permissions: getPermissions(),
+    };
+
+    const roles = readRoles().map((role) => (role.id === roleId ? updated : role));
+    writeRoles(roles);
+    renderRoles();
+
+    if (editorHeading) editorHeading.textContent = `Edit ${updated.name}`;
+    if (confirmation) {
+      confirmation.hidden = false;
+      confirmation.innerHTML =
+        "<strong>Role saved.</strong><p>This user role configuration is saved in this browser.</p>";
+    }
+  });
+
+  cancelButton?.addEventListener("click", () => {
+    if (editor instanceof HTMLFormElement) {
+      editor.hidden = true;
+      editor.reset();
+    }
+  });
+
+  userEditor?.addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    const existingId = getUserField("id");
+    const updated = {
+      id: existingId || userIdFromEmail(getUserField("email")),
+      name: getUserField("name"),
+      email: getUserField("email"),
+      department: getUserField("department"),
+      accessLevel: getUserField("accessLevel"),
+      permissions: getUserPermissions(),
+      status: getUserField("status") || "Active",
+    };
+
+    let users = readUsers();
+    const emailAlreadyExists = users.some(
+      (user) => user.email.toLowerCase() === updated.email.toLowerCase() && user.id !== existingId,
+    );
+
+    if (emailAlreadyExists) {
+      if (userConfirmation) {
+        userConfirmation.hidden = false;
+        userConfirmation.innerHTML =
+          "<strong>Email already exists.</strong><p>Use a unique email address before saving this account.</p>";
+      }
+      return;
+    }
+
+    users = existingId ? users.map((user) => (user.id === existingId ? updated : user)) : [...users, updated];
+    writeUsers(users);
+    renderUsers();
+    setUserField("id", updated.id);
+
+    if (userEditorHeading) userEditorHeading.textContent = `Edit ${updated.name}`;
+    if (deleteUserButton instanceof HTMLButtonElement) deleteUserButton.hidden = false;
+    if (userConfirmation) {
+      userConfirmation.hidden = false;
+      userConfirmation.innerHTML =
+        "<strong>User saved.</strong><p>This account and permission update is saved in this browser.</p>";
+    }
+  });
+
+  deleteUserButton?.addEventListener("click", () => {
+    const userId = getUserField("id");
+    const userName = getUserField("name") || "this user";
+    if (!userId) return;
+
+    const confirmed = window.confirm(`Remove "${userName}" from the SOP Knowledge Hub?`);
+    if (!confirmed) return;
+
+    const users = readUsers().filter((user) => user.id !== userId);
+    writeUsers(users);
+    renderUsers();
+
+    if (userEditor instanceof HTMLFormElement) {
+      userEditor.reset();
+      userEditor.hidden = true;
+    }
+  });
+
+  cancelUserButton?.addEventListener("click", () => {
+    if (userEditor instanceof HTMLFormElement) {
+      userEditor.hidden = true;
+      userEditor.reset();
+    }
+  });
+
+  renderRoles();
+  renderUsers();
+</script>

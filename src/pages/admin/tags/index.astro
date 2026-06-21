@@ -8,7 +8,16 @@ const tagCounts = new Map<string, number>();
 sops.forEach((sop) => {
   sop.data.tags.forEach((tag) => tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1));
 });
-const tags = [...tagCounts.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+const tags = [...tagCounts.entries()]
+  .sort((a, b) => a[0].localeCompare(b[0]))
+  .map(([name, usageCount]) => ({
+    name,
+    usageCount,
+    status: "Active",
+    notes: "",
+  }));
+
+const statusOptions = ["Active", "Needs Review", "Deprecated"];
 ---
 
 <Layout title="Tags" wide>
@@ -19,9 +28,284 @@ const tags = [...tagCounts.entries()].sort((a, b) => a[0].localeCompare(b[0]));
       <p>Review the tags currently used to organize SOPs.</p>
     </div>
 
-    <ul class="tag-list" aria-label="SOP tags">
-      {tags.map(([tag, count]) => <li>{tag} ({count})</li>)}
-    </ul>
+    <div class="form-actions">
+      <button class="button button--primary" type="button" id="create-tag">
+        Create Tag
+      </button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Tag</th>
+            <th scope="col">Used by SOPs</th>
+            <th scope="col">Status</th>
+            <th scope="col">Notes</th>
+            <th scope="col">Action</th>
+          </tr>
+        </thead>
+        <tbody id="admin-tag-list">
+          {tags.map((tag) => (
+            <tr data-edit-tag={tag.name} tabindex="0">
+              <td>{tag.name}</td>
+              <td>{tag.usageCount}</td>
+              <td>{tag.status}</td>
+              <td>{tag.notes || "No notes yet"}</td>
+              <td>
+                <button class="button button--secondary" type="button" data-edit-tag={tag.name}>
+                  Edit Tag
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+
+    <form class="form-grid" id="tag-editor" hidden>
+      <h2 class="form-section-title field--full" id="tag-editor-heading">Edit Tag</h2>
+      <input id="tag-original-name" name="originalName" type="hidden" />
+      <div class="field">
+        <label for="tag-name">Tag name</label>
+        <input id="tag-name" name="name" type="text" required />
+      </div>
+      <div class="field">
+        <label for="tag-status">Status</label>
+        <select id="tag-status" name="status">
+          {statusOptions.map((status) => <option value={status}>{status}</option>)}
+        </select>
+      </div>
+      <div class="field">
+        <label for="tag-usage-count">Used by SOPs</label>
+        <input id="tag-usage-count" name="usageCount" type="number" min="0" readonly />
+      </div>
+      <div class="field field--full">
+        <label for="tag-notes">Admin notes</label>
+        <textarea id="tag-notes" name="notes" rows="3"></textarea>
+      </div>
+      <div class="form-actions field--full">
+        <button class="button button--primary" type="submit">Save Tag</button>
+        <button class="button button--danger" type="button" id="delete-tag">
+          Delete Tag
+        </button>
+        <button class="button button--ghost" type="button" id="cancel-tag-edit">
+          Cancel
+        </button>
+      </div>
+      <div class="confirmation field--full" id="tag-confirmation" role="status" hidden></div>
+    </form>
   </section>
 </Layout>
 
+<script is:inline define:vars={{ initialTags: tags }}>
+  const TAG_ADMIN_STORAGE_KEY = "sopHubAdminTags";
+  const list = document.getElementById("admin-tag-list");
+  const editor = document.getElementById("tag-editor");
+  const editorHeading = document.getElementById("tag-editor-heading");
+  const createButton = document.getElementById("create-tag");
+  const deleteButton = document.getElementById("delete-tag");
+  const cancelButton = document.getElementById("cancel-tag-edit");
+  const confirmation = document.getElementById("tag-confirmation");
+
+  const escapeHtml = (value) =>
+    String(value ?? "").replace(/[&<>"']/g, (character) => {
+      const replacements = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      };
+      return replacements[character];
+    });
+
+  function readTags() {
+    try {
+      const stored = JSON.parse(localStorage.getItem(TAG_ADMIN_STORAGE_KEY) || "null");
+      return Array.isArray(stored) && stored.length > 0 ? stored : initialTags;
+    } catch {
+      return initialTags;
+    }
+  }
+
+  function writeTags(tags) {
+    localStorage.setItem(TAG_ADMIN_STORAGE_KEY, JSON.stringify(tags));
+  }
+
+  function setField(name, value) {
+    const element = editor?.querySelector(`[name="${name}"]`);
+    if (
+      element instanceof HTMLInputElement ||
+      element instanceof HTMLSelectElement ||
+      element instanceof HTMLTextAreaElement
+    ) {
+      element.value = String(value ?? "");
+    }
+  }
+
+  function getField(name) {
+    const element = editor?.querySelector(`[name="${name}"]`);
+    return element instanceof HTMLInputElement ||
+      element instanceof HTMLSelectElement ||
+      element instanceof HTMLTextAreaElement
+      ? element.value.trim()
+      : "";
+  }
+
+  function renderTags() {
+    if (!list) return;
+
+    list.innerHTML = readTags()
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(
+        (tag) => `
+          <tr data-edit-tag="${escapeHtml(tag.name)}" tabindex="0">
+            <td>${escapeHtml(tag.name)}</td>
+            <td>${Number(tag.usageCount || 0)}</td>
+            <td>${escapeHtml(tag.status || "Active")}</td>
+            <td>${escapeHtml(tag.notes || "No notes yet")}</td>
+            <td>
+              <button class="button button--secondary" type="button" data-edit-tag="${escapeHtml(
+                tag.name,
+              )}">
+                Edit Tag
+              </button>
+            </td>
+          </tr>
+        `,
+      )
+      .join("");
+  }
+
+  function showEditor() {
+    if (!(editor instanceof HTMLFormElement)) return;
+
+    editor.hidden = false;
+    editor.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function openCreateEditor() {
+    if (!(editor instanceof HTMLFormElement)) return;
+
+    editor.reset();
+    setField("originalName", "");
+    setField("name", "");
+    setField("status", "Active");
+    setField("usageCount", "0");
+    setField("notes", "");
+
+    if (editorHeading) editorHeading.textContent = "Create Tag";
+    if (deleteButton instanceof HTMLButtonElement) deleteButton.hidden = true;
+    if (confirmation) confirmation.hidden = true;
+    showEditor();
+  }
+
+  function openEditor(name) {
+    const tag = readTags().find((item) => item.name === name);
+    if (!tag || !(editor instanceof HTMLFormElement)) return;
+
+    setField("originalName", tag.name);
+    setField("name", tag.name);
+    setField("status", tag.status || "Active");
+    setField("usageCount", Number(tag.usageCount || 0));
+    setField("notes", tag.notes || "");
+
+    if (editorHeading) editorHeading.textContent = `Edit ${tag.name}`;
+    if (deleteButton instanceof HTMLButtonElement) deleteButton.hidden = false;
+    if (confirmation) confirmation.hidden = true;
+    showEditor();
+  }
+
+  createButton?.addEventListener("click", openCreateEditor);
+
+  list?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+
+    const row = target.closest("[data-edit-tag]");
+    if (!(row instanceof HTMLElement)) return;
+
+    openEditor(row.dataset.editTag);
+  });
+
+  list?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+
+    const target = event.target;
+    if (!(target instanceof HTMLElement) || !target.matches("tr[data-edit-tag]")) return;
+
+    event.preventDefault();
+    openEditor(target.dataset.editTag);
+  });
+
+  editor?.addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    const originalName = getField("originalName");
+    const updated = {
+      name: getField("name"),
+      usageCount: Number(getField("usageCount") || 0),
+      status: getField("status") || "Active",
+      notes: getField("notes"),
+    };
+
+    let tags = readTags();
+    const tagAlreadyExists = tags.some(
+      (tag) => tag.name.toLowerCase() === updated.name.toLowerCase() && tag.name !== originalName,
+    );
+
+    if (tagAlreadyExists) {
+      if (confirmation) {
+        confirmation.hidden = false;
+        confirmation.innerHTML =
+          "<strong>Tag already exists.</strong><p>Use a unique tag name before saving this tag.</p>";
+      }
+      return;
+    }
+
+    tags = originalName
+      ? tags.map((tag) => (tag.name === originalName ? updated : tag))
+      : [...tags, updated];
+    writeTags(tags);
+    renderTags();
+    setField("originalName", updated.name);
+
+    if (editorHeading) editorHeading.textContent = `Edit ${updated.name}`;
+    if (deleteButton instanceof HTMLButtonElement) deleteButton.hidden = false;
+    if (confirmation) {
+      confirmation.hidden = false;
+      confirmation.innerHTML =
+        "<strong>Tag saved.</strong><p>This admin tag change is saved in this browser.</p>";
+    }
+  });
+
+  deleteButton?.addEventListener("click", () => {
+    const originalName = getField("originalName");
+    const tagName = getField("name") || "this tag";
+    if (!originalName) return;
+
+    const confirmed = window.confirm(
+      `Delete "${tagName}"? SOPs using this tag will not be updated automatically.`,
+    );
+    if (!confirmed) return;
+
+    const tags = readTags().filter((tag) => tag.name !== originalName);
+    writeTags(tags);
+    renderTags();
+
+    if (editor instanceof HTMLFormElement) {
+      editor.reset();
+      editor.hidden = true;
+    }
+  });
+
+  cancelButton?.addEventListener("click", () => {
+    if (editor instanceof HTMLFormElement) {
+      editor.hidden = true;
+      editor.reset();
+    }
+  });
+
+  renderTags();
+</script>

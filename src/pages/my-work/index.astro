@@ -1,0 +1,437 @@
+---
+import Layout from "../../components/Layout.astro";
+import { mockDrafts } from "../../data/mock-drafts";
+import { mockSubmissions } from "../../data/mock-submissions";
+import { DRAFTS_STORAGE_KEY } from "../../lib/drafts";
+import { getAllSops, getSopUrl } from "../../lib/sops";
+import { REVIEW_QUEUE_STORAGE_KEY, SUBMISSIONS_STORAGE_KEY, createSubmissionReviewItem } from "../../lib/submissions";
+
+const sops = await getAllSops();
+const reviewItems = [
+  ...mockDrafts.map((draft) => ({
+    id: `review-${draft.id}`,
+    title: draft.title,
+    category: draft.category,
+    status: draft.status === "Published" ? "Published" : "In Review",
+    assignedOwner: draft.owner,
+    reviewDate: draft.reviewDate,
+    source: "Internal SOP Creator",
+  })),
+  ...mockSubmissions.map(createSubmissionReviewItem),
+];
+
+const currentUsers = [
+  {
+    name: "Tarek Jacobs",
+    email: "tjacobs@example.org",
+    department: "Instructional Technology",
+    accessLevel: "Admin",
+  },
+  {
+    name: "Maya Patel",
+    email: "maya.patel@example.edu",
+    department: "Curriculum Design",
+    accessLevel: "Creator / Reviewer",
+  },
+  {
+    name: "Jordan Lee",
+    email: "jordan.lee@example.edu",
+    department: "Student Services",
+    accessLevel: "Normal User",
+  },
+];
+
+const sopRecords = sops.map((sop) => ({
+  id: sop.data.id,
+  title: sop.data.title,
+  category: sop.data.category,
+  owner: sop.data.owner,
+  status: sop.data.status,
+  reviewDate: sop.data.reviewDate,
+  lastUpdated: sop.data.lastUpdated,
+  url: getSopUrl(sop),
+}));
+---
+
+<Layout title="My Work" wide>
+  <section class="tool-surface" aria-labelledby="my-work-heading">
+    <div class="section-heading">
+      <p class="eyebrow">Workflow Dashboard</p>
+      <h1 id="my-work-heading">My Work</h1>
+      <p>See the requests, drafts, assignments, owned SOPs, reviews, and overdue work tied to the current user.</p>
+    </div>
+
+    <div class="form-grid work-user-panel">
+      <div class="field">
+        <label for="current-user">View work for</label>
+        <select id="current-user">
+          {currentUsers.map((user) => (
+            <option value={user.email}>
+              {user.name} - {user.department}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div class="field">
+        <label>Access level</label>
+        <input id="current-access-level" type="text" readonly value={currentUsers[0].accessLevel} />
+      </div>
+    </div>
+
+    <div class="stat-grid user-summary" aria-label="My work summary">
+      <article class="stat-card">
+        <span>Submitted requests</span>
+        <strong id="count-submitted">0</strong>
+      </article>
+      <article class="stat-card">
+        <span>Draft SOPs</span>
+        <strong id="count-drafts">0</strong>
+      </article>
+      <article class="stat-card">
+        <span>Assigned to me</span>
+        <strong id="count-assigned">0</strong>
+      </article>
+      <article class="stat-card">
+        <span>Need my review</span>
+        <strong id="count-review">0</strong>
+      </article>
+      <article class="stat-card">
+        <span>Overdue reviews</span>
+        <strong id="count-overdue">0</strong>
+      </article>
+    </div>
+
+    <div class="work-grid">
+      <section class="dashboard-section" aria-labelledby="submitted-heading">
+        <h2 id="submitted-heading">My Submitted Requests</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Request</th>
+                <th scope="col">Status</th>
+                <th scope="col">Priority</th>
+                <th scope="col">Updated</th>
+                <th scope="col">Action</th>
+              </tr>
+            </thead>
+            <tbody id="submitted-list"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="dashboard-section" aria-labelledby="drafts-heading">
+        <h2 id="drafts-heading">My Draft SOPs</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Draft</th>
+                <th scope="col">Status</th>
+                <th scope="col">Review Date</th>
+                <th scope="col">Action</th>
+              </tr>
+            </thead>
+            <tbody id="draft-list"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="dashboard-section" aria-labelledby="assigned-heading">
+        <h2 id="assigned-heading">SOPs Assigned to Me</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Item</th>
+                <th scope="col">Status</th>
+                <th scope="col">Review Date</th>
+                <th scope="col">Owner</th>
+                <th scope="col">Action</th>
+              </tr>
+            </thead>
+            <tbody id="assigned-list"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="dashboard-section" aria-labelledby="owned-heading">
+        <h2 id="owned-heading">SOPs I Own</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">SOP</th>
+                <th scope="col">Category</th>
+                <th scope="col">Status</th>
+                <th scope="col">Review Date</th>
+                <th scope="col">Action</th>
+              </tr>
+            </thead>
+            <tbody id="owned-list"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="dashboard-section" aria-labelledby="review-heading">
+        <h2 id="review-heading">SOPs Needing My Review</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Item</th>
+                <th scope="col">Status</th>
+                <th scope="col">Priority</th>
+                <th scope="col">Due</th>
+                <th scope="col">Action</th>
+              </tr>
+            </thead>
+            <tbody id="review-list"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="dashboard-section" aria-labelledby="overdue-heading">
+        <h2 id="overdue-heading">Overdue Reviews</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">SOP</th>
+                <th scope="col">Owner</th>
+                <th scope="col">Review Date</th>
+                <th scope="col">Status</th>
+                <th scope="col">Action</th>
+              </tr>
+            </thead>
+            <tbody id="overdue-list"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </section>
+</Layout>
+
+<script
+  is:inline
+  define:vars={{
+    currentUsers,
+    initialSops: sopRecords,
+    initialDrafts: mockDrafts,
+    initialSubmissions: mockSubmissions,
+    initialReviewItems: reviewItems,
+    DRAFTS_STORAGE_KEY,
+    SUBMISSIONS_STORAGE_KEY,
+    REVIEW_QUEUE_STORAGE_KEY,
+  }}
+>
+  const currentUserSelect = document.getElementById("current-user");
+  const currentAccessLevel = document.getElementById("current-access-level");
+  const today = new Date().toISOString().slice(0, 10);
+  const reviewStatuses = ["Submitted", "Triage", "Assigned", "In Review", "Needs More Information", "Needs Revision"];
+
+  const escapeHtml = (value) =>
+    String(value ?? "").replace(/[&<>"']/g, (character) => {
+      const replacements = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      };
+      return replacements[character];
+    });
+
+  function readStorage(key) {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(key) || "[]");
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function mergeById(...groups) {
+    const map = new Map();
+    groups.flat().forEach((item) => {
+      if (item?.id) map.set(item.id, item);
+    });
+    return Array.from(map.values());
+  }
+
+  function getCurrentUser() {
+    const email = currentUserSelect instanceof HTMLSelectElement ? currentUserSelect.value : currentUsers[0].email;
+    return currentUsers.find((user) => user.email === email) || currentUsers[0];
+  }
+
+  function isMine(value, user) {
+    const normalized = String(value || "").toLowerCase();
+    return Boolean(
+      normalized &&
+        (normalized === user.name.toLowerCase() ||
+          normalized === user.email.toLowerCase() ||
+          normalized === user.department.toLowerCase()),
+    );
+  }
+
+  function formatDateClient(value) {
+    if (!value) return "Not set";
+    const date = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return value;
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }).format(date);
+  }
+
+  function actionButton(href, label) {
+    return `<a class="button button--secondary" href="${escapeHtml(href)}">${escapeHtml(label)}</a>`;
+  }
+
+  function renderRows(id, rows, columns, emptyText) {
+    const list = document.getElementById(id);
+    if (!list) return;
+
+    list.innerHTML = rows.length
+      ? rows
+          .map(
+            (row) => `
+              <tr>
+                ${columns.map((column) => `<td>${column(row)}</td>`).join("")}
+              </tr>
+            `,
+          )
+          .join("")
+      : `<tr><td colspan="${columns.length}">${escapeHtml(emptyText)}</td></tr>`;
+  }
+
+  function setCount(id, value) {
+    const element = document.getElementById(id);
+    if (element) element.textContent = String(value);
+  }
+
+  function workData() {
+    return {
+      sops: initialSops,
+      drafts: mergeById(initialDrafts, readStorage(DRAFTS_STORAGE_KEY)),
+      submissions: mergeById(initialSubmissions, readStorage(SUBMISSIONS_STORAGE_KEY)),
+      reviewItems: mergeById(initialReviewItems, readStorage(REVIEW_QUEUE_STORAGE_KEY)),
+    };
+  }
+
+  function renderDashboard() {
+    const user = getCurrentUser();
+    const { sops, drafts, submissions, reviewItems } = workData();
+
+    if (currentAccessLevel instanceof HTMLInputElement) {
+      currentAccessLevel.value = user.accessLevel;
+    }
+
+    const submitted = submissions.filter(
+      (submission) => isMine(submission.submittedBy, user) || isMine(submission.submitterEmail, user),
+    );
+    const myDrafts = drafts.filter((draft) => isMine(draft.owner, user));
+    const assigned = reviewItems.filter((item) => isMine(item.assignedOwner, user));
+    const owned = sops.filter((sop) => isMine(sop.owner, user));
+    const needsReview = assigned.filter((item) => reviewStatuses.includes(item.status));
+    const overdue = [
+      ...owned.filter((sop) => sop.reviewDate && sop.reviewDate < today),
+      ...assigned
+        .filter((item) => item.reviewDate && item.reviewDate < today)
+        .map((item) => ({
+          title: item.title,
+          owner: item.assignedOwner || "Unassigned",
+          reviewDate: item.reviewDate,
+          status: item.status,
+          url: "/admin/needs-review/",
+        })),
+    ];
+
+    setCount("count-submitted", submitted.length);
+    setCount("count-drafts", myDrafts.length);
+    setCount("count-assigned", assigned.length);
+    setCount("count-review", needsReview.length);
+    setCount("count-overdue", overdue.length);
+
+    renderRows(
+      "submitted-list",
+      submitted,
+      [
+        (item) => escapeHtml(item.title),
+        (item) => escapeHtml(item.status),
+        (item) => escapeHtml(item.priority),
+        (item) => escapeHtml(formatDateClient(item.updatedDate)),
+        (item) => actionButton(`/admin/review/?request=${encodeURIComponent(item.id)}`, "Edit Request"),
+      ],
+      "No submitted requests for this user.",
+    );
+
+    renderRows(
+      "draft-list",
+      myDrafts,
+      [
+        (item) => escapeHtml(item.title),
+        (item) => escapeHtml(item.status),
+        (item) => escapeHtml(formatDateClient(item.reviewDate)),
+        (item) => `<a class="button button--secondary" href="/create/?edit=draft&id=${encodeURIComponent(item.id)}">Edit Draft</a>`,
+      ],
+      "No draft SOPs for this user.",
+    );
+
+    renderRows(
+      "assigned-list",
+      assigned,
+      [
+        (item) => escapeHtml(item.title),
+        (item) => escapeHtml(item.status),
+        (item) => escapeHtml(formatDateClient(item.reviewDate)),
+        (item) => escapeHtml(item.assignedOwner || "Unassigned"),
+        () => actionButton("/admin/needs-review/", "Edit Item"),
+      ],
+      "No SOPs are assigned to this user.",
+    );
+
+    renderRows(
+      "owned-list",
+      owned,
+      [
+        (item) => `<a href="${escapeHtml(item.url)}">${escapeHtml(item.title)}</a>`,
+        (item) => escapeHtml(item.category),
+        (item) => escapeHtml(item.status),
+        (item) => escapeHtml(formatDateClient(item.reviewDate)),
+        (item) => actionButton(`${item.url}?edit=published`, "Edit SOP"),
+      ],
+      "No published SOPs are owned by this user.",
+    );
+
+    renderRows(
+      "review-list",
+      needsReview,
+      [
+        (item) => escapeHtml(item.title),
+        (item) => escapeHtml(item.status),
+        (item) => escapeHtml(item.priority || "Medium"),
+        (item) => escapeHtml(formatDateClient(item.reviewDate)),
+        () => actionButton("/admin/needs-review/", "Edit Review"),
+      ],
+      "No SOPs currently need this user's review.",
+    );
+
+    renderRows(
+      "overdue-list",
+      overdue,
+      [
+        (item) => (item.url ? `<a href="${escapeHtml(item.url)}">${escapeHtml(item.title)}</a>` : escapeHtml(item.title)),
+        (item) => escapeHtml(item.owner || "Unassigned"),
+        (item) => escapeHtml(formatDateClient(item.reviewDate)),
+        (item) => escapeHtml(item.status),
+        (item) => actionButton(item.url || "/admin/needs-review/", "Edit Review"),
+      ],
+      "No overdue reviews for this user.",
+    );
+  }
+
+  currentUserSelect?.addEventListener("change", renderDashboard);
+  renderDashboard();
+</script>

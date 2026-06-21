@@ -202,12 +202,37 @@ This keeps the app itself simple while Cloudflare handles organization authentic
 
 ## Future D1 Integration
 
+The app now includes a production database foundation in:
+
+- `migrations/0001_initial_schema.sql`
+- `docs/database.md`
+
+The schema defines the core tables needed behind the workflow app:
+
+- `users`
+- `teams`
+- `roles`
+- `sops`
+- `sop_versions`
+- `categories`
+- `tags`
+- `sop_tags`
+- `requests`
+- `reviews`
+- `comments`
+- `attachments`
+- `audit_logs`
+- `search_logs`
+- `feedback`
+- `notifications`
+
 The app is structured so mock storage can later be replaced with Cloudflare D1:
 
-- Draft SOPs can map to a `sop_drafts` table.
-- Outside submissions can map to a `sop_submissions` table.
-- Review queue status can map to a `review_events` or `review_items` table.
-- Published SOP content can remain Markdown-backed or move to a managed editorial workflow.
+- Draft SOPs and published SOPs can map to `sops` and `sop_versions`.
+- Outside submissions can map to `requests`.
+- Review queue status and assignments can map to `reviews`.
+- Uploaded screenshots and files can map to `attachments`, with file objects stored in R2 later.
+- Published SOP content can remain Markdown-backed during transition or move fully into `sop_versions.body_markdown`.
 
 Keep form submission and review workflow logic behind `src/lib/submissions.ts` and `src/lib/drafts.ts` so Pages Functions or Workers can replace browser storage without rewriting page components.
 

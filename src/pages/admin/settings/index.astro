@@ -3,10 +3,39 @@ import Layout from "../../../components/Layout.astro";
 
 // Future access note: restrict this route to admins with Cloudflare Access.
 const settings = [
-  ["Access model", "Use Cloudflare Access groups for Normal Users, Creators / Reviewers, and Admins."],
-  ["Review workflow", "Route submitted requests into the review queue before publishing."],
-  ["Taxonomy", "Maintain categories and tags as shared admin-controlled lists."],
+  {
+    id: "access-model",
+    label: "Access model",
+    description: "Use Cloudflare Access groups for Normal Users, Creators / Reviewers, and Admins.",
+    owner: "SOP administrators",
+    primaryPolicy: "Cloudflare Access role groups",
+    status: "Planned",
+    notes: "Map each navigation role to an Access group before sharing broadly.",
+    options: ["Normal Users", "Creators / Reviewers", "Admins"],
+  },
+  {
+    id: "review-workflow",
+    label: "Review workflow",
+    description: "Route submitted requests into the review queue before publishing.",
+    owner: "Instructional Technology",
+    primaryPolicy: "Submitted -> Triage -> Drafting -> In Review -> Approved -> Published",
+    status: "Active",
+    notes: "Reviewers can move items through the queue and convert submissions into editable drafts.",
+    options: ["Require owner assignment", "Require review date", "Allow direct publish"],
+  },
+  {
+    id: "taxonomy",
+    label: "Taxonomy",
+    description: "Maintain categories and tags as shared admin-controlled lists.",
+    owner: "Knowledge Manager",
+    primaryPolicy: "Admin-managed categories and tags",
+    status: "Active",
+    notes: "Categories define major SOP buckets. Tags improve search, analytics, and cross-category discovery.",
+    options: ["Allow category edits", "Allow tag edits", "Track unused tags"],
+  },
 ];
+
+const statusOptions = ["Planned", "Active", "Paused", "Needs Review"];
 ---
 
 <Layout title="Settings" wide>
@@ -17,14 +46,224 @@ const settings = [
       <p>Configuration areas for the internal SOP system.</p>
     </div>
 
-    <div class="quick-link-grid">
-      {settings.map(([label, description]) => (
-        <article class="quick-link quick-link--panel">
-          <strong>{label}</strong>
-          <span>{description}</span>
-        </article>
+    <div class="quick-link-grid" id="settings-list">
+      {settings.map((setting) => (
+        <button
+          class="quick-link quick-link--panel role-card"
+          type="button"
+          data-edit-setting={setting.id}
+        >
+          <strong>{setting.label}</strong>
+          <span>{setting.description}</span>
+          <small>{setting.status}</small>
+        </button>
       ))}
     </div>
+
+    <form class="form-grid" id="setting-editor" hidden>
+      <h2 class="form-section-title field--full" id="setting-editor-heading">Edit Setting</h2>
+      <input id="setting-id" name="id" type="hidden" />
+      <div class="field">
+        <label for="setting-label">Setting name</label>
+        <input id="setting-label" name="label" type="text" required />
+      </div>
+      <div class="field">
+        <label for="setting-owner">Owner</label>
+        <input id="setting-owner" name="owner" type="text" required />
+      </div>
+      <div class="field">
+        <label for="setting-status">Status</label>
+        <select id="setting-status" name="status">
+          {statusOptions.map((status) => <option value={status}>{status}</option>)}
+        </select>
+      </div>
+      <div class="field field--full">
+        <label for="setting-description">Description</label>
+        <textarea id="setting-description" name="description" rows="3" required></textarea>
+      </div>
+      <div class="field field--full">
+        <label for="setting-primary-policy">Configuration rule</label>
+        <textarea id="setting-primary-policy" name="primaryPolicy" rows="3" required></textarea>
+      </div>
+      <div class="field field--full">
+        <label for="setting-notes">Admin notes</label>
+        <textarea id="setting-notes" name="notes" rows="3"></textarea>
+      </div>
+      <fieldset class="field field--full checkbox-grid" id="setting-options">
+        <legend>Enabled options</legend>
+      </fieldset>
+      <div class="form-actions field--full">
+        <button class="button button--primary" type="submit">Save Setting</button>
+        <button class="button button--ghost" type="button" id="cancel-setting-edit">
+          Cancel
+        </button>
+      </div>
+      <div class="confirmation field--full" id="setting-confirmation" role="status" hidden></div>
+    </form>
   </section>
 </Layout>
+
+<script is:inline define:vars={{ initialSettings: settings }}>
+  const SETTINGS_STORAGE_KEY = "sopHubAdminSettings";
+  const settingsList = document.getElementById("settings-list");
+  const editor = document.getElementById("setting-editor");
+  const editorHeading = document.getElementById("setting-editor-heading");
+  const optionsContainer = document.getElementById("setting-options");
+  const cancelButton = document.getElementById("cancel-setting-edit");
+  const confirmation = document.getElementById("setting-confirmation");
+
+  const escapeHtml = (value) =>
+    String(value ?? "").replace(/[&<>"']/g, (character) => {
+      const replacements = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      };
+      return replacements[character];
+    });
+
+  function readSettings() {
+    try {
+      const stored = JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) || "null");
+      return Array.isArray(stored) && stored.length > 0 ? stored : initialSettings;
+    } catch {
+      return initialSettings;
+    }
+  }
+
+  function writeSettings(settings) {
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+  }
+
+  function setField(name, value) {
+    const element = editor?.querySelector(`[name="${name}"]`);
+    if (
+      element instanceof HTMLInputElement ||
+      element instanceof HTMLSelectElement ||
+      element instanceof HTMLTextAreaElement
+    ) {
+      element.value = String(value ?? "");
+    }
+  }
+
+  function getField(name) {
+    const element = editor?.querySelector(`[name="${name}"]`);
+    return element instanceof HTMLInputElement ||
+      element instanceof HTMLSelectElement ||
+      element instanceof HTMLTextAreaElement
+      ? element.value.trim()
+      : "";
+  }
+
+  function renderSettings() {
+    if (!settingsList) return;
+
+    settingsList.innerHTML = readSettings()
+      .map(
+        (setting) => `
+          <button class="quick-link quick-link--panel role-card" type="button" data-edit-setting="${escapeHtml(
+            setting.id,
+          )}">
+            <strong>${escapeHtml(setting.label)}</strong>
+            <span>${escapeHtml(setting.description)}</span>
+            <small>${escapeHtml(setting.status)}</small>
+          </button>
+        `,
+      )
+      .join("");
+  }
+
+  function renderOptions(setting) {
+    if (!optionsContainer) return;
+
+    optionsContainer.innerHTML = `
+      <legend>Enabled options</legend>
+      ${(setting.options || [])
+        .map(
+          (option) => `
+            <label>
+              <input type="checkbox" name="options" value="${escapeHtml(option)}" checked />
+              <span>${escapeHtml(option)}</span>
+            </label>
+          `,
+        )
+        .join("")}
+    `;
+  }
+
+  function getOptions() {
+    return Array.from(editor?.querySelectorAll('input[name="options"]:checked') || [])
+      .filter((input) => input instanceof HTMLInputElement)
+      .map((input) => input.value);
+  }
+
+  function openEditor(settingId) {
+    const setting = readSettings().find((item) => item.id === settingId);
+    if (!setting || !(editor instanceof HTMLFormElement)) return;
+
+    setField("id", setting.id);
+    setField("label", setting.label);
+    setField("owner", setting.owner);
+    setField("status", setting.status);
+    setField("description", setting.description);
+    setField("primaryPolicy", setting.primaryPolicy);
+    setField("notes", setting.notes);
+    renderOptions(setting);
+
+    if (editorHeading) editorHeading.textContent = `Edit ${setting.label}`;
+    if (confirmation) confirmation.hidden = true;
+    editor.hidden = false;
+    editor.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  settingsList?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+
+    const button = target.closest("[data-edit-setting]");
+    if (!(button instanceof HTMLElement)) return;
+
+    openEditor(button.dataset.editSetting);
+  });
+
+  editor?.addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    const settingId = getField("id");
+    const updated = {
+      id: settingId,
+      label: getField("label"),
+      owner: getField("owner"),
+      status: getField("status"),
+      description: getField("description"),
+      primaryPolicy: getField("primaryPolicy"),
+      notes: getField("notes"),
+      options: getOptions(),
+    };
+
+    const settings = readSettings().map((setting) =>
+      setting.id === settingId ? updated : setting,
+    );
+    writeSettings(settings);
+    renderSettings();
+
+    if (editorHeading) editorHeading.textContent = `Edit ${updated.label}`;
+    if (confirmation) {
+      confirmation.hidden = false;
+      confirmation.innerHTML =
+        "<strong>Setting saved.</strong><p>This admin setting is saved in this browser.</p>";
+    }
+  });
+
+  cancelButton?.addEventListener("click", () => {
+    if (editor instanceof HTMLFormElement) {
+      editor.hidden = true;
+      editor.reset();
+    }
+  });
+
+  renderSettings();
+</script>
 
