@@ -200,41 +200,89 @@ Suggested access model:
 
 This keeps the app itself simple while Cloudflare handles organization authentication at the edge.
 
-## Future D1 Integration
+## Backend Database
 
-The app now includes a production database foundation in:
+The app now has a Cloudflare D1 backend database foundation in:
 
 - `migrations/0001_initial_schema.sql`
+- `migrations/0002_backend_database_expansion.sql`
+- `seeds/0001_core_data.sql`
 - `docs/database.md`
+- `wrangler.jsonc`
+
+Remote D1 database:
+
+- Name: `sop-knowledge-hub-db`
+- Binding: `DB`
+- ID: `dcb9428d-9b7a-46b2-a44a-8600b5ed898d`
+
+Useful commands:
+
+```bash
+npm run db:migrate:local
+npm run db:seed:local
+npm run db:tables:local
+
+npm run db:migrate:remote
+npm run db:seed:remote
+npm run db:tables:remote
+```
 
 The schema defines the core tables needed behind the workflow app:
 
 - `users`
 - `teams`
 - `roles`
+- `permissions`
+- `role_permissions`
+- `user_roles`
+- `identity_accounts`
+- `access_groups`
 - `sops`
 - `sop_versions`
+- `procedure_steps`
+- `procedure_step_media`
 - `categories`
 - `tags`
 - `sop_tags`
+- `media_assets`
+- `sop_media`
+- `sop_version_media`
 - `requests`
 - `reviews`
 - `comments`
 - `attachments`
+- `sop_publication_events`
+- `sop_subscriptions`
+- `sop_acknowledgements`
+- `sop_favorites`
+- `sop_search_documents`
 - `audit_logs`
+- `page_view_events`
+- `sop_view_events`
+- `sop_export_events`
 - `search_logs`
 - `feedback`
+- `admin_analytics_daily`
 - `notifications`
+- `system_settings`
+- `import_jobs`
 
 The app is structured so mock storage can later be replaced with Cloudflare D1:
 
 - Draft SOPs and published SOPs can map to `sops` and `sop_versions`.
 - Outside submissions can map to `requests`.
 - Review queue status and assignments can map to `reviews`.
-- Uploaded screenshots and files can map to `attachments`, with file objects stored in R2 later.
+- Uploaded screenshots and files can map to `media_assets` and `attachments`, with file objects
+  stored in Cloudflare R2.
 - Published SOP content can remain Markdown-backed during transition or move fully into `sop_versions.body_markdown`.
 
 Keep form submission and review workflow logic behind `src/lib/submissions.ts` and `src/lib/drafts.ts` so Pages Functions or Workers can replace browser storage without rewriting page components.
+
+Important: the current Astro app still builds as a static site. D1 and R2 bindings require
+Pages Functions or Workers runtime code. The database exists and is seeded; the next step is
+to add API endpoints for create/edit/publish, media upload, review queue updates, search, and
+admin analytics reads.
 
 ## Future Notification Options
 

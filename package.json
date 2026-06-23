@@ -9,7 +9,13 @@
     "preview": "astro preview",
     "check": "astro check",
     "cf:preview": "npm run build && npx wrangler pages dev dist",
-    "cf:deploy:direct": "npm run build && npx wrangler pages deploy dist --project-name=sop-knowledge-hub"
+    "cf:deploy:direct": "npm run build && npx wrangler pages deploy dist --project-name=sop-knowledge-hub",
+    "db:migrate:local": "npx wrangler d1 migrations apply sop-knowledge-hub-db --local",
+    "db:migrate:remote": "npx wrangler d1 migrations apply sop-knowledge-hub-db --remote",
+    "db:seed:local": "npx wrangler d1 execute sop-knowledge-hub-db --local --file ./seeds/0001_core_data.sql",
+    "db:seed:remote": "npx wrangler d1 execute sop-knowledge-hub-db --remote --file ./seeds/0001_core_data.sql",
+    "db:tables:local": "npx wrangler d1 execute sop-knowledge-hub-db --local --command \"SELECT name FROM sqlite_schema WHERE type IN ('table','view') ORDER BY name;\"",
+    "db:tables:remote": "npx wrangler d1 execute sop-knowledge-hub-db --remote --command \"SELECT name FROM sqlite_schema WHERE type IN ('table','view') ORDER BY name;\""
   },
   "dependencies": {
     "astro": "latest",

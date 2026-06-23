@@ -2,5 +2,13 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "sop-knowledge-hub",
   "pages_build_output_dir": "./dist",
-  "compatibility_date": "2026-06-18"
+  "compatibility_date": "2026-06-18",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "sop-knowledge-hub-db",
+      "database_id": "dcb9428d-9b7a-46b2-a44a-8600b5ed898d",
+      "migrations_dir": "./migrations"
+    }
+  ]
 }

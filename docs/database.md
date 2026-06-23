@@ -1,41 +1,83 @@
-# Database Foundation
+# Backend Database
 
-The production backend should use the schema in `migrations/0001_initial_schema.sql`.
-It is written for Cloudflare D1 / SQLite and gives the SOP Knowledge Hub a durable
-workflow foundation behind the current static UI.
+The production backend uses Cloudflare D1 / SQLite for relational data and should use
+Cloudflare R2 for uploaded image, video, and document binaries. D1 stores the metadata,
+relationships, permissions, workflow state, search data, and analytics. R2 stores the
+actual files.
+
+Remote D1 database created:
+
+- Database name: `sop-knowledge-hub-db`
+- Binding: `DB`
+- Database ID: `dcb9428d-9b7a-46b2-a44a-8600b5ed898d`
+- Region reported by Wrangler: `ENAM`
 
 ## Core Tables
 
-- `users`, `teams`, `roles`: identity, department/team ownership, access level, and permissions.
+- `users`, `teams`, `roles`, `permissions`, `role_permissions`, `user_roles`: identity,
+  department/team ownership, multi-role assignment, and authorization.
+- `identity_accounts`, `access_groups`, `user_access_groups`: Cloudflare Access or identity
+  provider mapping.
 - `sops`, `sop_versions`: current SOP records plus full version history.
+- `procedure_steps`, `procedure_step_media`: structured step records and step-specific media.
 - `categories`, `tags`, `sop_tags`: taxonomy and many-to-many SOP tagging.
 - `requests`, `reviews`: intake, assignment, review queue, approvals, and publishing workflow.
-- `comments`, `attachments`: collaboration, screenshots, uploaded files, and review evidence.
+- `media_assets`, `sop_media`, `sop_version_media`: R2 object metadata, image/video metadata,
+  alt text, captions, and SOP relationships.
+- `comments`, `attachments`: collaboration, uploaded files, and review evidence.
+- `sop_publication_events`: publish/approve/archive workflow audit trail.
+- `sop_subscriptions`, `sop_acknowledgements`, `sop_favorites`: user-specific SOP tracking.
+- `sop_search_documents`: database-backed search documents for future dynamic search.
 - `audit_logs`: who changed what and when.
-- `search_logs`, `feedback`: analytics for searches, no-result searches, and helpful/not helpful ratings.
+- `page_view_events`, `sop_view_events`, `sop_export_events`, `search_logs`, `feedback`,
+  `admin_analytics_daily`: analytics for admin dashboards, searches, no-result searches,
+  exports, and helpful/not helpful ratings.
 - `notifications`: in-app, email, or Teams reminders for assignments and review dates.
+- `system_settings`, `import_jobs`: operational settings and import/backfill job tracking.
 
-## Apply Later With Wrangler
+## Apply With Wrangler
 
-When the project is ready for a real D1 database, create the database and apply the migration:
+The project now includes npm scripts for local and remote database work:
 
 ```bash
-npx wrangler d1 create sop-knowledge-hub-db
-npx wrangler d1 migrations apply sop-knowledge-hub-db --local
-npx wrangler d1 migrations apply sop-knowledge-hub-db --remote
+npm run db:migrate:local
+npm run db:seed:local
+npm run db:tables:local
+
+npm run db:migrate:remote
+npm run db:seed:remote
+npm run db:tables:remote
 ```
 
-Then add the generated D1 binding to `wrangler.jsonc`, for example:
+The D1 binding is configured in `wrangler.jsonc`:
 
 ```jsonc
 "d1_databases": [
   {
     "binding": "DB",
     "database_name": "sop-knowledge-hub-db",
-    "database_id": "replace-with-cloudflare-database-id"
+    "database_id": "dcb9428d-9b7a-46b2-a44a-8600b5ed898d",
+    "migrations_dir": "./migrations"
   }
 ]
 ```
+
+## Media Storage
+
+Do not store image binaries in D1. The database stores:
+
+- R2 object key
+- file name and display name
+- MIME type and size
+- checksum
+- width, height, duration
+- alt text and caption
+- uploader and workflow relationship
+- status such as active, quarantined, archived, or deleted
+
+The account currently needs R2 enabled in the Cloudflare dashboard before a bucket can be
+created. After R2 is enabled, create a bucket such as `sop-knowledge-hub-media`, then add
+an `r2_buckets` binding to `wrangler.jsonc`.
 
 ## Design Notes
 
@@ -44,5 +86,35 @@ Then add the generated D1 binding to `wrangler.jsonc`, for example:
 - Foreign keys are included for data integrity.
 - Indexes are included for the screens already in the app: search, My Work, review queue,
   admin analytics, ownership, overdue reviews, and notifications.
-- Attachments are modeled with a `storage_key` so files can later live in Cloudflare R2
-  while metadata remains in D1.
+- Attachments and media are modeled with storage keys so files live in Cloudflare R2 while
+  searchable metadata remains in D1.
+
+## Current Validation
+
+Both local and remote D1 were migrated and seeded successfully.
+
+Remote verification counts:
+
+- 44 tables/views
+- 5 users
+- 3 roles
+- 14 permissions
+- 7 SOPs
+- 7 SOP versions
+- 7 media assets
+- 2 requests
+- 3 reviews
+- 6 daily analytics rows
+
+## Runtime Integration Note
+
+The current Astro app still builds as static output. Cloudflare bindings such as D1 and R2
+require Pages Functions or Workers runtime code. The database is ready; the next backend
+step is to add API endpoints for:
+
+- authentication/session user lookup
+- SOP create/edit/publish
+- request submission
+- review queue updates
+- media upload signing or direct R2 upload
+- search and admin analytics reads
