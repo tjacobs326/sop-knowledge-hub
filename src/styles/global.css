@@ -1437,7 +1437,26 @@ th {
 }
 
 .review-summary__card {
+  width: 100%;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  background: var(--color-white);
   border-top: 4px solid var(--color-beacon);
+  cursor: pointer;
+}
+
+.review-summary__card:hover,
+.review-summary__card:focus-visible,
+.review-summary__card[aria-pressed="true"] {
+  border-color: var(--color-beacon);
+  box-shadow: 0 16px 32px rgb(10 31 68 / 0.18);
+  transform: translateY(-1px);
+}
+
+.review-summary__card[aria-pressed="true"] {
+  outline: 3px solid rgb(255 179 71 / 0.35);
+  outline-offset: 2px;
 }
 
 .status-badge--priority-low {

@@ -29,11 +29,11 @@ const filters = [
 ];
 
 const queueCounts = [
-  ["New", 4],
-  ["Needs Review", 2],
-  ["Urgent", 1],
-  ["Approved", 6],
-  ["Archived", 3],
+  ["New", 4, "Submitted"],
+  ["Needs Review", 2, "In Review"],
+  ["Urgent", 1, "Urgent"],
+  ["Approved", 6, "Approved"],
+  ["Archived", 3, "Archived"],
 ];
 const reviewerMembers = userAccounts.filter(
   (user) => user.accessLevel === "Creator / Reviewer" && user.status === "Active",
@@ -48,11 +48,17 @@ const reviewerMembers = userAccounts.filter(
   </div>
 
   <div class="stat-grid review-summary" aria-label="Review queue counts">
-    {queueCounts.map(([label, value]) => (
-      <article class="stat-card review-summary__card">
+    {queueCounts.map(([label, value, filter]) => (
+      <button
+        class="stat-card review-summary__card"
+        type="button"
+        data-review-summary-filter={filter}
+        aria-pressed="false"
+        aria-label={`Show ${label} review queue items`}
+      >
         <span>{label}</span>
         <strong>{value}</strong>
-      </article>
+      </button>
     ))}
   </div>
 
@@ -89,6 +95,7 @@ const reviewerMembers = userAccounts.filter(
 >
   const list = document.getElementById("review-list");
   const tabs = Array.from(document.querySelectorAll("[data-review-filter]"));
+  const summaryCards = Array.from(document.querySelectorAll("[data-review-summary-filter]"));
   let activeFilter = "All";
 
   const workflowStatuses = [
@@ -408,12 +415,26 @@ const reviewerMembers = userAccounts.filter(
     render();
   }
 
+  function setActiveFilter(filter) {
+    activeFilter = filter || "All";
+    tabs.forEach((item) =>
+      item.setAttribute("aria-selected", String(item.dataset.reviewFilter === activeFilter)),
+    );
+    summaryCards.forEach((card) =>
+      card.setAttribute(
+        "aria-pressed",
+        String(card.dataset.reviewSummaryFilter === activeFilter),
+      ),
+    );
+    render();
+  }
+
   tabs.forEach((tab) => {
-    tab.addEventListener("click", () => {
-      activeFilter = tab.dataset.reviewFilter;
-      tabs.forEach((item) => item.setAttribute("aria-selected", String(item === tab)));
-      render();
-    });
+    tab.addEventListener("click", () => setActiveFilter(tab.dataset.reviewFilter));
+  });
+
+  summaryCards.forEach((card) => {
+    card.addEventListener("click", () => setActiveFilter(card.dataset.reviewSummaryFilter));
   });
 
   list?.addEventListener("change", (event) => {
