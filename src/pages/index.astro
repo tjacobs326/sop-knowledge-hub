@@ -1,122 +1,203 @@
 ---
 import Layout from "../components/Layout.astro";
-import SearchBox from "../components/SearchBox.astro";
 import CategoryCard from "../components/CategoryCard.astro";
-import SopCard from "../components/SopCard.astro";
-import { mostUsedSopIds } from "../data/most-used";
+import StatusBadge from "../components/StatusBadge.astro";
+import { formatDate } from "../lib/dates";
 import { getAllSops, getCategoryCounts, getSopUrl } from "../lib/sops";
 
 const sops = await getAllSops();
 const categoryCounts = getCategoryCounts(sops);
-const mostUsed = mostUsedSopIds
-  .map((id) => sops.find((sop) => sop.data.id === id))
-  .filter((sop): sop is (typeof sops)[number] => Boolean(sop))
-  .slice(0, 4);
 const recentlyUpdated = [...sops]
   .sort((a, b) => new Date(b.data.lastUpdated).getTime() - new Date(a.data.lastUpdated).getTime())
-  .slice(0, 4);
-const totalPublished = sops.filter((s) => s.data.status === "Published").length;
+  .slice(0, 5);
+const totalPublished = sops.filter((sop) => sop.data.status === "Published").length;
+const tagCount = new Set(sops.flatMap((sop) => sop.data.tags)).size;
+const lastUpdated = recentlyUpdated[0]?.data.lastUpdated ?? new Date().toISOString().slice(0, 10);
+
+const quickAccess = [
+  ["/my-work/", "My Work", "MW"],
+  ["/create/", "Create SOP", "CS"],
+  ["/drafts/", "My Drafts", "MD"],
+  ["/admin/review/", "Review Queue", "RQ"],
+  ["/admin/needs-review/", "Needs Review", "NR"],
+  ["/submit/", "Submit Request", "SR"],
+];
+
+const announcements = [
+  ["New SOP Updates", "Review the latest changed procedures and recently published drafts.", "May 15, 2026"],
+  ["Training on SOP Best Practices", "Use consistent steps, owners, review dates, and supporting media.", "May 22, 2026"],
+  ["New Category Added", "Admin taxonomy tools now support category and tag management.", "May 10, 2026"],
+];
+
+const resources = [
+  ["/categories/templates/", "SOP Templates", "Use templates to get started."],
+  ["/finder/", "SOP Guidelines", "Find the right process path."],
+  ["/admin/review/", "Approval Workflow", "Learn about the review process."],
+  ["/ai-assist/", "SOP Training", "Get controlled AI assistance."],
+  ["mailto:sop-support@organization.edu", "Contact SOP Support", "Get help from our team."],
+];
 ---
 
 <Layout title="SOP Knowledge Hub" wide>
-  <section class="hero">
-    <div class="hero__content">
-      <p class="eyebrow">Organization Knowledge Base</p>
-      <h1>SOP Knowledge Hub</h1>
-      <p class="hero__subtitle">Find the process, template, or guide you need.</p>
-      <p>Search by title, tag, tool, owner, category, or keyword — all in one place.</p>
-      <SearchBox />
-    </div>
-    <dl class="hero-stats" aria-label="Knowledge base overview">
-      <div class="hero-stats__item">
-        <dt>Published SOPs</dt>
-        <dd>{totalPublished}</dd>
-      </div>
-      <div class="hero-stats__item">
-        <dt>Categories</dt>
-        <dd>{categoryCounts.length}</dd>
-      </div>
-      <div class="hero-stats__item">
-        <dt>Guided Finder</dt>
-        <dd>Available</dd>
-      </div>
-      <div class="hero-stats__item">
-        <dt>Always</dt>
-        <dd>Up to Date</dd>
-      </div>
-    </dl>
-  </section>
+  <div class="dashboard-layout">
+    <div class="dashboard-main">
+      <section class="hero dashboard-hero">
+        <div class="hero__content">
+          <p class="eyebrow">Welcome to the</p>
+          <h1>SOP Knowledge Hub</h1>
+          <p class="hero__subtitle">
+            Your central hub for official standard operating procedures, guides, and best practices.
+          </p>
+          <div class="hero-actions">
+            <a class="button button--primary" href="/search/">Search SOPs</a>
+            <a class="button button--ghost hero-button" href="/finder/">Guided Finder</a>
+          </div>
+        </div>
+        <div class="hero-illustration" aria-hidden="true">
+          <div class="document-card">
+            <strong>SOP</strong>
+            <span></span>
+            <span></span>
+            <span></span>
+            <ul>
+              <li></li>
+              <li></li>
+              <li></li>
+            </ul>
+          </div>
+          <span class="floating-tile">OK</span>
+          <span class="floating-tile floating-tile--left">KB</span>
+        </div>
+      </section>
 
-  <section class="page-section" aria-labelledby="categories-heading">
-    <div class="section-heading">
-      <p class="eyebrow">Browse</p>
-      <h2 id="categories-heading">Categories</h2>
-    </div>
-    <div class="category-grid">
-      {
-        categoryCounts.map((category) => (
-          <CategoryCard
-            name={category.name}
-            slug={category.slug}
-            description={category.description}
-            icon={category.icon}
-            color={category.color}
-            count={category.count}
-          />
-        ))
-      }
-    </div>
-  </section>
+      <dl class="hero-stats dashboard-stats" aria-label="Knowledge base overview">
+        <div class="hero-stats__item">
+          <dt>Published SOPs</dt>
+          <dd>{totalPublished}</dd>
+          <a href="/search/">View all published</a>
+        </div>
+        <div class="hero-stats__item">
+          <dt>Categories</dt>
+          <dd>{categoryCounts.length}</dd>
+          <a href="/categories/">View all categories</a>
+        </div>
+        <div class="hero-stats__item">
+          <dt>Tags</dt>
+          <dd>{tagCount}</dd>
+          <a href="/admin/tags/">View all tags</a>
+        </div>
+        <div class="hero-stats__item">
+          <dt>Last Updated</dt>
+          <dd>{formatDate(lastUpdated)}</dd>
+          <a href="/search/">See what's new</a>
+        </div>
+      </dl>
 
-  <section class="page-section" aria-labelledby="most-used-heading">
-    <div class="section-heading">
-      <p class="eyebrow">Frequently Used</p>
-      <h2 id="most-used-heading">Most Used SOPs</h2>
-    </div>
-    <div class="sop-grid">
-      {
-        mostUsed.map((sop) => (
-          <SopCard
-            title={sop.data.title}
-            purpose={sop.data.purpose}
-            category={sop.data.category}
-            tags={sop.data.tags}
-            owner={sop.data.owner}
-            lastUpdated={sop.data.lastUpdated}
-            reviewDate={sop.data.reviewDate}
-            tools={sop.data.tools}
-            status={sop.data.status}
-            url={getSopUrl(sop)}
-            estimatedCompletionTime={sop.data.estimatedCompletionTime}
-          />
-        ))
-      }
-    </div>
-  </section>
+      <section class="page-section dashboard-section-block" aria-labelledby="categories-heading">
+        <div class="dashboard-section-heading">
+          <h2 id="categories-heading">Browse by Category</h2>
+          <a href="/categories/">View all categories -></a>
+        </div>
+        <div class="category-grid dashboard-category-grid">
+          {
+            categoryCounts.slice(0, 5).map((category) => (
+              <CategoryCard
+                name={category.name}
+                slug={category.slug}
+                description={category.description}
+                icon={category.icon}
+                color={category.color}
+                count={category.count}
+              />
+            ))
+          }
+        </div>
+      </section>
 
-  <section class="page-section" aria-labelledby="recent-heading">
-    <div class="section-heading">
-      <p class="eyebrow">Fresh</p>
-      <h2 id="recent-heading">Recently Updated SOPs</h2>
+      <section class="page-section dashboard-section-block" aria-labelledby="recent-heading">
+        <div class="dashboard-section-heading">
+          <h2 id="recent-heading">Recently Updated SOPs</h2>
+          <a href="/search/">View all SOPs -></a>
+        </div>
+        <div class="table-wrap dashboard-table">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">SOP Title</th>
+                <th scope="col">Category</th>
+                <th scope="col">Updated</th>
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {
+                recentlyUpdated.map((sop) => (
+                  <tr>
+                    <td>
+                      <a href={getSopUrl(sop)}>{sop.data.title}</a>
+                      <span>{sop.data.purpose}</span>
+                    </td>
+                    <td><span class="category-pill">{sop.data.category}</span></td>
+                    <td>{formatDate(sop.data.lastUpdated)}</td>
+                    <td><StatusBadge status={sop.data.status} /></td>
+                  </tr>
+                ))
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
-    <div class="sop-grid">
-      {
-        recentlyUpdated.map((sop) => (
-          <SopCard
-            title={sop.data.title}
-            purpose={sop.data.purpose}
-            category={sop.data.category}
-            tags={sop.data.tags}
-            owner={sop.data.owner}
-            lastUpdated={sop.data.lastUpdated}
-            reviewDate={sop.data.reviewDate}
-            tools={sop.data.tools}
-            status={sop.data.status}
-            url={getSopUrl(sop)}
-            estimatedCompletionTime={sop.data.estimatedCompletionTime}
-          />
-        ))
-      }
-    </div>
-  </section>
+
+    <aside class="dashboard-rail" aria-label="Dashboard tools">
+      <section class="dashboard-panel">
+        <h2>My Quick Access</h2>
+        <div class="quick-access-grid">
+          {
+            quickAccess.map(([href, label, icon]) => (
+              <a href={href}>
+                <span aria-hidden="true">{icon}</span>
+                {label}
+              </a>
+            ))
+          }
+        </div>
+      </section>
+
+      <section class="dashboard-panel">
+        <div class="dashboard-panel__heading">
+          <h2>Announcements</h2>
+          <a href="/search/">View all</a>
+        </div>
+        <ol class="announcement-list">
+          {
+            announcements.map(([title, body, date]) => (
+              <li>
+                <strong>{title}</strong>
+                <p>{body}</p>
+                <time>{date}</time>
+              </li>
+            ))
+          }
+        </ol>
+      </section>
+
+      <section class="dashboard-panel">
+        <h2>Helpful Resources</h2>
+        <div class="resource-list">
+          {
+            resources.map(([href, title, body]) => (
+              <a href={href}>
+                <span>
+                  <strong>{title}</strong>
+                  <small>{body}</small>
+                </span>
+                <span aria-hidden="true">></span>
+              </a>
+            ))
+          }
+        </div>
+      </section>
+    </aside>
+  </div>
 </Layout>

@@ -3,6 +3,7 @@ import Layout from "../../components/Layout.astro";
 import { mockDrafts } from "../../data/mock-drafts";
 import { mockSubmissions } from "../../data/mock-submissions";
 import { userAccounts } from "../../data/mock-users";
+import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badges";
 import { DRAFTS_STORAGE_KEY } from "../../lib/drafts";
 import { getAllSops, getSopUrl } from "../../lib/sops";
 import { REVIEW_QUEUE_STORAGE_KEY, SUBMISSIONS_STORAGE_KEY, createSubmissionReviewItem } from "../../lib/submissions";
@@ -205,6 +206,8 @@ const sopRecords = sops.map((sop) => ({
     DRAFTS_STORAGE_KEY,
     SUBMISSIONS_STORAGE_KEY,
     REVIEW_QUEUE_STORAGE_KEY,
+    priorityBadgeDefinitions,
+    statusBadgeDefinitions,
   }}
 >
   const currentUserSelect = document.getElementById("current-user");
@@ -272,8 +275,25 @@ const sopRecords = sops.map((sop) => ({
   }
 
   function statusBadge(status) {
-    const className = String(status || "Unknown").toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    return `<span class="status-badge status-badge--${escapeHtml(className)}">${escapeHtml(status || "Unknown")}</span>`;
+    const key = String(status || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const badge = statusBadgeDefinitions[key] || {
+      label: status || "New",
+      className: "status-badge--new",
+    };
+    return `<span class="badge status-badge ${escapeHtml(badge.className)}"><span class="sr-only">Status:</span>${escapeHtml(
+      badge.label,
+    )}</span>`;
+  }
+
+  function priorityBadge(priority) {
+    const key = String(priority || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const badge = priorityBadgeDefinitions[key] || {
+      label: priority || "Medium",
+      className: "priority-badge--medium",
+    };
+    return `<span class="badge priority-badge ${escapeHtml(badge.className)}"><span class="sr-only">Priority:</span>${escapeHtml(
+      badge.label,
+    )}</span>`;
   }
 
   function renderRows(id, rows, columns, emptyText) {
@@ -347,7 +367,7 @@ const sopRecords = sops.map((sop) => ({
       [
         (item) => escapeHtml(item.title),
         (item) => statusBadge(item.status),
-        (item) => escapeHtml(item.priority),
+        (item) => priorityBadge(item.priority),
         (item) => escapeHtml(formatDateClient(item.updatedDate)),
         (item) => actionButton(`/admin/review/?request=${encodeURIComponent(item.id)}`, "Edit Request"),
       ],
@@ -398,7 +418,7 @@ const sopRecords = sops.map((sop) => ({
       [
         (item) => escapeHtml(item.title),
         (item) => statusBadge(item.status),
-        (item) => escapeHtml(item.priority || "Medium"),
+        (item) => priorityBadge(item.priority || "Medium"),
         (item) => escapeHtml(formatDateClient(item.reviewDate)),
         () => actionButton("/admin/needs-review/", "Edit Review"),
       ],
@@ -412,7 +432,7 @@ const sopRecords = sops.map((sop) => ({
         (item) => (item.url ? `<a href="${escapeHtml(item.url)}">${escapeHtml(item.title)}</a>` : escapeHtml(item.title)),
         (item) => escapeHtml(item.owner || "Unassigned"),
         (item) => escapeHtml(formatDateClient(item.reviewDate)),
-        (item) => statusBadge(item.status),
+        () => statusBadge("Past Due"),
         (item) => actionButton(item.url || "/admin/needs-review/", "Edit Review"),
       ],
       "No overdue reviews for this user.",

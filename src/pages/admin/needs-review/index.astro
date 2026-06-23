@@ -1,7 +1,10 @@
 ---
 import Layout from "../../../components/Layout.astro";
+import PriorityBadge from "../../../components/PriorityBadge.astro";
+import StatusBadge from "../../../components/StatusBadge.astro";
 import { mockDrafts } from "../../../data/mock-drafts";
 import { mockSubmissions } from "../../../data/mock-submissions";
+import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../../lib/badges";
 import { createDraftReviewItem, DRAFTS_STORAGE_KEY, EDIT_SOP_STORAGE_KEY } from "../../../lib/drafts";
 import {
   createSubmissionReviewItem,
@@ -45,8 +48,8 @@ const items = [
             <tr>
               <td>{item.title}</td>
               <td>{item.submissionType}</td>
-              <td>{item.status}</td>
-              <td>{item.priority}</td>
+              <td><StatusBadge status={item.status} /></td>
+              <td><PriorityBadge priority={item.priority} /></td>
               <td>{item.assignedOwner || "Unassigned"}</td>
               <td>
                 <button class="button button--secondary" type="button" data-edit-review={item.id}>
@@ -71,6 +74,8 @@ const items = [
     EDIT_SOP_STORAGE_KEY,
     REVIEW_QUEUE_STORAGE_KEY,
     SUBMISSIONS_STORAGE_KEY,
+    priorityBadgeDefinitions,
+    statusBadgeDefinitions,
   }}
 >
   const list = document.getElementById("needs-review-list");
@@ -93,6 +98,28 @@ const items = [
       };
       return replacements[character];
     });
+
+  function statusBadge(status) {
+    const key = String(status || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const badge = statusBadgeDefinitions[key] || {
+      label: status || "New",
+      className: "status-badge--new",
+    };
+    return `<span class="badge status-badge ${escapeHtml(badge.className)}"><span class="sr-only">Status:</span>${escapeHtml(
+      badge.label,
+    )}</span>`;
+  }
+
+  function priorityBadge(priority) {
+    const key = String(priority || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const badge = priorityBadgeDefinitions[key] || {
+      label: priority || "Medium",
+      className: "priority-badge--medium",
+    };
+    return `<span class="badge priority-badge ${escapeHtml(badge.className)}"><span class="sr-only">Priority:</span>${escapeHtml(
+      badge.label,
+    )}</span>`;
+  }
 
   function readStorage(key) {
     try {
@@ -176,8 +203,8 @@ const items = [
                 <tr>
                   <td>${escapeHtml(item.title)}</td>
                   <td>${escapeHtml(item.submissionType)}</td>
-                  <td>${escapeHtml(item.status)}</td>
-                  <td>${escapeHtml(item.priority)}</td>
+                  <td>${statusBadge(item.status)}</td>
+                  <td>${priorityBadge(item.priority)}</td>
                   <td>${escapeHtml(item.assignedOwner || "Unassigned")}</td>
                   <td>
                     <button class="button button--secondary" type="button" data-edit-review="${escapeHtml(

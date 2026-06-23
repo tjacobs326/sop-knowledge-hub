@@ -227,6 +227,39 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
     return `${(size / (1024 * 1024)).toFixed(1)} MB`;
   }
 
+  function readFileAsDataUrl(file) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.addEventListener("load", () => {
+        resolve(typeof reader.result === "string" ? reader.result : "");
+      });
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function uploadMediaFile(file, purpose = "Request Attachment") {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("purpose", purpose);
+    formData.append("entityType", "request");
+
+    try {
+      const response = await fetch("/api/media", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await response.json();
+      const uploaded = data.uploaded?.[0];
+      if (response.ok && uploaded?.url) {
+        return uploaded.url;
+      }
+    } catch {
+      // Static local previews do not have the Cloudflare media API.
+    }
+
+    return readFileAsDataUrl(file);
+  }
+
   function syncAttachmentsField() {
     if (attachmentsInput instanceof HTMLTextAreaElement) {
       attachmentsInput.value = attachments
@@ -283,30 +316,24 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
     }
   }
 
-  function readAttachmentFile(file) {
+  async function readAttachmentFile(file) {
     if (file.type.startsWith("image/")) {
-      const reader = new FileReader();
-      reader.addEventListener("load", () => {
-        addAttachment({
-          kind: "image",
-          label: file.name || "Pasted screenshot",
-          value: typeof reader.result === "string" ? reader.result : "",
-        });
+      const value = await uploadMediaFile(file, "Request Attachment");
+      addAttachment({
+        kind: "image",
+        label: file.name || "Pasted screenshot",
+        value,
       });
-      reader.readAsDataURL(file);
       return;
     }
 
     if (file.type.startsWith("video/")) {
-      const reader = new FileReader();
-      reader.addEventListener("load", () => {
-        addAttachment({
-          kind: "video",
-          label: `${file.name || "Uploaded video"} (${formatFileSize(file.size)})`,
-          value: typeof reader.result === "string" ? reader.result : "",
-        });
+      const value = await uploadMediaFile(file, "Request Attachment");
+      addAttachment({
+        kind: "video",
+        label: `${file.name || "Uploaded video"} (${formatFileSize(file.size)})`,
+        value,
       });
-      reader.readAsDataURL(file);
       return;
     }
 

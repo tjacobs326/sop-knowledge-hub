@@ -3,6 +3,7 @@ const navGroups = [
   {
     label: "Normal Users",
     items: [
+      { href: "/", label: "Home", icon: "H" },
       { href: "/search/", label: "Search SOPs" },
       { href: "/finder/", label: "Guided Finder" },
       { href: "/categories/", label: "Categories" },
@@ -35,10 +36,17 @@ const navGroups = [
 const pathname = Astro.url.pathname;
 const isCurrent = (href: string) => pathname === href || (href !== "/" && pathname.startsWith(href));
 const roleClass = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+const navIcon = (label: string, icon?: string) =>
+  icon ?? label
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0]?.toUpperCase())
+    .join("");
 ---
 
-<header class="site-header no-print">
-  <div class="site-header__inner">
+<header class="site-header no-print" aria-label="SOP Knowledge Hub navigation">
+  <aside class="site-sidebar">
     <a class="brand" href="/" aria-label="SOP Knowledge Hub home">
       <span class="brand__mark" aria-hidden="true">SOP</span>
       <span>
@@ -58,6 +66,7 @@ const roleClass = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, 
                   role="listitem"
                   aria-current={isCurrent(item.href) ? "page" : undefined}
                 >
+                  <span class="main-nav__icon" aria-hidden="true">{navIcon(item.label, item.icon)}</span>
                   {item.label}
                 </a>
               ))}
@@ -66,5 +75,31 @@ const roleClass = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, 
         ))
       }
     </nav>
+    <div class="sidebar-support">
+      <span class="sidebar-support__icon" aria-hidden="true">?</span>
+      <strong>Need help?</strong>
+      <span>Contact SOP Support</span>
+      <a href="mailto:sop-support@organization.edu">Get Support</a>
+    </div>
+  </aside>
+  <div class="app-topbar">
+    <form class="topbar-search" action="/search/" method="get">
+      <label class="sr-only" for="topbar-search">Search SOPs</label>
+      <span aria-hidden="true">S</span>
+      <input
+        id="topbar-search"
+        name="q"
+        type="search"
+        placeholder="Search by title, tag, tool, owner, category, or keyword"
+        autocomplete="off"
+      />
+      <kbd>Ctrl K</kbd>
+    </form>
+    <div class="topbar-actions" aria-label="Current user">
+      <span class="topbar-bell" aria-label="3 notifications">3</span>
+      <span class="topbar-avatar" aria-hidden="true">AM</span>
+      <span class="topbar-user">Alex Morgan</span>
+      <span aria-hidden="true">v</span>
+    </div>
   </div>
 </header>

@@ -15,7 +15,10 @@
     "db:seed:local": "npx wrangler d1 execute sop-knowledge-hub-db --local --file ./seeds/0001_core_data.sql",
     "db:seed:remote": "npx wrangler d1 execute sop-knowledge-hub-db --remote --file ./seeds/0001_core_data.sql",
     "db:tables:local": "npx wrangler d1 execute sop-knowledge-hub-db --local --command \"SELECT name FROM sqlite_schema WHERE type IN ('table','view') ORDER BY name;\"",
-    "db:tables:remote": "npx wrangler d1 execute sop-knowledge-hub-db --remote --command \"SELECT name FROM sqlite_schema WHERE type IN ('table','view') ORDER BY name;\""
+    "db:tables:remote": "npx wrangler d1 execute sop-knowledge-hub-db --remote --command \"SELECT name FROM sqlite_schema WHERE type IN ('table','view') ORDER BY name;\"",
+    "media:bucket:create": "npx wrangler r2 bucket create sop-knowledge-hub-media",
+    "media:bucket:list": "npx wrangler r2 bucket list",
+    "cf:functions:build": "npx wrangler pages functions build functions --outdir .wrangler-functions-check"
   },
   "dependencies": {
     "astro": "latest",

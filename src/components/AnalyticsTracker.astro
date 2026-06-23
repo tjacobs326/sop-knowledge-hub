@@ -1,0 +1,51 @@
+<script>
+  const getSessionId = () => {
+    const key = "sopHubSessionId";
+    const existing = sessionStorage.getItem(key);
+    if (existing) return existing;
+    const id = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+    sessionStorage.setItem(key, id);
+    return id;
+  };
+
+  const track = (payload: Record<string, unknown>) => {
+    if (navigator.doNotTrack === "1") return;
+    const body = JSON.stringify({
+      sessionId: getSessionId(),
+      path: window.location.pathname,
+      referrer: document.referrer,
+      ...payload,
+    });
+
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon("/api/analytics/track", new Blob([body], { type: "application/json" }));
+      return;
+    }
+
+    fetch("/api/analytics/track", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body,
+      keepalive: true,
+    }).catch(() => {});
+  };
+
+  track({ eventType: "page_view" });
+
+  document.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+
+    const link = target.closest("a[href]");
+    if (!(link instanceof HTMLAnchorElement)) return;
+
+    const linkUrl = new URL(link.href);
+    const query = linkUrl.searchParams.get("q");
+    if (linkUrl.pathname.includes("/search/") && query) {
+      track({
+        eventType: "search",
+        query,
+      });
+    }
+  });
+</script>

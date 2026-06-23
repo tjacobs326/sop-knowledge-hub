@@ -1,13 +1,15 @@
 ---
+import { getStatusBadge } from "../lib/badges";
+
 interface Props {
   status: string;
 }
 
 const { status } = Astro.props;
-const className = status.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+const badge = getStatusBadge(status);
 ---
 
-<span class:list={["status-badge", `status-badge--${className}`]}>
+<span class:list={["badge", "status-badge", badge.className]}>
   <span class="sr-only">Status:</span>
-  {status}
+  {badge.label}
 </span>

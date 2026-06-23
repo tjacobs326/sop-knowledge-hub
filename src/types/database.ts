@@ -4,6 +4,9 @@ export type JsonText = string;
 
 export interface DatabaseEnv {
   DB: unknown;
+  SOP_MEDIA?: unknown;
+  SOP_ANALYTICS?: unknown;
+  AI?: unknown;
 }
 
 export interface UserRow {

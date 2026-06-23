@@ -394,18 +394,48 @@ const publishingUsers = [...userAccounts]
     setStepMedia(step, { video: value, videoLabel: label });
   }
 
-  function readVideoFile(file, step) {
+  function readFileAsDataUrl(file) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.addEventListener("load", () => {
+        resolve(typeof reader.result === "string" ? reader.result : "");
+      });
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function uploadMediaFile(file, purpose = "SOP Step") {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("purpose", purpose);
+    formData.append("entityType", "sop");
+
+    try {
+      const response = await fetch("/api/media", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await response.json();
+      const uploaded = data.uploaded?.[0];
+      if (response.ok && uploaded?.url) {
+        return uploaded.url;
+      }
+    } catch {
+      // Static local previews do not have the Cloudflare media API.
+    }
+
+    return readFileAsDataUrl(file);
+  }
+
+  async function readVideoFile(file, step) {
     if (!file.type.startsWith("video/")) return;
 
-    const reader = new FileReader();
-    reader.addEventListener("load", () => {
-      setStepVideo(step, typeof reader.result === "string" ? reader.result : "", file.name || "Step video");
-      if (errorsEl) {
-        errorsEl.hidden = true;
-        errorsEl.innerHTML = "";
-      }
-    });
-    reader.readAsDataURL(file);
+    const value = await uploadMediaFile(file, "SOP Step");
+    setStepVideo(step, value, file.name || "Step video");
+    if (errorsEl) {
+      errorsEl.hidden = true;
+      errorsEl.innerHTML = "";
+    }
   }
 
   function readStepMediaFile(file, step) {
@@ -439,7 +469,7 @@ const publishingUsers = [...userAccounts]
     return mediaItem?.getAsFile() || null;
   }
 
-  function readImageFile(file, step) {
+  async function readImageFile(file, step) {
     if (!file.type.startsWith("image/")) {
       if (errorsEl) {
         errorsEl.hidden = false;
@@ -448,15 +478,12 @@ const publishingUsers = [...userAccounts]
       return;
     }
 
-    const reader = new FileReader();
-    reader.addEventListener("load", () => {
-      setStepScreenshot(step, typeof reader.result === "string" ? reader.result : "");
-      if (errorsEl) {
-        errorsEl.hidden = true;
-        errorsEl.innerHTML = "";
-      }
-    });
-    reader.readAsDataURL(file);
+    const value = await uploadMediaFile(file, "SOP Step");
+    setStepScreenshot(step, value);
+    if (errorsEl) {
+      errorsEl.hidden = true;
+      errorsEl.innerHTML = "";
+    }
   }
 
   function createStepElement(step = {}, index = 1) {

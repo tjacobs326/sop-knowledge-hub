@@ -5,6 +5,7 @@ import {
   SUBMISSIONS_STORAGE_KEY,
 } from "../lib/submissions";
 import { USER_STORAGE_KEY, userAccounts } from "../data/mock-users";
+import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../lib/badges";
 import type { ReviewQueueItem, SopDraft, SopSubmission } from "../types";
 
 interface Props {
@@ -105,6 +106,8 @@ const reviewerMembers = userAccounts.filter(
     USER_STORAGE_KEY,
     initialReviewerMembers: reviewerMembers,
     summaryFilters,
+    priorityBadgeDefinitions,
+    statusBadgeDefinitions,
   }}
 >
   const list = document.getElementById("review-list");
@@ -229,13 +232,25 @@ const reviewerMembers = userAccounts.filter(
   }
 
   function statusBadge(status) {
-    const className = String(status || "Unknown").toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    return `<span class="status-badge status-badge--${escapeHtml(className)}">${escapeHtml(status || "Unknown")}</span>`;
+    const key = String(status || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const badge = statusBadgeDefinitions[key] || {
+      label: status || "New",
+      className: "status-badge--new",
+    };
+    return `<span class="badge status-badge ${escapeHtml(badge.className)}"><span class="sr-only">Status:</span>${escapeHtml(
+      badge.label,
+    )}</span>`;
   }
 
   function priorityBadge(priority) {
-    const className = String(priority || "Medium").toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    return `<span class="status-badge status-badge--priority-${escapeHtml(className)}">${escapeHtml(priority || "Medium")}</span>`;
+    const key = String(priority || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const badge = priorityBadgeDefinitions[key] || {
+      label: priority || "Medium",
+      className: "priority-badge--medium",
+    };
+    return `<span class="badge priority-badge ${escapeHtml(badge.className)}"><span class="sr-only">Priority:</span>${escapeHtml(
+      badge.label,
+    )}</span>`;
   }
 
   function assigneeOptions(selected) {

@@ -1,5 +1,6 @@
 ---
 import Layout from "../../../components/Layout.astro";
+import StatusBadge from "../../../components/StatusBadge.astro";
 import { mockDrafts } from "../../../data/mock-drafts";
 import { mockSubmissions } from "../../../data/mock-submissions";
 import {
@@ -85,8 +86,39 @@ const topStats = [
     </div>
 
     <p class="analytics-note">
-      Some usage signals are sample operating metrics until live event tracking is connected.
+      Live Cloudflare analytics load from D1 when this page is running on Cloudflare Pages. The
+      sample operating metrics below remain as a fallback for local static preview.
     </p>
+
+    <section class="dashboard-section analytics-card" aria-labelledby="cloudflare-analytics-heading">
+      <div class="dashboard-section-heading">
+        <h2 id="cloudflare-analytics-heading">Cloudflare Live Analytics</h2>
+        <span class="status-badge status-badge--in-review" id="cloudflare-analytics-status">
+          Loading
+        </span>
+      </div>
+      <div class="stat-grid" id="cloudflare-stat-grid">
+        <article class="stat-card">
+          <span>Page Views</span>
+          <strong>--</strong>
+        </article>
+        <article class="stat-card">
+          <span>SOP Views</span>
+          <strong>--</strong>
+        </article>
+        <article class="stat-card">
+          <span>Searches</span>
+          <strong>--</strong>
+        </article>
+        <article class="stat-card">
+          <span>Media Uploads</span>
+          <strong>--</strong>
+        </article>
+      </div>
+      <div class="analytics-grid analytics-grid--compact" id="cloudflare-analytics-tables">
+        <p class="empty-state">Connecting to Cloudflare analytics...</p>
+      </div>
+    </section>
 
     <div class="stat-grid">
       {topStats.map(([label, value]) => (
@@ -207,6 +239,7 @@ const topStats = [
                   <tr>
                     <th scope="col">SOP</th>
                     <th scope="col">Review Date</th>
+                    <th scope="col">Status</th>
                     <th scope="col">Days Past Due</th>
                   </tr>
                 </thead>
@@ -215,6 +248,7 @@ const topStats = [
                     <tr>
                       <td><a href={getSopUrl(item.sop)}>{item.sop.data.title}</a></td>
                       <td>{formatDate(item.sop.data.reviewDate)}</td>
+                      <td><StatusBadge status="Past Due" /></td>
                       <td>{Math.abs(item.days ?? 0)}</td>
                     </tr>
                   ))}
@@ -294,3 +328,127 @@ const topStats = [
     </section>
   </section>
 </Layout>
+
+<script>
+  const status = document.getElementById("cloudflare-analytics-status");
+  const statGrid = document.getElementById("cloudflare-stat-grid");
+  const tables = document.getElementById("cloudflare-analytics-tables");
+
+  const escapeHtml = (value: unknown) =>
+    String(value ?? "").replace(/[&<>"']/g, (character) => {
+      const replacements: Record<string, string> = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      };
+      return replacements[character] || character;
+    });
+
+  const numberFormat = new Intl.NumberFormat();
+
+  function renderRows(rows: Array<Record<string, unknown>>, columns: Array<[string, string]>) {
+    if (!rows.length) return `<p class="empty-state">No live events recorded yet.</p>`;
+
+    return `
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>${columns.map(([, label]) => `<th scope="col">${escapeHtml(label)}</th>`).join("")}</tr>
+          </thead>
+          <tbody>
+            ${rows
+              .map(
+                (row) => `
+                  <tr>
+                    ${columns
+                      .map(([field]) => `<td>${escapeHtml(row[field])}</td>`)
+                      .join("")}
+                  </tr>
+                `,
+              )
+              .join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  function renderLiveAnalytics(data: any) {
+    if (status) {
+      status.textContent = "Live";
+      status.className = "status-badge status-badge--published";
+    }
+
+    const totals = data.totals || {};
+    if (statGrid) {
+      statGrid.innerHTML = [
+        ["Page Views", totals.page_views],
+        ["SOP Views", totals.sop_views],
+        ["Searches", totals.searches],
+        ["Media Uploads", totals.uploads],
+      ]
+        .map(
+          ([label, value]) => `
+            <article class="stat-card">
+              <span>${escapeHtml(label)}</span>
+              <strong>${numberFormat.format(Number(value || 0))}</strong>
+            </article>
+          `,
+        )
+        .join("");
+    }
+
+    if (tables) {
+      tables.innerHTML = `
+        <article class="analytics-card">
+          <h3>Live Most Viewed SOPs</h3>
+          ${renderRows(data.mostViewedSops || [], [
+            ["title", "SOP"],
+            ["views", "Views"],
+          ])}
+        </article>
+        <article class="analytics-card">
+          <h3>Live Search Terms</h3>
+          ${renderRows(data.mostSearchedTerms || [], [
+            ["query", "Term"],
+            ["searches", "Searches"],
+          ])}
+        </article>
+        <article class="analytics-card">
+          <h3>Live No-Result Searches</h3>
+          ${renderRows(data.noResultSearches || [], [
+            ["query", "Term"],
+            ["searches", "Searches"],
+          ])}
+        </article>
+        <article class="analytics-card">
+          <h3>Media Stored in R2</h3>
+          ${renderRows(data.mediaSummary || [], [
+            ["asset_type", "Type"],
+            ["count", "Files"],
+            ["bytes", "Bytes"],
+          ])}
+        </article>
+      `;
+    }
+  }
+
+  fetch("/api/analytics/summary")
+    .then((response) => {
+      if (!response.ok) throw new Error("Cloudflare analytics endpoint is unavailable.");
+      return response.json();
+    })
+    .then(renderLiveAnalytics)
+    .catch(() => {
+      if (status) {
+        status.textContent = "Static Preview";
+        status.className = "status-badge status-badge--draft";
+      }
+      if (tables) {
+        tables.innerHTML =
+          '<p class="empty-state">Live analytics are available after deploying with Cloudflare D1 bindings.</p>';
+      }
+    });
+</script>

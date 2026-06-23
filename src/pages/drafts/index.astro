@@ -1,6 +1,8 @@
 ---
 import Layout from "../../components/Layout.astro";
+import StatusBadge from "../../components/StatusBadge.astro";
 import { mockDrafts } from "../../data/mock-drafts";
+import { statusBadgeDefinitions } from "../../lib/badges";
 import { DRAFTS_STORAGE_KEY, EDIT_SOP_STORAGE_KEY } from "../../lib/drafts";
 
 // Future access note: restrict this route to SOP creators and reviewers with Cloudflare Access.
@@ -36,7 +38,7 @@ import { DRAFTS_STORAGE_KEY, EDIT_SOP_STORAGE_KEY } from "../../lib/drafts";
             <tr>
               <td>{draft.title}</td>
               <td>{draft.category}</td>
-              <td>{draft.status}</td>
+              <td><StatusBadge status={draft.status} /></td>
               <td>{draft.owner}</td>
               <td>{draft.reviewDate}</td>
               <td>
@@ -52,7 +54,10 @@ import { DRAFTS_STORAGE_KEY, EDIT_SOP_STORAGE_KEY } from "../../lib/drafts";
   </section>
 </Layout>
 
-<script is:inline define:vars={{ DRAFTS_STORAGE_KEY, EDIT_SOP_STORAGE_KEY, mockDrafts }}>
+<script
+  is:inline
+  define:vars={{ DRAFTS_STORAGE_KEY, EDIT_SOP_STORAGE_KEY, mockDrafts, statusBadgeDefinitions }}
+>
   const list = document.getElementById("drafts-list");
   let currentDrafts = [...mockDrafts];
 
@@ -68,6 +73,17 @@ import { DRAFTS_STORAGE_KEY, EDIT_SOP_STORAGE_KEY } from "../../lib/drafts";
       return replacements[character];
     });
 
+  function statusBadge(status) {
+    const key = String(status || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const badge = statusBadgeDefinitions[key] || {
+      label: status || "New",
+      className: "status-badge--new",
+    };
+    return `<span class="badge status-badge ${escapeHtml(badge.className)}"><span class="sr-only">Status:</span>${escapeHtml(
+      badge.label,
+    )}</span>`;
+  }
+
   try {
     const localDrafts = JSON.parse(localStorage.getItem(DRAFTS_STORAGE_KEY) || "[]");
     if (Array.isArray(localDrafts) && localDrafts.length > 0 && list) {
@@ -78,7 +94,7 @@ import { DRAFTS_STORAGE_KEY, EDIT_SOP_STORAGE_KEY } from "../../lib/drafts";
             <tr>
               <td>${escapeHtml(draft.title)}</td>
               <td>${escapeHtml(draft.category)}</td>
-              <td>${escapeHtml(draft.status)}</td>
+              <td>${statusBadge(draft.status)}</td>
               <td>${escapeHtml(draft.owner)}</td>
               <td>${escapeHtml(draft.reviewDate)}</td>
               <td>

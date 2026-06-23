@@ -1,0 +1,157 @@
+---
+const starterPrompts = [
+  "How do I submit an Ivanti ticket?",
+  "What should I check during final course QA?",
+  "How do I copy a D2L course shell?",
+];
+---
+
+<section class="ai-chatbot no-print" aria-label="SOP Knowledge Hub AI chat">
+  <button class="ai-chatbot__toggle" type="button" aria-expanded="false" aria-controls="ai-chatbot-panel">
+    <span aria-hidden="true">AI</span>
+    <span>Ask Hub</span>
+  </button>
+
+  <div class="ai-chatbot__panel" id="ai-chatbot-panel" hidden>
+    <div class="ai-chatbot__header">
+      <div>
+        <strong>Ask the Knowledge Hub</strong>
+        <p>Answers stay grounded in SOP sources.</p>
+      </div>
+      <button class="ai-chatbot__close" type="button" aria-label="Close AI chat">x</button>
+    </div>
+
+    <label class="ai-chatbot__role">
+      <span>Access level</span>
+      <select id="ai-chat-role">
+        <option value="normal">Normal User</option>
+        <option value="creator">Creator / Reviewer</option>
+        <option value="admin">Admin</option>
+      </select>
+    </label>
+
+    <div class="ai-chatbot__messages" id="ai-chat-messages" aria-live="polite">
+      <div class="ai-chatbot__message ai-chatbot__message--assistant">
+        <p>Ask a question about an SOP. I will only answer from approved or published SOPs unless admin mode is selected.</p>
+      </div>
+    </div>
+
+    <div class="ai-chatbot__starters" aria-label="Starter prompts">
+      {starterPrompts.map((prompt) => (
+        <button type="button" data-chat-prompt={prompt}>{prompt}</button>
+      ))}
+    </div>
+
+    <form class="ai-chatbot__form" id="ai-chat-form">
+      <label class="sr-only" for="ai-chat-input">Ask the Knowledge Hub</label>
+      <textarea id="ai-chat-input" rows="2" placeholder="Ask about a process, tool, or SOP"></textarea>
+      <button class="button button--primary" type="submit">Send</button>
+    </form>
+  </div>
+</section>
+
+<script>
+  const chatbot = document.querySelector(".ai-chatbot");
+  const toggle = chatbot?.querySelector(".ai-chatbot__toggle");
+  const panel = chatbot?.querySelector(".ai-chatbot__panel");
+  const closeButton = chatbot?.querySelector(".ai-chatbot__close");
+  const form = document.getElementById("ai-chat-form");
+  const input = document.getElementById("ai-chat-input");
+  const messages = document.getElementById("ai-chat-messages");
+  const roleSelect = document.getElementById("ai-chat-role");
+
+  const escapeHtml = (value: string) =>
+    String(value).replace(/[&<>"']/g, (character) => {
+      const replacements: Record<string, string> = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      };
+      return replacements[character] || character;
+    });
+
+  const setOpen = (open: boolean) => {
+    if (!(panel instanceof HTMLElement) || !(toggle instanceof HTMLButtonElement)) return;
+    panel.hidden = !open;
+    toggle.setAttribute("aria-expanded", String(open));
+    if (open && input instanceof HTMLTextAreaElement) input.focus();
+  };
+
+  const addMessage = (content: string, type: "assistant" | "user", sources = []) => {
+    if (!(messages instanceof HTMLElement)) return;
+
+    const sourceLinks = Array.isArray(sources)
+      ? sources
+          .map((source: { title?: string; url?: string }) => {
+            if (!source.title || !source.url) return "";
+            return `<a href="${escapeHtml(source.url)}">${escapeHtml(source.title)}</a>`;
+          })
+          .filter(Boolean)
+          .join(", ")
+      : "";
+
+    const message = document.createElement("div");
+    message.className = `ai-chatbot__message ai-chatbot__message--${type}`;
+    message.innerHTML = `
+      <p>${escapeHtml(content).replace(/\n/g, "<br>")}</p>
+      ${sourceLinks ? `<p class="ai-chatbot__sources">Sources: ${sourceLinks}</p>` : ""}
+    `;
+    messages.append(message);
+    messages.scrollTop = messages.scrollHeight;
+  };
+
+  const askQuestion = async (question: string) => {
+    const role = roleSelect instanceof HTMLSelectElement ? roleSelect.value : "normal";
+    addMessage(question, "user");
+    addMessage("Checking approved SOP sources...", "assistant");
+
+    const loadingMessage = messages?.lastElementChild;
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ message: question, role }),
+      });
+      const data = await response.json();
+
+      loadingMessage?.remove();
+
+      if (!response.ok || data.error) {
+        addMessage(data.error || "The assistant could not answer right now.", "assistant");
+        return;
+      }
+
+      addMessage(data.answer || "I could not find enough approved SOP information to answer.", "assistant", data.sources);
+    } catch {
+      loadingMessage?.remove();
+      addMessage("The chat endpoint is not available in this preview. Use Cloudflare Pages preview/deploy to test Workers AI.", "assistant");
+    }
+  };
+
+  toggle?.addEventListener("click", () => {
+    const isOpen = toggle instanceof HTMLButtonElement && toggle.getAttribute("aria-expanded") === "true";
+    setOpen(!isOpen);
+  });
+
+  closeButton?.addEventListener("click", () => setOpen(false));
+
+  document.querySelectorAll("[data-chat-prompt]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const prompt = button instanceof HTMLElement ? button.dataset.chatPrompt || "" : "";
+      if (input instanceof HTMLTextAreaElement) input.value = prompt;
+      void askQuestion(prompt);
+    });
+  });
+
+  form?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!(input instanceof HTMLTextAreaElement)) return;
+    const question = input.value.trim();
+    if (!question) return;
+    input.value = "";
+    void askQuestion(question);
+  });
+</script>

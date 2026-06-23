@@ -1,0 +1,15 @@
+---
+import { getPriorityBadge } from "../lib/badges";
+
+interface Props {
+  priority: string;
+}
+
+const { priority } = Astro.props;
+const badge = getPriorityBadge(priority);
+---
+
+<span class:list={["badge", "priority-badge", badge.className]}>
+  <span class="sr-only">Priority:</span>
+  {badge.label}
+</span>
