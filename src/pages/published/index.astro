@@ -35,10 +35,6 @@ import { PUBLISHED_SOPS_STORAGE_KEY } from "../../lib/drafts";
           <h2>Step-by-Step Procedure</h2>
           <ol class="procedure-list sop-procedure-list" id="published-steps"></ol>
         </section>
-        <section class="sop-section screenshots" id="published-screenshots-section" hidden>
-          <h2>Screenshots</h2>
-          <div id="published-screenshots"></div>
-        </section>
         <section class="sop-section">
           <h2>Troubleshooting</h2>
           <div id="published-troubleshooting"></div>
@@ -125,25 +121,6 @@ import { PUBLISHED_SOPS_STORAGE_KEY } from "../../lib/drafts";
       .join("");
   }
 
-  function renderScreenshots(screenshots) {
-    const section = document.getElementById("published-screenshots-section");
-    const list = document.getElementById("published-screenshots");
-    const safeScreenshots = Array.isArray(screenshots) ? screenshots.filter(Boolean) : [];
-    if (!(section instanceof HTMLElement) || !list) return;
-
-    section.hidden = safeScreenshots.length === 0;
-    list.innerHTML = safeScreenshots
-      .map(
-        (src, index) => `
-          <figure>
-            <img src="${escapeHtml(src)}" alt="Published screenshot ${index + 1}" loading="lazy" />
-            <figcaption>Published screenshot ${index + 1}</figcaption>
-          </figure>
-        `,
-      )
-      .join("");
-  }
-
   function renderTroubleshooting(notes) {
     const container = document.getElementById("published-troubleshooting");
     if (!container) return;
@@ -197,7 +174,6 @@ import { PUBLISHED_SOPS_STORAGE_KEY } from "../../lib/drafts";
     }
 
     renderSteps(record.procedureSteps);
-    renderScreenshots(record.screenshots);
     renderTroubleshooting(record.troubleshootingNotes);
   }
 

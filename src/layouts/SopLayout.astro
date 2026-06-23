@@ -161,23 +161,6 @@ const editPayload = {
           </ol>
         </section>
 
-        <section
-          class="sop-section screenshots"
-          id="sop-detail-screenshots"
-          aria-labelledby="screenshots-heading"
-          hidden={sop.data.screenshots.length === 0}
-        >
-          <h2 id="screenshots-heading">Screenshots</h2>
-          <div id="sop-detail-screenshot-list">
-            {sop.data.screenshots.map((screenshot) => (
-              <figure>
-                <img src={screenshot.src} alt={screenshot.alt} loading="lazy" />
-                <figcaption>{screenshot.caption}</figcaption>
-              </figure>
-            ))}
-          </div>
-        </section>
-
         <section class="sop-section" aria-labelledby="checklist-heading">
           <h2 id="checklist-heading">Checklist</h2>
           <ul class="sop-checklist" id="sop-detail-checklist">
@@ -352,25 +335,6 @@ const editPayload = {
     }
   }
 
-  function renderPublishedScreenshots(screenshots) {
-    const section = document.getElementById("sop-detail-screenshots");
-    const list = document.getElementById("sop-detail-screenshot-list");
-    const safeScreenshots = Array.isArray(screenshots) ? screenshots.filter(Boolean) : [];
-    if (!(section instanceof HTMLElement) || !list) return;
-
-    section.hidden = safeScreenshots.length === 0;
-    list.innerHTML = safeScreenshots
-      .map(
-        (src, index) => `
-          <figure>
-            <img src="${escapePublishedHtml(src)}" alt="Published screenshot ${index + 1}" loading="lazy" />
-            <figcaption>Published screenshot ${index + 1}</figcaption>
-          </figure>
-        `,
-      )
-      .join("");
-  }
-
   function renderPublishedTroubleshooting(notes) {
     const container = document.getElementById("sop-detail-troubleshooting");
     if (!container) return;
@@ -414,7 +378,6 @@ const editPayload = {
     setMeta("estimatedCompletionTime", published.estimatedCompletionTime || "");
 
     renderPublishedSteps(published.procedureSteps);
-    renderPublishedScreenshots(published.screenshots);
     renderPublishedTroubleshooting(published.troubleshootingNotes);
 
     const editSource = document.getElementById(`edit-source-${sourceId}`);
