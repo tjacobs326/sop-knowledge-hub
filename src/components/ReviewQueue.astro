@@ -28,13 +28,24 @@ const filters = [
   "Archived",
 ];
 
-const queueCounts = [
-  ["New", 4, "Submitted"],
-  ["Needs Review", 2, "In Review"],
-  ["Urgent", 1, "Urgent"],
-  ["Approved", 6, "Approved"],
-  ["Archived", 3, "Archived"],
+const summaryFilters = [
+  { label: "New", filter: "summary:new", statuses: ["Submitted", "Triage"] },
+  {
+    label: "Needs Review",
+    filter: "summary:needs-review",
+    statuses: ["In Review", "Needs More Information", "Needs Revision"],
+  },
+  { label: "Urgent", filter: "summary:urgent", priorities: ["High", "Urgent"], tabFilter: "Urgent" },
+  { label: "Approved", filter: "summary:approved", statuses: ["Approved"], tabFilter: "Approved" },
+  { label: "Archived", filter: "summary:archived", statuses: ["Archived"], tabFilter: "Archived" },
 ];
+
+function itemMatchesSummaryFilter(item: ReviewQueueItem, summary: (typeof summaryFilters)[number]) {
+  const statusMatches = summary.statuses ? summary.statuses.includes(item.status) : false;
+  const priorityMatches = summary.priorities ? summary.priorities.includes(item.priority) : false;
+  return statusMatches || priorityMatches;
+}
+
 const reviewerMembers = userAccounts.filter(
   (user) => user.accessLevel === "Creator / Reviewer" && user.status === "Active",
 );
@@ -48,16 +59,18 @@ const reviewerMembers = userAccounts.filter(
   </div>
 
   <div class="stat-grid review-summary" aria-label="Review queue counts">
-    {queueCounts.map(([label, value, filter]) => (
+    {summaryFilters.map((summary) => (
       <button
         class="stat-card review-summary__card"
         type="button"
-        data-review-summary-filter={filter}
+        data-review-summary-filter={summary.filter}
         aria-pressed="false"
-        aria-label={`Show ${label} review queue items`}
+        aria-label={`Show ${summary.label} review queue items`}
       >
-        <span>{label}</span>
-        <strong>{value}</strong>
+        <span>{summary.label}</span>
+        <strong data-review-summary-count>
+          {initialItems.filter((item) => itemMatchesSummaryFilter(item, summary)).length}
+        </strong>
       </button>
     ))}
   </div>
@@ -91,6 +104,7 @@ const reviewerMembers = userAccounts.filter(
     REVIEW_QUEUE_STORAGE_KEY,
     USER_STORAGE_KEY,
     initialReviewerMembers: reviewerMembers,
+    summaryFilters,
   }}
 >
   const list = document.getElementById("review-list");
@@ -165,7 +179,34 @@ const reviewerMembers = userAccounts.filter(
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
+  function summaryDefinition(filter) {
+    return summaryFilters.find((summary) => summary.filter === filter) || null;
+  }
+
+  function itemMatchesSummaryFilter(item, summary) {
+    const statusMatches = Array.isArray(summary.statuses)
+      ? summary.statuses.includes(item.status)
+      : false;
+    const priorityMatches = Array.isArray(summary.priorities)
+      ? summary.priorities.includes(item.priority)
+      : false;
+    return statusMatches || priorityMatches;
+  }
+
+  function renderSummaryCounts(items) {
+    summaryCards.forEach((card) => {
+      const summary = summaryDefinition(card.dataset.reviewSummaryFilter);
+      const count = summary ? items.filter((item) => itemMatchesSummaryFilter(item, summary)).length : 0;
+      const countElement = card.querySelector("[data-review-summary-count]");
+      const label = card.querySelector("span")?.textContent?.trim() || "review";
+      if (countElement) countElement.textContent = String(count);
+      card.setAttribute("aria-label", `Show ${count} ${label} review queue item${count === 1 ? "" : "s"}`);
+    });
+  }
+
   function filterItem(item) {
+    const summary = summaryDefinition(activeFilter);
+    if (summary) return itemMatchesSummaryFilter(item, summary);
     if (activeFilter === "All") return true;
     if (activeFilter === "Internal Drafts") return item.source === "Internal SOP Creator";
     if (activeFilter === "Outside Department Submissions") {
@@ -174,7 +215,7 @@ const reviewerMembers = userAccounts.filter(
     if (activeFilter === "New SOP Requests") return item.submissionType === "Request a new SOP";
     if (activeFilter === "Updates") return item.submissionType === "Suggest an update to an existing SOP";
     if (activeFilter === "Templates") return item.submissionType === "Request a template";
-    if (activeFilter === "Urgent") return item.priority === "Urgent";
+    if (activeFilter === "Urgent") return ["High", "Urgent"].includes(item.priority);
     return item.status === activeFilter;
   }
 
@@ -211,7 +252,9 @@ const reviewerMembers = userAccounts.filter(
   }
 
   function render() {
-    const items = getItems().filter(filterItem);
+    const allItems = getItems();
+    const items = allItems.filter(filterItem);
+    renderSummaryCounts(allItems);
 
     if (!list) return;
 
@@ -417,13 +460,23 @@ const reviewerMembers = userAccounts.filter(
 
   function setActiveFilter(filter) {
     activeFilter = filter || "All";
+    const summary = summaryDefinition(activeFilter);
     tabs.forEach((item) =>
-      item.setAttribute("aria-selected", String(item.dataset.reviewFilter === activeFilter)),
+      item.setAttribute(
+        "aria-selected",
+        String(
+          item.dataset.reviewFilter === activeFilter ||
+            (summary?.tabFilter && item.dataset.reviewFilter === summary.tabFilter),
+        ),
+      ),
     );
     summaryCards.forEach((card) =>
       card.setAttribute(
         "aria-pressed",
-        String(card.dataset.reviewSummaryFilter === activeFilter),
+        String(
+          card.dataset.reviewSummaryFilter === activeFilter ||
+            summaryDefinition(card.dataset.reviewSummaryFilter)?.tabFilter === activeFilter,
+        ),
       ),
     );
     render();

@@ -1455,8 +1455,7 @@ th {
 }
 
 .review-summary__card[aria-pressed="true"] {
-  outline: 3px solid rgb(255 179 71 / 0.35);
-  outline-offset: 2px;
+  background: #fffaf2;
 }
 
 .status-badge--priority-low {
