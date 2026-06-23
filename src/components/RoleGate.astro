@@ -1,0 +1,189 @@
+---
+const roles = [
+  {
+    id: "normal",
+    title: "Normal User",
+    label: "Normal Users",
+    description: "Search SOPs, use Guided Finder, browse categories, and submit requests.",
+    landingPage: "/search/",
+    options: ["Search SOPs", "Guided Finder", "Categories", "Submit Request"],
+  },
+  {
+    id: "creator",
+    title: "Creator / Reviewer",
+    label: "Creators / Reviewers",
+    description: "Create SOPs, manage drafts, review submissions, and handle assigned work.",
+    landingPage: "/my-work/",
+    options: ["My Work", "AI Assist", "Create SOP", "Review Queue", "Needs Review"],
+  },
+  {
+    id: "admin",
+    title: "Admin",
+    label: "Admins",
+    description: "Manage users, taxonomy, analytics, settings, and platform governance.",
+    landingPage: "/admin/users/",
+    options: ["Users", "Categories", "Tags", "Analytics", "Settings"],
+  },
+];
+---
+
+<section class="role-gate no-print" id="role-gate" aria-labelledby="role-gate-heading" hidden>
+  <div class="role-gate__panel" role="dialog" aria-modal="true" aria-describedby="role-gate-description">
+    <div class="role-gate__header">
+      <span class="brand__mark" aria-hidden="true">SOP</span>
+      <div>
+        <p class="eyebrow">Choose your access view</p>
+        <h1 id="role-gate-heading">Select Your Role</h1>
+        <p id="role-gate-description">
+          Pick the role you are using today. The app will show the navigation, tools, and options
+          aligned to that role.
+        </p>
+      </div>
+    </div>
+
+    <div class="role-gate__grid">
+      {roles.map((role) => (
+        <button
+          class="role-gate__card"
+          type="button"
+          data-role-select={role.id}
+          data-role-landing={role.landingPage}
+        >
+          <strong>{role.title}</strong>
+          <span>{role.description}</span>
+          <small>{role.options.join(" • ")}</small>
+        </button>
+      ))}
+    </div>
+  </div>
+</section>
+
+<section class="access-denied no-print" id="role-access-denied" hidden>
+  <div class="access-denied__panel" role="alert">
+    <p class="eyebrow">Role access</p>
+    <h2>This page is outside your selected role.</h2>
+    <p id="role-access-message">
+      Switch roles or go to the landing page for your selected access view.
+    </p>
+    <div class="form-actions">
+      <a class="button button--primary" id="role-landing-link" href="/">Go to My View</a>
+      <button class="button button--ghost" type="button" data-role-reset>Switch Role</button>
+    </div>
+  </div>
+</section>
+
+<script>
+  const ROLE_KEY = "sopHubSelectedRole";
+  const ROLE_LABELS: Record<string, string> = {
+    normal: "Normal User",
+    creator: "Creator / Reviewer",
+    admin: "Admin",
+  };
+  const ROLE_LANDING: Record<string, string> = {
+    normal: "/search/",
+    creator: "/my-work/",
+    admin: "/admin/users/",
+  };
+
+  const gate = document.getElementById("role-gate");
+  const accessDenied = document.getElementById("role-access-denied");
+  const accessMessage = document.getElementById("role-access-message");
+  const landingLink = document.getElementById("role-landing-link");
+  const body = document.body;
+
+  const routeRules = [
+    { pattern: /^\/admin\/users\//, roles: ["admin"] },
+    { pattern: /^\/admin\/categories\//, roles: ["admin"] },
+    { pattern: /^\/admin\/tags\//, roles: ["admin"] },
+    { pattern: /^\/admin\/analytics\//, roles: ["admin"] },
+    { pattern: /^\/admin\/settings\//, roles: ["admin"] },
+    { pattern: /^\/admin\/review\//, roles: ["creator"] },
+    { pattern: /^\/admin\/needs-review\//, roles: ["creator"] },
+    { pattern: /^\/create\//, roles: ["creator"] },
+    { pattern: /^\/drafts\//, roles: ["creator"] },
+    { pattern: /^\/my-work\//, roles: ["creator"] },
+    { pattern: /^\/ai-assist\//, roles: ["creator"] },
+  ];
+
+  function normalizeRole(role: string | null) {
+    return role === "admin" || role === "creator" || role === "normal" ? role : "";
+  }
+
+  function roleCanAccessPath(role: string, pathname: string) {
+    const rule = routeRules.find((item) => item.pattern.test(pathname));
+    if (!rule) return true;
+    return rule.roles.includes(role);
+  }
+
+  function syncRoleInputs(role: string) {
+    const chatRole = document.getElementById("ai-chat-role");
+    const assistRole = document.getElementById("assist-role");
+    const apiRole = role === "admin" ? "admin" : role === "creator" ? "creator" : "normal";
+
+    if (chatRole instanceof HTMLSelectElement) {
+      chatRole.value = apiRole;
+    }
+    if (assistRole instanceof HTMLSelectElement) {
+      assistRole.value = apiRole;
+      assistRole.dispatchEvent(new Event("change"));
+    }
+  }
+
+  function applyRole(role: string) {
+    const selectedRole = normalizeRole(role);
+    body.dataset.sopRole = selectedRole;
+    body.classList.toggle("role-unselected", !selectedRole);
+
+    const label = ROLE_LABELS[selectedRole] || "Select Role";
+    document.querySelectorAll("[data-current-role-label]").forEach((element) => {
+      element.textContent = label;
+    });
+
+    if (landingLink instanceof HTMLAnchorElement) {
+      landingLink.href = ROLE_LANDING[selectedRole] || "/";
+    }
+
+    syncRoleInputs(selectedRole);
+
+    if (gate instanceof HTMLElement) {
+      gate.hidden = Boolean(selectedRole);
+    }
+
+    const allowed = !selectedRole || roleCanAccessPath(selectedRole, window.location.pathname);
+    if (accessDenied instanceof HTMLElement) {
+      accessDenied.hidden = !selectedRole || allowed;
+    }
+    body.classList.toggle("role-blocked", Boolean(selectedRole) && !allowed);
+
+    if (accessMessage) {
+      accessMessage.textContent = `${label} access does not include this page. Switch roles or go to the ${label} landing view.`;
+    }
+  }
+
+  function setRole(role: string, landing?: string) {
+    const selectedRole = normalizeRole(role);
+    if (!selectedRole) return;
+    localStorage.setItem(ROLE_KEY, selectedRole);
+    applyRole(selectedRole);
+
+    if (!roleCanAccessPath(selectedRole, window.location.pathname) && landing) {
+      window.location.href = landing;
+    }
+  }
+
+  document.querySelectorAll("[data-role-select]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (!(button instanceof HTMLElement)) return;
+      setRole(button.dataset.roleSelect || "", button.dataset.roleLanding);
+    });
+  });
+
+  document.querySelectorAll("[data-role-reset]").forEach((button) => {
+    button.addEventListener("click", () => {
+      localStorage.removeItem(ROLE_KEY);
+      applyRole("");
+    });
+  });
+
+  applyRole(normalizeRole(localStorage.getItem(ROLE_KEY)));
+</script>

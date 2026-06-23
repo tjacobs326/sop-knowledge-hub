@@ -15,12 +15,21 @@ const tagCount = new Set(sops.flatMap((sop) => sop.data.tags)).size;
 const lastUpdated = recentlyUpdated[0]?.data.lastUpdated ?? new Date().toISOString().slice(0, 10);
 
 const quickAccess = [
-  ["/my-work/", "My Work", "MW"],
-  ["/create/", "Create SOP", "CS"],
-  ["/drafts/", "My Drafts", "MD"],
-  ["/admin/review/", "Review Queue", "RQ"],
-  ["/admin/needs-review/", "Needs Review", "NR"],
-  ["/submit/", "Submit Request", "SR"],
+  ["/search/", "Search SOPs", "SS", "normal"],
+  ["/finder/", "Guided Finder", "GF", "normal"],
+  ["/categories/", "Categories", "C", "normal"],
+  ["/submit/", "Submit Request", "SR", "normal"],
+  ["/my-work/", "My Work", "MW", "creator"],
+  ["/ai-assist/", "AI Assist", "AA", "creator"],
+  ["/create/", "Create SOP", "CS", "creator"],
+  ["/drafts/", "My Drafts", "MD", "creator"],
+  ["/admin/review/", "Review Queue", "RQ", "creator"],
+  ["/admin/needs-review/", "Needs Review", "NR", "creator"],
+  ["/admin/users/", "Users", "U", "admin"],
+  ["/admin/categories/", "Categories", "C", "admin"],
+  ["/admin/tags/", "Tags", "T", "admin"],
+  ["/admin/analytics/", "Analytics", "A", "admin"],
+  ["/admin/settings/", "Settings", "S", "admin"],
 ];
 
 const announcements = [
@@ -30,11 +39,13 @@ const announcements = [
 ];
 
 const resources = [
-  ["/categories/templates/", "SOP Templates", "Use templates to get started."],
-  ["/finder/", "SOP Guidelines", "Find the right process path."],
-  ["/admin/review/", "Approval Workflow", "Learn about the review process."],
-  ["/ai-assist/", "SOP Training", "Get controlled AI assistance."],
-  ["mailto:sop-support@organization.edu", "Contact SOP Support", "Get help from our team."],
+  ["/categories/templates/", "SOP Templates", "Use templates to get started.", "normal"],
+  ["/finder/", "SOP Guidelines", "Find the right process path.", "normal"],
+  ["/admin/review/", "Approval Workflow", "Learn about the review process.", "creator"],
+  ["/ai-assist/", "SOP Training", "Get controlled AI assistance.", "creator"],
+  ["/admin/settings/", "Admin Settings", "Manage access, workflow, and taxonomy.", "admin"],
+  ["/admin/analytics/", "Business Analytics", "View adoption and usage metrics.", "admin"],
+  ["mailto:sop-support@organization.edu", "Contact SOP Support", "Get help from our team.", "all"],
 ];
 ---
 
@@ -154,8 +165,8 @@ const resources = [
         <h2>My Quick Access</h2>
         <div class="quick-access-grid">
           {
-            quickAccess.map(([href, label, icon]) => (
-              <a href={href}>
+            quickAccess.map(([href, label, icon, role]) => (
+              <a href={href} data-role-option={role}>
                 <span aria-hidden="true">{icon}</span>
                 {label}
               </a>
@@ -186,8 +197,8 @@ const resources = [
         <h2>Helpful Resources</h2>
         <div class="resource-list">
           {
-            resources.map(([href, title, body]) => (
-              <a href={href}>
+            resources.map(([href, title, body, role]) => (
+              <a href={href} data-role-option={role}>
                 <span>
                   <strong>{title}</strong>
                   <small>{body}</small>

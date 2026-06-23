@@ -173,6 +173,19 @@ img {
   font-weight: 700;
 }
 
+.role-switcher {
+  min-height: 2rem;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  color: var(--color-blue);
+  background: var(--color-white);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 .topbar-bell,
 .topbar-avatar {
   display: grid;
@@ -273,6 +286,35 @@ img {
   letter-spacing: 0.04em;
   line-height: 1;
   text-transform: uppercase;
+}
+
+body[data-sop-role="normal"] [data-role-nav]:not([data-role-nav="normal"]),
+body[data-sop-role="creator"] [data-role-nav]:not([data-role-nav="creator"]),
+body[data-sop-role="admin"] [data-role-nav]:not([data-role-nav="admin"]) {
+  display: none;
+}
+
+body[data-sop-role="normal"] [data-role-option]:not([data-role-option="normal"]):not([data-role-option="all"]),
+body[data-sop-role="creator"] [data-role-option]:not([data-role-option="creator"]):not([data-role-option="all"]),
+body[data-sop-role="admin"] [data-role-option]:not([data-role-option="admin"]):not([data-role-option="all"]) {
+  display: none;
+}
+
+body.role-unselected {
+  overflow: hidden;
+}
+
+body.role-unselected .site-header,
+body.role-unselected .site-main,
+body.role-unselected .site-footer,
+body.role-unselected .ai-chatbot {
+  filter: blur(2px);
+  pointer-events: none;
+  user-select: none;
+}
+
+body.role-blocked .site-main {
+  display: none;
 }
 
 .main-nav__links {
@@ -772,6 +814,109 @@ img {
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   box-shadow: var(--shadow-soft);
+}
+
+.role-gate,
+.access-denied {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background:
+    radial-gradient(circle at 20% 10%, rgba(250, 185, 91, 0.20), transparent 28%),
+    rgba(4, 18, 48, 0.78);
+  backdrop-filter: blur(8px);
+}
+
+.role-gate[hidden],
+.access-denied[hidden] {
+  display: none;
+}
+
+.role-gate__panel,
+.access-denied__panel {
+  width: min(100%, 980px);
+  padding: 1.5rem;
+  color: var(--color-ink);
+  background: var(--color-white);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  border-radius: 14px;
+  box-shadow: 0 24px 70px rgba(3, 18, 51, 0.32);
+}
+
+.access-denied__panel {
+  width: min(100%, 620px);
+}
+
+.role-gate__header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.role-gate__header .brand__mark {
+  color: var(--color-ink);
+}
+
+.role-gate__header h1,
+.access-denied__panel h2 {
+  margin: 0.15rem 0 0.4rem;
+  color: var(--color-ink);
+}
+
+.role-gate__header p,
+.access-denied__panel p {
+  margin-bottom: 0;
+  color: var(--color-muted);
+}
+
+.role-gate__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.role-gate__card {
+  display: grid;
+  gap: 0.65rem;
+  min-height: 13rem;
+  padding: 1.1rem;
+  color: var(--color-ink);
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(11, 31, 68, 0.04);
+  cursor: pointer;
+}
+
+.role-gate__card:hover,
+.role-gate__card:focus-visible {
+  border-color: var(--color-beacon);
+  box-shadow: 0 16px 34px rgba(11, 31, 68, 0.14);
+  transform: translateY(-1px);
+}
+
+.role-gate__card strong {
+  color: var(--color-ink);
+  font-size: 1.15rem;
+}
+
+.role-gate__card span {
+  color: var(--color-text);
+}
+
+.role-gate__card small {
+  align-self: end;
+  color: var(--color-blue);
+  font-weight: 800;
+  line-height: 1.45;
 }
 
 .quick-access-grid {
@@ -2463,6 +2608,23 @@ tbody tr:hover {
   .dashboard-rail,
   .quick-access-grid {
     grid-template-columns: 1fr;
+  }
+
+  .role-gate__panel,
+  .access-denied__panel {
+    padding: 1rem;
+  }
+
+  .role-gate__header {
+    grid-template-columns: 1fr;
+  }
+
+  .role-gate__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .role-gate__card {
+    min-height: 0;
   }
 
   .procedure-step__header,

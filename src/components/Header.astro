@@ -2,6 +2,7 @@
 const navGroups = [
   {
     label: "Normal Users",
+    role: "normal",
     items: [
       { href: "/", label: "Home", icon: "H" },
       { href: "/search/", label: "Search SOPs" },
@@ -12,6 +13,7 @@ const navGroups = [
   },
   {
     label: "Creators / Reviewers",
+    role: "creator",
     items: [
       { href: "/my-work/", label: "My Work" },
       { href: "/ai-assist/", label: "AI Assist" },
@@ -23,6 +25,7 @@ const navGroups = [
   },
   {
     label: "Admins",
+    role: "admin",
     items: [
       { href: "/admin/users/", label: "Users" },
       { href: "/admin/categories/", label: "Categories" },
@@ -57,7 +60,11 @@ const navIcon = (label: string, icon?: string) =>
     <nav class="main-nav" aria-label="Role-based navigation">
       {
         navGroups.map((group) => (
-          <section class:list={["main-nav__role", `main-nav__role--${roleClass(group.label)}`]} aria-label={group.label}>
+          <section
+            class:list={["main-nav__role", `main-nav__role--${roleClass(group.label)}`]}
+            aria-label={group.label}
+            data-role-nav={group.role}
+          >
             <span class="main-nav__role-label">{group.label}</span>
             <div class="main-nav__links" role="list">
               {group.items.map((item) => (
@@ -98,7 +105,8 @@ const navIcon = (label: string, icon?: string) =>
     <div class="topbar-actions" aria-label="Current user">
       <span class="topbar-bell" aria-label="3 notifications">3</span>
       <span class="topbar-avatar" aria-hidden="true">AM</span>
-      <span class="topbar-user">Alex Morgan</span>
+      <span class="topbar-user" data-current-role-label>Select Role</span>
+      <button class="role-switcher" type="button" data-role-reset>Switch</button>
       <span aria-hidden="true">v</span>
     </div>
   </div>
