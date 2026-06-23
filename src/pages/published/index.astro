@@ -1,0 +1,205 @@
+---
+import Layout from "../../components/Layout.astro";
+import { PUBLISHED_SOPS_STORAGE_KEY } from "../../lib/drafts";
+---
+
+<Layout title="Published SOP" wide>
+  <section class="sop-document" id="published-sop-viewer">
+    <div class="sop-document__header">
+      <p class="eyebrow" id="published-category">Published SOP</p>
+      <div class="sop-title-row">
+        <h1 id="published-title">Published SOP</h1>
+        <span id="published-status" class="status-badge status-badge--published">Published</span>
+      </div>
+      <p class="lede" id="published-purpose"></p>
+      <div class="form-actions no-print">
+        <a class="button button--ghost" href="/search/">Back to Search</a>
+        <a class="button button--secondary" id="published-edit-link" href="/create/">Edit SOP</a>
+      </div>
+    </div>
+
+    <div class="sop-layout">
+      <aside class="metadata-panel" aria-label="Published SOP metadata">
+        <dl id="published-meta"></dl>
+      </aside>
+      <div class="sop-content">
+        <section class="sop-section">
+          <h2>Purpose</h2>
+          <p id="published-purpose-body"></p>
+        </section>
+        <section class="sop-section sop-callout">
+          <h2>Before You Begin</h2>
+          <p id="published-before"></p>
+        </section>
+        <section class="sop-section">
+          <h2>Step-by-Step Procedure</h2>
+          <ol class="procedure-list sop-procedure-list" id="published-steps"></ol>
+        </section>
+        <section class="sop-section screenshots" id="published-screenshots-section" hidden>
+          <h2>Screenshots</h2>
+          <div id="published-screenshots"></div>
+        </section>
+        <section class="sop-section">
+          <h2>Troubleshooting</h2>
+          <div id="published-troubleshooting"></div>
+        </section>
+        <section class="sop-section" id="published-empty" hidden>
+          <h2>Published SOP Not Found</h2>
+          <p>This browser does not have a published SOP with that ID.</p>
+        </section>
+      </div>
+    </div>
+  </section>
+</Layout>
+
+<script is:inline define:vars={{ PUBLISHED_SOPS_STORAGE_KEY }}>
+  const escapeHtml = (value) =>
+    String(value ?? "").replace(/[&<>"']/g, (character) => {
+      const replacements = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      };
+      return replacements[character];
+    });
+
+  function readPublishedSops() {
+    try {
+      const records = JSON.parse(localStorage.getItem(PUBLISHED_SOPS_STORAGE_KEY) || "[]");
+      return Array.isArray(records) ? records : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function formatDate(value) {
+    if (!value) return "Not set";
+    const date = new Date(`${String(value).slice(0, 10)}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return value;
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }).format(date);
+  }
+
+  function setText(id, value) {
+    const element = document.getElementById(id);
+    if (element) element.textContent = value || "";
+  }
+
+  function renderSteps(steps) {
+    const list = document.getElementById("published-steps");
+    if (!list) return;
+
+    list.innerHTML = (Array.isArray(steps) ? steps : [])
+      .map(
+        (step) => `
+          <li>
+            <strong>${escapeHtml(step.title)}</strong>
+            ${step.instructions ? `<p>${escapeHtml(step.instructions)}</p>` : ""}
+            ${step.note ? `<p><strong>Note:</strong> ${escapeHtml(step.note)}</p>` : ""}
+            ${
+              step.screenshot
+                ? `<figure class="step-screenshot"><img src="${escapeHtml(
+                    step.screenshot,
+                  )}" alt="Screenshot for ${escapeHtml(
+                    step.title,
+                  )}" /><figcaption>Step screenshot</figcaption></figure>`
+                : ""
+            }
+            ${
+              step.video
+                ? `<figure class="step-screenshot"><video controls src="${escapeHtml(
+                    step.video,
+                  )}"></video><figcaption>${escapeHtml(
+                    step.videoLabel || "Step video",
+                  )}</figcaption></figure>`
+                : ""
+            }
+          </li>
+        `,
+      )
+      .join("");
+  }
+
+  function renderScreenshots(screenshots) {
+    const section = document.getElementById("published-screenshots-section");
+    const list = document.getElementById("published-screenshots");
+    const safeScreenshots = Array.isArray(screenshots) ? screenshots.filter(Boolean) : [];
+    if (!(section instanceof HTMLElement) || !list) return;
+
+    section.hidden = safeScreenshots.length === 0;
+    list.innerHTML = safeScreenshots
+      .map(
+        (src, index) => `
+          <figure>
+            <img src="${escapeHtml(src)}" alt="Published screenshot ${index + 1}" loading="lazy" />
+            <figcaption>Published screenshot ${index + 1}</figcaption>
+          </figure>
+        `,
+      )
+      .join("");
+  }
+
+  function renderTroubleshooting(notes) {
+    const container = document.getElementById("published-troubleshooting");
+    if (!container) return;
+
+    const lines = String(notes || "")
+      .split(/\n+/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    container.innerHTML = lines.length
+      ? `<ul>${lines.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}</ul>`
+      : "<p>No troubleshooting notes are listed for this SOP.</p>";
+  }
+
+  function renderPublishedSop() {
+    const id = new URLSearchParams(window.location.search).get("id");
+    const records = readPublishedSops();
+    const record = id ? records.find((item) => item.draftId === id || item.id === id) : records.at(-1);
+    const empty = document.getElementById("published-empty");
+
+    if (!record) {
+      if (empty instanceof HTMLElement) empty.hidden = false;
+      return;
+    }
+
+    document.title = `${record.title} | SOP Knowledge Hub`;
+    setText("published-category", record.category);
+    setText("published-title", record.title);
+    setText("published-purpose", record.purpose);
+    setText("published-purpose-body", record.purpose);
+    setText("published-before", record.beforeYouBegin || "Review the SOP metadata, required tools, and audience before starting.");
+
+    const editLink = document.getElementById("published-edit-link");
+    if (editLink instanceof HTMLAnchorElement) {
+      editLink.href = `/create/?edit=draft&id=${encodeURIComponent(record.draftId || record.id)}`;
+    }
+
+    const meta = document.getElementById("published-meta");
+    if (meta) {
+      meta.innerHTML = `
+        <div><dt>Owner</dt><dd>${escapeHtml(record.owner)}</dd></div>
+        <div><dt>Last updated</dt><dd>${escapeHtml(formatDate(record.lastUpdated || record.updatedDate))}</dd></div>
+        <div><dt>Review date</dt><dd>${escapeHtml(formatDate(record.reviewDate))}</dd></div>
+        <div><dt>Category</dt><dd>${escapeHtml(record.category)}</dd></div>
+        <div><dt>Tools used</dt><dd>${escapeHtml((record.tools || []).join(", "))}</dd></div>
+        <div><dt>Audience</dt><dd>${escapeHtml((record.audience || []).join(", "))}</dd></div>
+        <div><dt>Status</dt><dd><span class="status-badge status-badge--published">Published</span></dd></div>
+        <div><dt>Version</dt><dd>${escapeHtml(record.version)}</dd></div>
+        <div><dt>Estimated time</dt><dd>${escapeHtml(record.estimatedCompletionTime || "")}</dd></div>
+        <div><dt>Published by</dt><dd>${escapeHtml(record.publishedBy || "Creator / Reviewer")}</dd></div>
+      `;
+    }
+
+    renderSteps(record.procedureSteps);
+    renderScreenshots(record.screenshots);
+    renderTroubleshooting(record.troubleshootingNotes);
+  }
+
+  renderPublishedSop();
+</script>

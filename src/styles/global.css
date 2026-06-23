@@ -397,6 +397,29 @@ img {
   margin: 0.5rem 0 0;
 }
 
+.create-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin-top: 1rem;
+}
+
+.create-edit-actions span {
+  color: var(--color-muted);
+  font-weight: 700;
+}
+
+.publish-permission {
+  align-self: end;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.publish-permission strong {
+  color: var(--color-ink);
+}
+
 .eyebrow {
   margin: 0 0 0.35rem;
   color: var(--color-kindle);
@@ -803,16 +826,21 @@ legend {
 }
 
 .screenshot-paste-target {
-  display: grid;
+  display: block;
+  width: 100%;
   min-height: 5rem;
-  place-items: center;
   padding: 1rem;
+  resize: none;
+  overflow: hidden;
   color: var(--color-muted);
+  font: inherit;
   font-weight: 700;
+  line-height: 1.4;
   text-align: center;
   background: var(--color-white);
   border: 1.5px dashed var(--color-border);
   border-radius: var(--radius);
+  cursor: text;
 }
 
 .screenshot-paste-target:focus,

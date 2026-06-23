@@ -2,6 +2,7 @@ import type { ReviewQueueItem, SopDraft } from "../types";
 
 export const DRAFTS_STORAGE_KEY = "sopHubDrafts";
 export const EDIT_SOP_STORAGE_KEY = "sopHubEditSource";
+export const PUBLISHED_SOPS_STORAGE_KEY = "sopHubPublishedSops";
 
 export function createDraftReviewItem(draft: SopDraft): ReviewQueueItem {
   return {

@@ -7,7 +7,7 @@ import ChangeHistory from "../components/ChangeHistory.astro";
 import StatusBadge from "../components/StatusBadge.astro";
 import { formatDate } from "../lib/dates";
 import { resolveRelatedSops, type SopEntry } from "../lib/sops";
-import { EDIT_SOP_STORAGE_KEY } from "../lib/drafts";
+import { EDIT_SOP_STORAGE_KEY, PUBLISHED_SOPS_STORAGE_KEY } from "../lib/drafts";
 
 interface Props {
   sop: SopEntry;
@@ -87,30 +87,30 @@ const editPayload = {
 ---
 
 <Layout title={sop.data.title} description={sop.data.purpose}>
-  <article class="sop-document" data-pagefind-body>
+  <article class="sop-document" data-pagefind-body data-sop-id={sop.data.id}>
     <div class="sop-document__header">
-      <p class="eyebrow">{sop.data.category}</p>
+      <p class="eyebrow" id="sop-detail-category">{sop.data.category}</p>
       <div class="sop-title-row">
-        <h1>{sop.data.title}</h1>
-        <StatusBadge status={sop.data.status} />
+        <h1 id="sop-detail-title">{sop.data.title}</h1>
+        <span id="sop-detail-status"><StatusBadge status={sop.data.status} /></span>
       </div>
-      <p class="lede">{sop.data.purpose}</p>
+      <p class="lede" id="sop-detail-lede">{sop.data.purpose}</p>
       <dl class="sop-hero-meta">
         <div>
           <dt>Owner</dt>
-          <dd>{sop.data.owner}</dd>
+          <dd id="sop-detail-owner">{sop.data.owner}</dd>
         </div>
         <div>
           <dt>Last updated</dt>
-          <dd>{formatDate(sop.data.lastUpdated)}</dd>
+          <dd id="sop-detail-last-updated">{formatDate(sop.data.lastUpdated)}</dd>
         </div>
         <div>
           <dt>Next review</dt>
-          <dd>{formatDate(sop.data.reviewDate)}</dd>
+          <dd id="sop-detail-review-date">{formatDate(sop.data.reviewDate)}</dd>
         </div>
         <div>
           <dt>Estimated time</dt>
-          <dd>{sop.data.estimatedCompletionTime}</dd>
+          <dd id="sop-detail-time">{sop.data.estimatedCompletionTime}</dd>
         </div>
       </dl>
       <PrintActions />
@@ -141,17 +141,17 @@ const editPayload = {
       <div class="sop-content">
         <section class="sop-section">
           <h2>Purpose</h2>
-          <p>{sop.data.purpose}</p>
+          <p id="sop-detail-purpose">{sop.data.purpose}</p>
         </section>
 
         <section class="sop-section sop-callout" aria-labelledby="before-you-begin-heading">
           <h2 id="before-you-begin-heading">Before You Begin</h2>
-          <p>{beforeYouBegin || "Review the SOP metadata, required tools, and audience before starting."}</p>
+          <p id="sop-detail-before">{beforeYouBegin || "Review the SOP metadata, required tools, and audience before starting."}</p>
         </section>
 
         <section class="sop-section" aria-labelledby="procedure-heading">
           <h2 id="procedure-heading">Step-by-Step Procedure</h2>
-          <ol class="procedure-list sop-procedure-list">
+          <ol class="procedure-list sop-procedure-list" id="sop-detail-procedure">
             {procedureSteps.map((step) => (
               <li>
                 <strong>{step.title}</strong>
@@ -161,38 +161,43 @@ const editPayload = {
           </ol>
         </section>
 
-        {
-          sop.data.screenshots.length > 0 && (
-            <section class="sop-section screenshots" aria-labelledby="screenshots-heading">
-              <h2 id="screenshots-heading">Screenshots</h2>
-              {sop.data.screenshots.map((screenshot) => (
-                <figure>
-                  <img src={screenshot.src} alt={screenshot.alt} loading="lazy" />
-                  <figcaption>{screenshot.caption}</figcaption>
-                </figure>
-              ))}
-            </section>
-          )
-        }
+        <section
+          class="sop-section screenshots"
+          id="sop-detail-screenshots"
+          aria-labelledby="screenshots-heading"
+          hidden={sop.data.screenshots.length === 0}
+        >
+          <h2 id="screenshots-heading">Screenshots</h2>
+          <div id="sop-detail-screenshot-list">
+            {sop.data.screenshots.map((screenshot) => (
+              <figure>
+                <img src={screenshot.src} alt={screenshot.alt} loading="lazy" />
+                <figcaption>{screenshot.caption}</figcaption>
+              </figure>
+            ))}
+          </div>
+        </section>
 
         <section class="sop-section" aria-labelledby="checklist-heading">
           <h2 id="checklist-heading">Checklist</h2>
-          <ul class="sop-checklist">
+          <ul class="sop-checklist" id="sop-detail-checklist">
             {procedureSteps.map((step) => <li>{step.title}</li>)}
           </ul>
         </section>
 
         <section class="sop-section" aria-labelledby="troubleshooting-heading">
           <h2 id="troubleshooting-heading">Troubleshooting</h2>
-          {
-            troubleshootingNotes.length > 0 ? (
+          <div id="sop-detail-troubleshooting">
+            {
+              troubleshootingNotes.length > 0 ? (
               <ul>
                 {troubleshootingNotes.map((note) => <li>{note}</li>)}
               </ul>
             ) : (
               <p>No troubleshooting notes are listed for this SOP.</p>
             )
-          }
+            }
+          </div>
         </section>
 
         <RelatedSops items={relatedSops} />
@@ -246,6 +251,185 @@ const editPayload = {
       // Continue to the creator route; it will show an empty form if storage is blocked.
     }
   });
+</script>
+
+<script is:inline define:vars={{ PUBLISHED_SOPS_STORAGE_KEY, sourceId: sop.data.id }}>
+  const escapePublishedHtml = (value) =>
+    String(value ?? "").replace(/[&<>"']/g, (character) => {
+      const replacements = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      };
+      return replacements[character];
+    });
+
+  function readPublishedSops() {
+    try {
+      const records = JSON.parse(localStorage.getItem(PUBLISHED_SOPS_STORAGE_KEY) || "[]");
+      return Array.isArray(records) ? records : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function formatPublishedDate(value) {
+    if (!value) return "Not set";
+    const date = new Date(`${String(value).slice(0, 10)}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return value;
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }).format(date);
+  }
+
+  function statusBadgeHtml(status) {
+    const className = String(status || "Published").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    return `<span class="status-badge status-badge--${escapePublishedHtml(className)}">${escapePublishedHtml(
+      status || "Published",
+    )}</span>`;
+  }
+
+  function setText(id, value) {
+    const element = document.getElementById(id);
+    if (element) element.textContent = value || "";
+  }
+
+  function setMeta(name, value, html = false) {
+    const element = document.querySelector(`[data-sop-meta="${name}"]`);
+    if (!element) return;
+    if (html) {
+      element.innerHTML = value;
+    } else {
+      element.textContent = value || "";
+    }
+  }
+
+  function renderPublishedSteps(steps) {
+    const procedure = document.getElementById("sop-detail-procedure");
+    const checklist = document.getElementById("sop-detail-checklist");
+    const safeSteps = Array.isArray(steps) ? steps : [];
+
+    if (procedure) {
+      procedure.innerHTML = safeSteps
+        .map(
+          (step) => `
+            <li>
+              <strong>${escapePublishedHtml(step.title)}</strong>
+              ${step.instructions ? `<p>${escapePublishedHtml(step.instructions)}</p>` : ""}
+              ${step.note ? `<p><strong>Note:</strong> ${escapePublishedHtml(step.note)}</p>` : ""}
+              ${
+                step.screenshot
+                  ? `<figure class="step-screenshot"><img src="${escapePublishedHtml(
+                      step.screenshot,
+                    )}" alt="Screenshot for ${escapePublishedHtml(
+                      step.title,
+                    )}" /><figcaption>Step screenshot</figcaption></figure>`
+                  : ""
+              }
+              ${
+                step.video
+                  ? `<figure class="step-screenshot"><video controls src="${escapePublishedHtml(
+                      step.video,
+                    )}"></video><figcaption>${escapePublishedHtml(
+                      step.videoLabel || "Step video",
+                    )}</figcaption></figure>`
+                  : ""
+              }
+            </li>
+          `,
+        )
+        .join("");
+    }
+
+    if (checklist) {
+      checklist.innerHTML = safeSteps
+        .map((step) => `<li>${escapePublishedHtml(step.title)}</li>`)
+        .join("");
+    }
+  }
+
+  function renderPublishedScreenshots(screenshots) {
+    const section = document.getElementById("sop-detail-screenshots");
+    const list = document.getElementById("sop-detail-screenshot-list");
+    const safeScreenshots = Array.isArray(screenshots) ? screenshots.filter(Boolean) : [];
+    if (!(section instanceof HTMLElement) || !list) return;
+
+    section.hidden = safeScreenshots.length === 0;
+    list.innerHTML = safeScreenshots
+      .map(
+        (src, index) => `
+          <figure>
+            <img src="${escapePublishedHtml(src)}" alt="Published screenshot ${index + 1}" loading="lazy" />
+            <figcaption>Published screenshot ${index + 1}</figcaption>
+          </figure>
+        `,
+      )
+      .join("");
+  }
+
+  function renderPublishedTroubleshooting(notes) {
+    const container = document.getElementById("sop-detail-troubleshooting");
+    if (!container) return;
+
+    const lines = String(notes || "")
+      .split(/\n+/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    container.innerHTML = lines.length
+      ? `<ul>${lines.map((line) => `<li>${escapePublishedHtml(line)}</li>`).join("")}</ul>`
+      : "<p>No troubleshooting notes are listed for this SOP.</p>";
+  }
+
+  function applyPublishedOverride() {
+    const published = readPublishedSops().find(
+      (record) => record.id === sourceId || record.sourceId === sourceId,
+    );
+    if (!published) return;
+
+    setText("sop-detail-category", published.category);
+    setText("sop-detail-title", published.title);
+    setText("sop-detail-lede", published.purpose);
+    setText("sop-detail-purpose", published.purpose);
+    setText("sop-detail-before", published.beforeYouBegin || "Review the SOP metadata, required tools, and audience before starting.");
+    setText("sop-detail-owner", published.owner);
+    setText("sop-detail-last-updated", formatPublishedDate(published.lastUpdated || published.updatedDate));
+    setText("sop-detail-review-date", formatPublishedDate(published.reviewDate));
+    setText("sop-detail-time", published.estimatedCompletionTime || "");
+
+    const statusHtml = statusBadgeHtml("Published");
+    const status = document.getElementById("sop-detail-status");
+    if (status) status.innerHTML = statusHtml;
+    setMeta("owner", published.owner);
+    setMeta("lastUpdated", formatPublishedDate(published.lastUpdated || published.updatedDate));
+    setMeta("reviewDate", formatPublishedDate(published.reviewDate));
+    setMeta("category", published.category);
+    setMeta("tools", Array.isArray(published.tools) ? published.tools.join(", ") : "");
+    setMeta("audience", Array.isArray(published.audience) ? published.audience.join(", ") : "");
+    setMeta("status", statusHtml, true);
+    setMeta("version", published.version);
+    setMeta("estimatedCompletionTime", published.estimatedCompletionTime || "");
+
+    renderPublishedSteps(published.procedureSteps);
+    renderPublishedScreenshots(published.screenshots);
+    renderPublishedTroubleshooting(published.troubleshootingNotes);
+
+    const editSource = document.getElementById(`edit-source-${sourceId}`);
+    if (editSource) {
+      editSource.textContent = JSON.stringify({
+        ...published,
+        sourceId,
+        sourceSlug: published.sourceSlug,
+        sourceTitle: published.title,
+        status: "Draft",
+      });
+    }
+  }
+
+  applyPublishedOverride();
 </script>
 
 <script is:inline>

@@ -31,39 +31,39 @@ const {
   <dl>
     <div>
       <dt>Owner</dt>
-      <dd>{owner}</dd>
+      <dd data-sop-meta="owner">{owner}</dd>
     </div>
     <div>
       <dt>Last updated</dt>
-      <dd>{formatDate(lastUpdated)}</dd>
+      <dd data-sop-meta="lastUpdated">{formatDate(lastUpdated)}</dd>
     </div>
     <div>
       <dt>Review date</dt>
-      <dd>{formatDate(reviewDate)}</dd>
+      <dd data-sop-meta="reviewDate">{formatDate(reviewDate)}</dd>
     </div>
     <div>
       <dt>Category</dt>
-      <dd>{category}</dd>
+      <dd data-sop-meta="category">{category}</dd>
     </div>
     <div>
       <dt>Tools used</dt>
-      <dd>{tools.join(", ")}</dd>
+      <dd data-sop-meta="tools">{tools.join(", ")}</dd>
     </div>
     <div>
       <dt>Audience</dt>
-      <dd>{audience.join(", ")}</dd>
+      <dd data-sop-meta="audience">{audience.join(", ")}</dd>
     </div>
     <div>
       <dt>Status</dt>
-      <dd><StatusBadge status={status} /></dd>
+      <dd data-sop-meta="status"><StatusBadge status={status} /></dd>
     </div>
     <div>
       <dt>Version</dt>
-      <dd>{version}</dd>
+      <dd data-sop-meta="version">{version}</dd>
     </div>
     <div>
       <dt>Estimated time</dt>
-      <dd>{estimatedCompletionTime}</dd>
+      <dd data-sop-meta="estimatedCompletionTime">{estimatedCompletionTime}</dd>
     </div>
   </dl>
 </aside>

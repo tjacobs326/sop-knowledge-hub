@@ -1,6 +1,7 @@
 ---
 import Layout from "../components/Layout.astro";
 import SopCard from "../components/SopCard.astro";
+import { PUBLISHED_SOPS_STORAGE_KEY } from "../lib/drafts";
 import { getAllSops, getSopUrl } from "../lib/sops";
 import { uniqueSorted } from "../lib/search";
 
@@ -76,6 +77,7 @@ const tags = uniqueSorted(sops.flatMap((sop) => sop.data.tags));
         sops.map((sop) => (
           <div
             data-search-card
+            data-sop-id={sop.data.id}
             data-category={sop.data.category}
             data-tools={sop.data.tools.join("|")}
             data-owner={sop.data.owner}
@@ -102,7 +104,7 @@ const tags = uniqueSorted(sops.flatMap((sop) => sop.data.tags));
   </section>
 </Layout>
 
-<script is:inline>
+<script is:inline define:vars={{ PUBLISHED_SOPS_STORAGE_KEY }}>
   const form = document.getElementById("sop-search-form");
   const queryInput = document.getElementById("search-query");
   const categoryFilter = document.getElementById("filter-category");
@@ -112,7 +114,178 @@ const tags = uniqueSorted(sops.flatMap((sop) => sop.data.tags));
   const tagFilter = document.getElementById("filter-tag");
   const resultCount = document.getElementById("result-count");
   const emptyState = document.getElementById("search-empty");
-  const cards = Array.from(document.querySelectorAll("[data-search-card]"));
+  const results = document.getElementById("search-results");
+  let cards = Array.from(document.querySelectorAll("[data-search-card]"));
+
+  const escapeHtml = (value) =>
+    String(value ?? "").replace(/[&<>"']/g, (character) => {
+      const replacements = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      };
+      return replacements[character];
+    });
+
+  function readPublishedSops() {
+    try {
+      const records = JSON.parse(localStorage.getItem(PUBLISHED_SOPS_STORAGE_KEY) || "[]");
+      return Array.isArray(records) ? records : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function normalizeList(value) {
+    if (Array.isArray(value)) return value.map(String).map((item) => item.trim()).filter(Boolean);
+    if (typeof value === "string") {
+      return value
+        .split(/[\n,|]/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+    return [];
+  }
+
+  function formatDate(value) {
+    if (!value) return "Not set";
+    const date = new Date(String(value).includes("T") ? value : `${value}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  }
+
+  function optionExists(select, value) {
+    return Array.from(select?.options || []).some((option) => option.value === value);
+  }
+
+  function addFilterOption(select, value) {
+    if (!(select instanceof HTMLSelectElement) || !value || optionExists(select, value)) return;
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = value;
+    select.append(option);
+  }
+
+  function searchTextFor(record) {
+    const stepText = normalizeList(record.procedureSteps).join(" ");
+    const structuredStepText = Array.isArray(record.procedureSteps)
+      ? record.procedureSteps
+          .map((step) => [step?.title, step?.instructions, step?.note].filter(Boolean).join(" "))
+          .join(" ")
+      : "";
+    return [
+      record.title,
+      record.purpose,
+      record.category,
+      record.owner,
+      record.beforeYouBegin,
+      record.troubleshootingNotes,
+      record.changeSummary,
+      normalizeList(record.tags).join(" "),
+      normalizeList(record.tools).join(" "),
+      normalizeList(record.audience).join(" "),
+      normalizeList(record.relatedSops).join(" "),
+      normalizeList(record.screenshots).join(" "),
+      stepText,
+      structuredStepText,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+  }
+
+  function statusBadgeHtml(status) {
+    const className = String(status || "Published").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    return `<span class="status-badge status-badge--${escapeHtml(className)}"><span class="sr-only">Status:</span>${escapeHtml(
+      status || "Published",
+    )}</span>`;
+  }
+
+  function renderPublishedCard(record) {
+    const tags = normalizeList(record.tags);
+    const tools = normalizeList(record.tools);
+    const audience = normalizeList(record.audience);
+    const relatedSops = normalizeList(record.relatedSops);
+    const status = record.status || "Published";
+    const lastUpdated = record.lastUpdated || record.updatedDate || record.publishedAt;
+    const url = record.url || `/published/?id=${encodeURIComponent(record.id)}`;
+    const card = document.createElement("div");
+    card.dataset.searchCard = "";
+    card.dataset.sopId = record.sourceId || record.id;
+    card.dataset.category = record.category || "";
+    card.dataset.tools = tools.join("|");
+    card.dataset.owner = record.owner || "";
+    card.dataset.status = status;
+    card.dataset.tags = tags.join("|");
+    card.dataset.search = searchTextFor({ ...record, tags, tools, audience, relatedSops });
+    card.innerHTML = `
+      <article class="sop-card">
+        <div class="sop-card__topline">
+          <span class="sop-card__category">${escapeHtml(record.category || "Uncategorized")}</span>
+          ${statusBadgeHtml(status)}
+        </div>
+        <h3><a href="${escapeHtml(url)}">${escapeHtml(record.title || "Untitled SOP")}</a></h3>
+        <p class="sop-card__purpose">${escapeHtml(record.purpose || "No purpose provided.")}</p>
+        <dl class="compact-meta">
+          <div><dt>Owner</dt><dd>${escapeHtml(record.owner || "Unassigned")}</dd></div>
+          <div><dt>Updated</dt><dd>${escapeHtml(formatDate(lastUpdated))}</dd></div>
+          <div><dt>Review</dt><dd>${escapeHtml(formatDate(record.reviewDate))}</dd></div>
+        </dl>
+        ${
+          record.estimatedCompletionTime
+            ? `<p class="sop-card__time"><span class="sop-card__time-icon" aria-hidden="true">Time</span>${escapeHtml(
+                record.estimatedCompletionTime,
+              )}</p>`
+            : ""
+        }
+        ${
+          tools.length > 0
+            ? `<p class="sop-card__tools"><strong>Tools:</strong> ${escapeHtml(tools.join(", "))}</p>`
+            : ""
+        }
+        ${
+          tags.length > 0
+            ? `<ul class="tag-list" aria-label="Tags">${tags
+                .map((tag) => `<li>${escapeHtml(tag)}</li>`)
+                .join("")}</ul>`
+            : ""
+        }
+      </article>
+    `;
+    return card;
+  }
+
+  function hydratePublishedSops() {
+    if (!results) return;
+
+    readPublishedSops().forEach((record) => {
+      if (!record?.id || !record?.title) return;
+
+      const card = renderPublishedCard(record);
+      const existing = results.querySelector(
+        `[data-search-card][data-sop-id="${CSS.escape(card.dataset.sopId || record.id)}"]`,
+      );
+      if (existing) {
+        existing.replaceWith(card);
+      } else {
+        results.prepend(card);
+      }
+
+      addFilterOption(categoryFilter, card.dataset.category);
+      addFilterOption(ownerFilter, card.dataset.owner);
+      addFilterOption(statusFilter, card.dataset.status);
+      normalizeList(card.dataset.tools).forEach((tool) => addFilterOption(toolFilter, tool));
+      normalizeList(card.dataset.tags).forEach((tag) => addFilterOption(tagFilter, tag));
+    });
+
+    cards = Array.from(document.querySelectorAll("[data-search-card]"));
+  }
 
   function valueOf(element) {
     return element instanceof HTMLInputElement || element instanceof HTMLSelectElement
@@ -171,5 +344,6 @@ const tags = uniqueSorted(sops.flatMap((sop) => sop.data.tags));
     element?.addEventListener("change", applySearch);
   });
 
+  hydratePublishedSops();
   applySearch();
 </script>
