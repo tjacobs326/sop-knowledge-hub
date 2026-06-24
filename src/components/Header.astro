@@ -1,37 +1,39 @@
 ---
+import AppIcon from "./AppIcon.astro";
+
 const navGroups = [
   {
     label: "Normal Users",
     role: "normal",
     items: [
-      { href: "/", label: "Home", icon: "H" },
-      { href: "/search/", label: "Search SOPs" },
-      { href: "/finder/", label: "Guided Finder" },
-      { href: "/categories/", label: "Categories" },
-      { href: "/submit/", label: "Submit Request" },
+      { href: "/", label: "Home", icon: "home" },
+      { href: "/search/", label: "Search SOPs", icon: "search" },
+      { href: "/finder/", label: "Guided Finder", icon: "finder" },
+      { href: "/categories/", label: "Categories", icon: "categories" },
+      { href: "/submit/", label: "Submit Request", icon: "submit" },
     ],
   },
   {
     label: "Creators / Reviewers",
     role: "creator",
     items: [
-      { href: "/my-work/", label: "My Work" },
-      { href: "/ai-assist/", label: "AI Assist" },
-      { href: "/create/", label: "Create SOP" },
-      { href: "/drafts/", label: "My Drafts" },
-      { href: "/admin/review/", label: "Review Queue" },
-      { href: "/admin/needs-review/", label: "Needs Review" },
+      { href: "/my-work/", label: "My Work", icon: "work" },
+      { href: "/ai-assist/", label: "AI Assist", icon: "ai" },
+      { href: "/create/", label: "Create SOP", icon: "create" },
+      { href: "/drafts/", label: "My Drafts", icon: "drafts" },
+      { href: "/admin/review/", label: "Review Queue", icon: "review" },
+      { href: "/admin/needs-review/", label: "Needs Review", icon: "needsReview" },
     ],
   },
   {
     label: "Admins",
     role: "admin",
     items: [
-      { href: "/admin/users/", label: "Users" },
-      { href: "/admin/categories/", label: "Categories" },
-      { href: "/admin/tags/", label: "Tags" },
-      { href: "/admin/analytics/", label: "Analytics" },
-      { href: "/admin/settings/", label: "Settings" },
+      { href: "/admin/users/", label: "Users", icon: "users" },
+      { href: "/admin/categories/", label: "Categories", icon: "categories" },
+      { href: "/admin/tags/", label: "Tags", icon: "tags" },
+      { href: "/admin/analytics/", label: "Analytics", icon: "analytics" },
+      { href: "/admin/settings/", label: "Settings", icon: "settings" },
     ],
   },
 ];
@@ -39,13 +41,6 @@ const navGroups = [
 const pathname = Astro.url.pathname;
 const isCurrent = (href: string) => pathname === href || (href !== "/" && pathname.startsWith(href));
 const roleClass = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-const navIcon = (label: string, icon?: string) =>
-  icon ?? label
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((word) => word[0]?.toUpperCase())
-    .join("");
 ---
 
 <header class="site-header no-print" aria-label="SOP Knowledge Hub navigation">
@@ -66,14 +61,13 @@ const navIcon = (label: string, icon?: string) =>
             data-role-nav={group.role}
           >
             <span class="main-nav__role-label">{group.label}</span>
-            <div class="main-nav__links" role="list">
+            <div class="main-nav__links">
               {group.items.map((item) => (
                 <a
                   href={item.href}
-                  role="listitem"
                   aria-current={isCurrent(item.href) ? "page" : undefined}
                 >
-                  <span class="main-nav__icon" aria-hidden="true">{navIcon(item.label, item.icon)}</span>
+                  <span class="main-nav__icon" aria-hidden="true"><AppIcon name={item.icon} /></span>
                   {item.label}
                 </a>
               ))}
@@ -92,7 +86,7 @@ const navIcon = (label: string, icon?: string) =>
   <div class="app-topbar">
     <form class="topbar-search" action="/search/" method="get">
       <label class="sr-only" for="topbar-search">Search SOPs</label>
-      <span aria-hidden="true">S</span>
+      <span aria-hidden="true"><AppIcon name="search" /></span>
       <input
         id="topbar-search"
         name="q"
@@ -107,7 +101,6 @@ const navIcon = (label: string, icon?: string) =>
       <span class="topbar-avatar" aria-hidden="true">AM</span>
       <span class="topbar-user" data-current-role-label>Select Role</span>
       <button class="role-switcher" type="button" data-role-reset>Switch</button>
-      <span aria-hidden="true">v</span>
     </div>
   </div>
 </header>

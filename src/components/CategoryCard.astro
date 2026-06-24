@@ -1,5 +1,6 @@
 ---
 import { getCategoryUrl } from "../lib/sops";
+import AppIcon from "./AppIcon.astro";
 
 interface Props {
   name: string;
@@ -10,13 +11,30 @@ interface Props {
   count?: number;
 }
 
-const { name, slug, description, icon, color = "#f8fafc", count } = Astro.props;
+const { name, slug, description, color = "#f8fafc", count } = Astro.props;
 const href = getCategoryUrl(slug);
+
+const iconBySlug: Record<string, string> = {
+  "qa-processes": "qa",
+  "brightspace-d2l": "d2l",
+  templates: "template",
+  "course-builds": "course",
+  "ivanti-ticketing-system": "ticket",
+  operations: "operations",
+  finance: "finance",
+  marketing: "marketing",
+  troubleshooting: "troubleshooting",
+  "ai-tools": "ai",
+};
+
+const iconName = iconBySlug[slug] ?? "document";
 ---
 
 <a class="category-card" href={href} style={`--card-accent: ${color}`}>
-  {icon && <span class="category-card__icon" aria-hidden="true">{icon}</span>}
-  <h3>{name}</h3>
+  <div class="category-card__header">
+    <span class="category-card__icon" aria-hidden="true"><AppIcon name={iconName} /></span>
+    <h2>{name}</h2>
+  </div>
   <p>{description}</p>
   <div class="category-card__footer">
     {count !== undefined && (
@@ -35,19 +53,32 @@ const href = getCategoryUrl(slug);
     background: var(--color-white);
   }
 
+  .category-card__header {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.85rem;
+    align-items: center;
+    padding-bottom: 0.85rem;
+    margin-bottom: 0.55rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+
   .category-card__icon {
     display: grid;
-    width: 2.75rem;
-    height: 2.75rem;
+    width: 3.3rem;
+    height: 3.3rem;
     place-items: center;
-    margin-bottom: 0.75rem;
     color: var(--color-ink);
-    font-size: 0.82rem;
-    font-weight: 900;
-    line-height: 1;
-    background: var(--card-accent, var(--color-panel));
-    border: 1px solid rgba(26, 50, 99, 0.12);
-    border-radius: 999px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.92)),
+      var(--card-accent, var(--color-panel));
+    border: 1.5px solid color-mix(in srgb, var(--card-accent, #dfe6f2), var(--color-ink) 18%);
+    border-radius: 12px;
+  }
+
+  .category-card__icon .app-icon {
+    width: 1.65rem;
+    height: 1.65rem;
   }
 
   .category-card__footer {

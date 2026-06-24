@@ -1,4 +1,6 @@
 ---
+import AppIcon from "./AppIcon.astro";
+
 interface FinderAnswer {
   label: string;
   next?: string;
@@ -37,13 +39,48 @@ interface Props {
 const { finderData, sops } = Astro.props;
 ---
 
-<section class="tool-surface guided-finder" aria-labelledby="finder-heading">
-  <div class="section-heading">
-    <p class="eyebrow">Guided Finder</p>
-    <h1 id="finder-heading">What are you trying to do?</h1>
+<section class="guided-finder" aria-labelledby="finder-heading">
+  <div class="finder-hero">
+    <div class="finder-hero__content">
+      <p class="eyebrow">Guided Finder</p>
+      <h1 id="finder-heading">What are you trying to do?</h1>
+      <p>Tell us what you need and we’ll help you find the right SOP, template, or guide.</p>
+    </div>
+    <div class="finder-hero__art" aria-hidden="true">
+      <span class="finder-spark finder-spark--one"></span>
+      <span class="finder-spark finder-spark--two"></span>
+      <div class="finder-art-card finder-art-card--doc">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+      <div class="finder-compass">
+        <div class="finder-compass__window"></div>
+        <span class="finder-compass__needle"></span>
+      </div>
+      <div class="finder-art-card finder-art-card--checklist">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+      <span class="finder-magnifier"></span>
+    </div>
   </div>
+
   <div class="finder-panel">
-    <h2 id="finder-question"></h2>
+    <label class="finder-search" for="finder-search-input">
+      <span>Search or describe what you need help with</span>
+      <span class="finder-search__box">
+        <span aria-hidden="true"><AppIcon name="search" /></span>
+        <input
+          id="finder-search-input"
+          type="search"
+          placeholder="Example: Submit a ticket, create a course, approve a request..."
+          autocomplete="off"
+        />
+      </span>
+    </label>
+    <h2 id="finder-question" class="sr-only"></h2>
     <div id="finder-answers" class="finder-answers"></div>
     <div id="finder-results" class="finder-results" aria-live="polite"></div>
     <button class="button button--secondary" id="finder-restart" type="button" hidden>
@@ -57,6 +94,17 @@ const { finderData, sops } = Astro.props;
   const answersEl = document.getElementById("finder-answers");
   const resultsEl = document.getElementById("finder-results");
   const restartButton = document.getElementById("finder-restart");
+  const finderSearchInput = document.getElementById("finder-search-input");
+
+  const answerIcons = [
+    { icon: "Ticket", tone: "ticket" },
+    { icon: "Course", tone: "course" },
+    { icon: "Q", tone: "qa" },
+    { icon: "AI", tone: "ai" },
+    { icon: "F", tone: "fix" },
+    { icon: "Doc", tone: "template" },
+    { icon: "More", tone: "other" },
+  ];
 
   let currentNodeId = finderData.startNode;
 
@@ -80,10 +128,16 @@ const { finderData, sops } = Astro.props;
     questionEl.textContent = node.question;
     answersEl.innerHTML = node.answers
       .map(
-        (answer, index) =>
-          `<button class="finder-answer" type="button" data-answer-index="${index}">${escapeHtml(
-            answer.label,
-          )}</button>`,
+        (answer, index) => {
+          const icon = answerIcons[index % answerIcons.length];
+          return `
+            <button class="finder-answer finder-answer--${icon.tone}" type="button" data-answer-index="${index}">
+              <span class="finder-answer__icon" aria-hidden="true">${escapeHtml(icon.icon)}</span>
+              <span class="finder-answer__label">${escapeHtml(answer.label)}</span>
+              <span class="finder-answer__arrow" aria-hidden="true">›</span>
+            </button>
+          `;
+        },
       )
       .join("");
     resultsEl.innerHTML = "";
@@ -144,6 +198,19 @@ const { finderData, sops } = Astro.props;
   });
 
   restartButton?.addEventListener("click", () => renderNode(finderData.startNode));
+
+  finderSearchInput?.addEventListener("input", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement) || !answersEl) return;
+
+    const query = target.value.trim().toLowerCase();
+    const buttons = Array.from(answersEl.querySelectorAll("[data-answer-index]"));
+    buttons.forEach((button) => {
+      if (!(button instanceof HTMLElement)) return;
+      const text = button.textContent?.toLowerCase() || "";
+      button.hidden = Boolean(query) && !text.includes(query);
+    });
+  });
 
   renderNode(finderData.startNode);
 </script>

@@ -230,7 +230,7 @@ const tags = uniqueSorted(sops.flatMap((sop) => sop.data.tags));
           <span class="sop-card__category">${escapeHtml(record.category || "Uncategorized")}</span>
           ${statusBadgeHtml(status)}
         </div>
-        <h3><a href="${escapeHtml(url)}">${escapeHtml(record.title || "Untitled SOP")}</a></h3>
+        <h2><a href="${escapeHtml(url)}">${escapeHtml(record.title || "Untitled SOP")}</a></h2>
         <p class="sop-card__purpose">${escapeHtml(record.purpose || "No purpose provided.")}</p>
         <dl class="compact-meta">
           <div><dt>Owner</dt><dd>${escapeHtml(record.owner || "Unassigned")}</dd></div>

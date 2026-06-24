@@ -1,5 +1,6 @@
 ---
 import Layout from "../components/Layout.astro";
+import AppIcon from "../components/AppIcon.astro";
 import CategoryCard from "../components/CategoryCard.astro";
 import StatusBadge from "../components/StatusBadge.astro";
 import { formatDate } from "../lib/dates";
@@ -15,21 +16,21 @@ const tagCount = new Set(sops.flatMap((sop) => sop.data.tags)).size;
 const lastUpdated = recentlyUpdated[0]?.data.lastUpdated ?? new Date().toISOString().slice(0, 10);
 
 const quickAccess = [
-  ["/search/", "Search SOPs", "SS", "normal"],
-  ["/finder/", "Guided Finder", "GF", "normal"],
-  ["/categories/", "Categories", "C", "normal"],
-  ["/submit/", "Submit Request", "SR", "normal"],
-  ["/my-work/", "My Work", "MW", "creator"],
-  ["/ai-assist/", "AI Assist", "AA", "creator"],
-  ["/create/", "Create SOP", "CS", "creator"],
-  ["/drafts/", "My Drafts", "MD", "creator"],
-  ["/admin/review/", "Review Queue", "RQ", "creator"],
-  ["/admin/needs-review/", "Needs Review", "NR", "creator"],
-  ["/admin/users/", "Users", "U", "admin"],
-  ["/admin/categories/", "Categories", "C", "admin"],
-  ["/admin/tags/", "Tags", "T", "admin"],
-  ["/admin/analytics/", "Analytics", "A", "admin"],
-  ["/admin/settings/", "Settings", "S", "admin"],
+  ["/search/", "Search SOPs", "search", "normal"],
+  ["/finder/", "Guided Finder", "finder", "normal"],
+  ["/categories/", "Categories", "categories", "normal"],
+  ["/submit/", "Submit Request", "submit", "normal"],
+  ["/my-work/", "My Work", "work", "creator"],
+  ["/ai-assist/", "AI Assist", "ai", "creator"],
+  ["/create/", "Create SOP", "create", "creator"],
+  ["/drafts/", "My Drafts", "drafts", "creator"],
+  ["/admin/review/", "Review Queue", "review", "creator"],
+  ["/admin/needs-review/", "Needs Review", "needsReview", "creator"],
+  ["/admin/users/", "Users", "users", "admin"],
+  ["/admin/categories/", "Categories", "categories", "admin"],
+  ["/admin/tags/", "Tags", "tags", "admin"],
+  ["/admin/analytics/", "Analytics", "analytics", "admin"],
+  ["/admin/settings/", "Settings", "settings", "admin"],
 ];
 
 const announcements = [
@@ -47,6 +48,16 @@ const resources = [
   ["/admin/analytics/", "Business Analytics", "View adoption and usage metrics.", "admin"],
   ["mailto:sop-support@organization.edu", "Contact SOP Support", "Get help from our team.", "all"],
 ];
+
+const categoryIconByName: Record<string, string> = {
+  "QA Processes": "qa",
+  "Brightspace D2L": "d2l",
+  Templates: "template",
+  "Course Builds": "course",
+  "Ivanti / Ticketing System": "ticket",
+  "AI Tools": "ai",
+  Troubleshooting: "troubleshooting",
+};
 ---
 
 <Layout title="SOP Knowledge Hub" wide>
@@ -60,8 +71,8 @@ const resources = [
             Your central hub for official standard operating procedures, guides, and best practices.
           </p>
           <div class="hero-actions">
-            <a class="button button--primary" href="/search/">Search SOPs</a>
-            <a class="button button--ghost hero-button" href="/finder/">Guided Finder</a>
+            <a class="button button--primary" href="/search/"><AppIcon name="search" />Search SOPs</a>
+            <a class="button button--ghost hero-button" href="/finder/"><AppIcon name="finder" />Guided Finder</a>
           </div>
         </div>
         <div class="hero-illustration" aria-hidden="true">
@@ -81,28 +92,28 @@ const resources = [
         </div>
       </section>
 
-      <dl class="hero-stats dashboard-stats" aria-label="Knowledge base overview">
-        <div class="hero-stats__item">
-          <dt>Published SOPs</dt>
-          <dd>{totalPublished}</dd>
+      <div class="hero-stats dashboard-stats" role="list" aria-label="Knowledge base overview">
+        <div class="hero-stats__item" role="listitem">
+          <span class="hero-stats__label">Published SOPs</span>
+          <strong class="hero-stats__value">{totalPublished}</strong>
           <a href="/search/">View all published</a>
         </div>
-        <div class="hero-stats__item">
-          <dt>Categories</dt>
-          <dd>{categoryCounts.length}</dd>
+        <div class="hero-stats__item" role="listitem">
+          <span class="hero-stats__label">Categories</span>
+          <strong class="hero-stats__value">{categoryCounts.length}</strong>
           <a href="/categories/">View all categories</a>
         </div>
-        <div class="hero-stats__item">
-          <dt>Tags</dt>
-          <dd>{tagCount}</dd>
+        <div class="hero-stats__item" role="listitem">
+          <span class="hero-stats__label">Tags</span>
+          <strong class="hero-stats__value">{tagCount}</strong>
           <a href="/admin/tags/">View all tags</a>
         </div>
-        <div class="hero-stats__item">
-          <dt>Last Updated</dt>
-          <dd>{formatDate(lastUpdated)}</dd>
+        <div class="hero-stats__item" role="listitem">
+          <span class="hero-stats__label">Last Updated</span>
+          <strong class="hero-stats__value">{formatDate(lastUpdated)}</strong>
           <a href="/search/">See what's new</a>
         </div>
-      </dl>
+      </div>
 
       <section class="page-section dashboard-section-block" aria-labelledby="categories-heading">
         <div class="dashboard-section-heading">
@@ -137,20 +148,26 @@ const resources = [
                 <th scope="col">SOP Title</th>
                 <th scope="col">Category</th>
                 <th scope="col">Updated</th>
-                <th scope="col">Status</th>
               </tr>
             </thead>
             <tbody>
               {
                 recentlyUpdated.map((sop) => (
                   <tr>
-                    <td>
-                      <a href={getSopUrl(sop)}>{sop.data.title}</a>
-                      <span>{sop.data.purpose}</span>
+                    <td data-label="SOP">
+                      <div class="dashboard-sop-title-row">
+                        <a href={getSopUrl(sop)}>{sop.data.title}</a>
+                        <StatusBadge status={sop.data.status} />
+                      </div>
+                      <span class="dashboard-sop-purpose">{sop.data.purpose}</span>
                     </td>
-                    <td><span class="category-pill">{sop.data.category}</span></td>
-                    <td>{formatDate(sop.data.lastUpdated)}</td>
-                    <td><StatusBadge status={sop.data.status} /></td>
+                    <td data-label="Category">
+                      <span class="category-pill">
+                        <AppIcon name={categoryIconByName[sop.data.category] ?? "document"} />
+                        {sop.data.category}
+                      </span>
+                    </td>
+                    <td data-label="Updated">{formatDate(sop.data.lastUpdated)}</td>
                   </tr>
                 ))
               }
@@ -167,7 +184,7 @@ const resources = [
           {
             quickAccess.map(([href, label, icon, role]) => (
               <a href={href} data-role-option={role}>
-                <span aria-hidden="true">{icon}</span>
+                <span aria-hidden="true"><AppIcon name={icon} /></span>
                 {label}
               </a>
             ))
