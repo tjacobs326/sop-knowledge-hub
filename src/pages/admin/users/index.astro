@@ -203,6 +203,9 @@ import {
   const deleteUserButton = document.getElementById("delete-user");
   const cancelUserButton = document.getElementById("cancel-user-edit");
   const userConfirmation = document.getElementById("user-confirmation");
+  let roleCache = [...initialRoles];
+  let userCache = [...initialUsers];
+  let backendEnabled = false;
 
   const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (character) => {
@@ -217,29 +220,121 @@ import {
     });
 
   function readRoles() {
+    if (backendEnabled) return roleCache;
+
     try {
       const stored = JSON.parse(localStorage.getItem(ROLE_STORAGE_KEY) || "null");
-      return Array.isArray(stored) && stored.length > 0 ? stored : initialRoles;
+      roleCache = Array.isArray(stored) && stored.length > 0 ? stored : initialRoles;
+      return roleCache;
     } catch {
-      return initialRoles;
+      roleCache = initialRoles;
+      return roleCache;
     }
   }
 
   function writeRoles(roles) {
+    roleCache = roles;
     localStorage.setItem(ROLE_STORAGE_KEY, JSON.stringify(roles));
   }
 
   function readUsers() {
+    if (backendEnabled) return userCache;
+
     try {
       const stored = JSON.parse(localStorage.getItem(USER_STORAGE_KEY) || "null");
-      return Array.isArray(stored) && stored.length > 0 ? stored : initialUsers;
+      userCache = Array.isArray(stored) && stored.length > 0 ? stored : initialUsers;
+      return userCache;
     } catch {
-      return initialUsers;
+      userCache = initialUsers;
+      return userCache;
     }
   }
 
   function writeUsers(users) {
+    userCache = users;
     localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(users));
+  }
+
+  function normalizeBackendRole(role) {
+    return {
+      ...role,
+      accessGroup: role.accessGroup || "",
+      landingPage: role.landingPage || "/",
+      permissions: Array.isArray(role.permissions) ? role.permissions : [],
+    };
+  }
+
+  function normalizeBackendUser(user) {
+    return {
+      ...user,
+      accessLevel: user.accessLevel || "Normal User",
+      department: user.department || "",
+      permissions: Array.isArray(user.permissions) ? user.permissions : [],
+      roleIds: Array.isArray(user.roleIds) ? user.roleIds : user.roleId ? [user.roleId] : [],
+    };
+  }
+
+  async function loadBackendUsers() {
+    try {
+      const response = await fetch("/api/admin/users");
+      if (!response.ok) return;
+      const data = await response.json();
+      if (!Array.isArray(data.users) || !Array.isArray(data.roles)) return;
+      backendEnabled = true;
+      roleCache = data.roles.map(normalizeBackendRole);
+      userCache = data.users.map(normalizeBackendUser);
+      renderRoles();
+      renderUsers();
+    } catch {
+      backendEnabled = false;
+    }
+  }
+
+  async function saveBackendRole(role) {
+    if (!backendEnabled) return false;
+
+    const response = await fetch("/api/admin/users?type=role", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(role),
+    });
+    if (!response.ok) throw new Error("Role could not be saved to D1.");
+    const data = await response.json();
+    if (data.role) {
+      roleCache = roleCache.map((item) => (item.id === data.role.id ? normalizeBackendRole(data.role) : item));
+      renderRoles();
+    }
+    return true;
+  }
+
+  async function saveBackendUser(user, existingId) {
+    if (!backendEnabled) return false;
+
+    const response = await fetch("/api/admin/users", {
+      method: existingId ? "PUT" : "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(user),
+    });
+    if (!response.ok) throw new Error("User could not be saved to D1.");
+    const data = await response.json();
+    if (data.user) {
+      const normalized = normalizeBackendUser(data.user);
+      userCache = existingId
+        ? userCache.map((item) => (item.id === existingId ? normalized : item))
+        : [...userCache.filter((item) => item.id !== normalized.id), normalized];
+      renderUsers();
+    }
+    return true;
+  }
+
+  async function deleteBackendUser(userId) {
+    if (!backendEnabled) return false;
+
+    const response = await fetch(`/api/admin/users?id=${encodeURIComponent(userId)}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) throw new Error("User could not be removed from D1.");
+    return true;
   }
 
   function setField(name, value) {
@@ -483,7 +578,7 @@ import {
     setUserPermissions(permissionsForAccessLevel(target.value));
   });
 
-  editor?.addEventListener("submit", (event) => {
+  editor?.addEventListener("submit", async (event) => {
     event.preventDefault();
 
     const roleId = getField("id");
@@ -503,11 +598,26 @@ import {
     writeRoles(roles);
     renderRoles();
 
-    if (editorHeading) editorHeading.textContent = `Edit ${updated.name}`;
     if (confirmation) {
       confirmation.hidden = false;
-      confirmation.innerHTML =
-        "<strong>Role saved.</strong><p>This user role configuration is saved in this browser.</p>";
+      confirmation.innerHTML = "<strong>Saving role...</strong>";
+    }
+
+    try {
+      await saveBackendRole(updated);
+      if (editorHeading) editorHeading.textContent = `Edit ${updated.name}`;
+      if (confirmation) {
+        confirmation.hidden = false;
+        confirmation.innerHTML = backendEnabled
+          ? "<strong>Role saved.</strong><p>This user role configuration is saved in Cloudflare D1.</p>"
+          : "<strong>Role saved.</strong><p>This user role configuration is saved in this browser.</p>";
+      }
+    } catch {
+      if (confirmation) {
+        confirmation.hidden = false;
+        confirmation.innerHTML =
+          "<strong>Saved locally only.</strong><p>The Cloudflare D1 role update failed, so this browser copy was kept.</p>";
+      }
     }
   });
 
@@ -518,7 +628,7 @@ import {
     }
   });
 
-  userEditor?.addEventListener("submit", (event) => {
+  userEditor?.addEventListener("submit", async (event) => {
     event.preventDefault();
 
     const existingId = getUserField("id");
@@ -557,18 +667,33 @@ import {
     users = existingId ? users.map((user) => (user.id === existingId ? updated : user)) : [...users, updated];
     writeUsers(users);
     renderUsers();
-    setUserField("id", updated.id);
-
-    if (userEditorHeading) userEditorHeading.textContent = `Edit ${updated.name}`;
-    if (deleteUserButton instanceof HTMLButtonElement) deleteUserButton.hidden = false;
     if (userConfirmation) {
       userConfirmation.hidden = false;
-      userConfirmation.innerHTML =
-        "<strong>User saved.</strong><p>This account and permission update is saved in this browser.</p>";
+      userConfirmation.innerHTML = "<strong>Saving user...</strong>";
+    }
+
+    try {
+      await saveBackendUser(updated, existingId);
+      setUserField("id", updated.id);
+
+      if (userEditorHeading) userEditorHeading.textContent = `Edit ${updated.name}`;
+      if (deleteUserButton instanceof HTMLButtonElement) deleteUserButton.hidden = false;
+      if (userConfirmation) {
+        userConfirmation.hidden = false;
+        userConfirmation.innerHTML = backendEnabled
+          ? "<strong>User saved.</strong><p>This account and permission update is saved in Cloudflare D1.</p>"
+          : "<strong>User saved.</strong><p>This account and permission update is saved in this browser.</p>";
+      }
+    } catch {
+      if (userConfirmation) {
+        userConfirmation.hidden = false;
+        userConfirmation.innerHTML =
+          "<strong>Saved locally only.</strong><p>The Cloudflare D1 user update failed, so this browser copy was kept.</p>";
+      }
     }
   });
 
-  deleteUserButton?.addEventListener("click", () => {
+  deleteUserButton?.addEventListener("click", async () => {
     const userId = getUserField("id");
     const userName = getUserField("name") || "this user";
     if (!userId) return;
@@ -576,13 +701,22 @@ import {
     const confirmed = window.confirm(`Remove "${userName}" from the SOP Knowledge Hub?`);
     if (!confirmed) return;
 
-    const users = readUsers().filter((user) => user.id !== userId);
-    writeUsers(users);
-    renderUsers();
+    try {
+      await deleteBackendUser(userId);
+      const users = readUsers().filter((user) => user.id !== userId);
+      writeUsers(users);
+      renderUsers();
 
-    if (userEditor instanceof HTMLFormElement) {
-      userEditor.reset();
-      userEditor.hidden = true;
+      if (userEditor instanceof HTMLFormElement) {
+        userEditor.reset();
+        userEditor.hidden = true;
+      }
+    } catch {
+      if (userConfirmation) {
+        userConfirmation.hidden = false;
+        userConfirmation.innerHTML =
+          "<strong>User was not removed.</strong><p>The Cloudflare D1 update failed. Please try again.</p>";
+      }
     }
   });
 
@@ -595,4 +729,5 @@ import {
 
   renderRoles();
   renderUsers();
+  loadBackendUsers();
 </script>

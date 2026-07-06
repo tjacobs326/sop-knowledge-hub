@@ -235,6 +235,8 @@ img {
   min-width: 0;
   color: var(--color-white);
   text-decoration: none;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .brand > span:last-child {
@@ -246,15 +248,35 @@ img {
 }
 
 .brand__mark {
-  display: grid;
+  display: inline-flex;
+  flex: 0 0 auto;
   width: 3rem;
   height: 3rem;
-  place-items: center;
+  align-items: center;
+  justify-content: center;
   color: var(--color-ink);
+  font-size: 0;
   font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: keep-all;
   background: var(--color-beacon);
   border-radius: 12px;
   box-shadow: 0 12px 24px rgba(246, 164, 54, 0.28);
+}
+
+.brand__mark::before {
+  content: "SOP";
+  display: block;
+  color: inherit;
+  font-size: 0.82rem;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: keep-all;
 }
 
 .brand__name,
@@ -801,17 +823,12 @@ body.role-blocked .site-main {
 }
 
 .dashboard-category-grid {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14.5rem), 1fr));
 }
 
 .dashboard-category-grid .category-card {
   min-width: 0;
   min-height: 10.5rem;
-}
-
-.dashboard-category-grid .category-card h2,
-.dashboard-category-grid .category-card h3 {
-  font-size: 1rem;
 }
 
 .dashboard-category-grid .category-card p {
@@ -1294,7 +1311,7 @@ textarea {
 }
 
 .dashboard-category-grid {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14.5rem), 1fr));
   gap: 0.75rem;
 }
 
@@ -1439,7 +1456,10 @@ dd {
 }
 
 .ai-chatbot__panel {
+  display: grid;
+  grid-template-rows: auto auto auto auto auto;
   width: min(26rem, calc(100vw - 2rem));
+  max-height: min(42rem, calc(100vh - 7rem));
   overflow: hidden;
   border: 1px solid #b8c8e4;
   border-radius: 14px;
@@ -1507,10 +1527,10 @@ dd {
   display: grid;
   align-content: start;
   gap: 0.65rem;
-  min-height: 11rem;
-  max-height: 18rem;
+  min-height: 0;
+  max-height: 10.5rem;
   overflow-y: auto;
-  padding: 1rem;
+  padding: 1rem 1rem 0.85rem;
 }
 
 .ai-chatbot__message {
@@ -1549,10 +1569,16 @@ dd {
 }
 
 .ai-chatbot__starters {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-wrap: wrap;
   gap: 0.45rem;
-  padding: 0 1rem 1rem;
+  max-height: 8.5rem;
+  overflow-y: auto;
+  padding: 0.85rem 1rem 1rem;
+  border-top: 1px solid #d8e4f5;
+  background: #fff;
 }
 
 .ai-chatbot__starters button {
@@ -2813,7 +2839,7 @@ tbody tr:hover {
   }
 
   .dashboard-category-grid {
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
   }
 
   .finder-answers {
@@ -3229,6 +3255,7 @@ tbody tr:hover {
 
   .ai-chatbot__panel {
     width: calc(100vw - 1rem);
+    max-height: calc(100dvh - 1rem);
   }
 
   .ai-chatbot__form {

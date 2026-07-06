@@ -90,6 +90,8 @@ import { categories } from "../../../data/categories";
   const deleteButton = document.getElementById("delete-category");
   const cancelButton = document.getElementById("cancel-category-edit");
   const confirmation = document.getElementById("category-confirmation");
+  let categoryCache = [...initialCategories];
+  let backendEnabled = false;
 
   const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (character) => {
@@ -112,16 +114,64 @@ import { categories } from "../../../data/categories";
       .replace(/^-+|-+$/g, "");
 
   function readCategories() {
+    if (backendEnabled) return categoryCache;
+
     try {
       const stored = JSON.parse(localStorage.getItem(CATEGORY_ADMIN_STORAGE_KEY) || "null");
-      return Array.isArray(stored) && stored.length > 0 ? stored : initialCategories;
+      categoryCache = Array.isArray(stored) && stored.length > 0 ? stored : initialCategories;
+      return categoryCache;
     } catch {
-      return initialCategories;
+      categoryCache = initialCategories;
+      return categoryCache;
     }
   }
 
   function writeCategories(value) {
+    categoryCache = value;
     localStorage.setItem(CATEGORY_ADMIN_STORAGE_KEY, JSON.stringify(value));
+  }
+
+  async function loadBackendCategories() {
+    try {
+      const response = await fetch("/api/admin/categories");
+      if (!response.ok) return;
+      const data = await response.json();
+      if (!Array.isArray(data.categories)) return;
+      backendEnabled = true;
+      categoryCache = data.categories;
+      renderCategories();
+    } catch {
+      backendEnabled = false;
+    }
+  }
+
+  async function saveBackendCategory(category, originalSlug) {
+    if (!backendEnabled) return false;
+
+    const response = await fetch("/api/admin/categories", {
+      method: originalSlug ? "PUT" : "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...category, originalSlug }),
+    });
+    if (!response.ok) throw new Error("Category could not be saved to D1.");
+    const data = await response.json();
+    if (data.category) {
+      categoryCache = originalSlug
+        ? categoryCache.map((item) => (item.slug === originalSlug ? data.category : item))
+        : [...categoryCache.filter((item) => item.slug !== data.category.slug), data.category];
+      renderCategories();
+    }
+    return true;
+  }
+
+  async function deleteBackendCategory(slug) {
+    if (!backendEnabled) return false;
+
+    const response = await fetch(`/api/admin/categories?slug=${encodeURIComponent(slug)}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) throw new Error("Category could not be deleted from D1.");
+    return true;
   }
 
   function setField(name, value) {
@@ -234,7 +284,7 @@ import { categories } from "../../../data/categories";
     }
   });
 
-  editor?.addEventListener("submit", (event) => {
+  editor?.addEventListener("submit", async (event) => {
     event.preventDefault();
 
     const originalSlug = getField("originalSlug");
@@ -273,18 +323,34 @@ import { categories } from "../../../data/categories";
       : [...categories, updated];
     writeCategories(categories);
     renderCategories();
-    setField("originalSlug", updated.slug);
-    if (editorHeading) editorHeading.textContent = `Edit ${updated.name}`;
-    if (deleteButton instanceof HTMLButtonElement) deleteButton.hidden = false;
 
     if (confirmation) {
       confirmation.hidden = false;
-      confirmation.innerHTML =
-        "<strong>Category saved.</strong><p>This admin category change is saved in this browser.</p>";
+      confirmation.innerHTML = "<strong>Saving category...</strong>";
+    }
+
+    try {
+      await saveBackendCategory(updated, originalSlug);
+      setField("originalSlug", updated.slug);
+      if (editorHeading) editorHeading.textContent = `Edit ${updated.name}`;
+      if (deleteButton instanceof HTMLButtonElement) deleteButton.hidden = false;
+
+      if (confirmation) {
+        confirmation.hidden = false;
+        confirmation.innerHTML = backendEnabled
+          ? "<strong>Category saved.</strong><p>This admin category change is saved in Cloudflare D1.</p>"
+          : "<strong>Category saved.</strong><p>This admin category change is saved in this browser.</p>";
+      }
+    } catch (error) {
+      if (confirmation) {
+        confirmation.hidden = false;
+        confirmation.innerHTML =
+          "<strong>Saved locally only.</strong><p>The Cloudflare D1 update failed, so this browser copy was kept.</p>";
+      }
     }
   });
 
-  deleteButton?.addEventListener("click", () => {
+  deleteButton?.addEventListener("click", async () => {
     const originalSlug = getField("originalSlug");
     const categoryName = getField("name") || "this category";
     if (!originalSlug) return;
@@ -294,13 +360,22 @@ import { categories } from "../../../data/categories";
     );
     if (!confirmed) return;
 
-    const categories = readCategories().filter((category) => category.slug !== originalSlug);
-    writeCategories(categories);
-    renderCategories();
+    try {
+      await deleteBackendCategory(originalSlug);
+      const categories = readCategories().filter((category) => category.slug !== originalSlug);
+      writeCategories(categories);
+      renderCategories();
 
-    if (editor instanceof HTMLFormElement) {
-      editor.reset();
-      editor.hidden = true;
+      if (editor instanceof HTMLFormElement) {
+        editor.reset();
+        editor.hidden = true;
+      }
+    } catch {
+      if (confirmation) {
+        confirmation.hidden = false;
+        confirmation.innerHTML =
+          "<strong>Category was not deleted.</strong><p>The Cloudflare D1 delete failed. Please try again.</p>";
+      }
     }
   });
 
@@ -312,4 +387,5 @@ import { categories } from "../../../data/categories";
   });
 
   renderCategories();
+  loadBackendCategories();
 </script>

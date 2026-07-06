@@ -109,6 +109,8 @@ const statusOptions = ["Active", "Needs Review", "Deprecated"];
   const deleteButton = document.getElementById("delete-tag");
   const cancelButton = document.getElementById("cancel-tag-edit");
   const confirmation = document.getElementById("tag-confirmation");
+  let tagCache = [...initialTags];
+  let backendEnabled = false;
 
   const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (character) => {
@@ -123,16 +125,64 @@ const statusOptions = ["Active", "Needs Review", "Deprecated"];
     });
 
   function readTags() {
+    if (backendEnabled) return tagCache;
+
     try {
       const stored = JSON.parse(localStorage.getItem(TAG_ADMIN_STORAGE_KEY) || "null");
-      return Array.isArray(stored) && stored.length > 0 ? stored : initialTags;
+      tagCache = Array.isArray(stored) && stored.length > 0 ? stored : initialTags;
+      return tagCache;
     } catch {
-      return initialTags;
+      tagCache = initialTags;
+      return tagCache;
     }
   }
 
   function writeTags(tags) {
+    tagCache = tags;
     localStorage.setItem(TAG_ADMIN_STORAGE_KEY, JSON.stringify(tags));
+  }
+
+  async function loadBackendTags() {
+    try {
+      const response = await fetch("/api/admin/tags");
+      if (!response.ok) return;
+      const data = await response.json();
+      if (!Array.isArray(data.tags)) return;
+      backendEnabled = true;
+      tagCache = data.tags;
+      renderTags();
+    } catch {
+      backendEnabled = false;
+    }
+  }
+
+  async function saveBackendTag(tag, originalName) {
+    if (!backendEnabled) return false;
+
+    const response = await fetch("/api/admin/tags", {
+      method: originalName ? "PUT" : "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...tag, originalName }),
+    });
+    if (!response.ok) throw new Error("Tag could not be saved to D1.");
+    const data = await response.json();
+    if (data.tag) {
+      tagCache = originalName
+        ? tagCache.map((item) => (item.name === originalName ? data.tag : item))
+        : [...tagCache.filter((item) => item.name !== data.tag.name), data.tag];
+      renderTags();
+    }
+    return true;
+  }
+
+  async function deleteBackendTag(name) {
+    if (!backendEnabled) return false;
+
+    const response = await fetch(`/api/admin/tags?name=${encodeURIComponent(name)}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) throw new Error("Tag could not be deleted from D1.");
+    return true;
   }
 
   function setField(name, value) {
@@ -249,7 +299,7 @@ const statusOptions = ["Active", "Needs Review", "Deprecated"];
     openEditor(target.dataset.editTag);
   });
 
-  editor?.addEventListener("submit", (event) => {
+  editor?.addEventListener("submit", async (event) => {
     event.preventDefault();
 
     const originalName = getField("originalName");
@@ -286,18 +336,33 @@ const statusOptions = ["Active", "Needs Review", "Deprecated"];
       : [...tags, updated];
     writeTags(tags);
     renderTags();
-    setField("originalName", updated.name);
-
-    if (editorHeading) editorHeading.textContent = `Edit ${updated.name}`;
-    if (deleteButton instanceof HTMLButtonElement) deleteButton.hidden = false;
     if (confirmation) {
       confirmation.hidden = false;
-      confirmation.innerHTML =
-        "<strong>Tag saved.</strong><p>This admin tag change is saved in this browser.</p>";
+      confirmation.innerHTML = "<strong>Saving tag...</strong>";
+    }
+
+    try {
+      await saveBackendTag(updated, originalName);
+      setField("originalName", updated.name);
+
+      if (editorHeading) editorHeading.textContent = `Edit ${updated.name}`;
+      if (deleteButton instanceof HTMLButtonElement) deleteButton.hidden = false;
+      if (confirmation) {
+        confirmation.hidden = false;
+        confirmation.innerHTML = backendEnabled
+          ? "<strong>Tag saved.</strong><p>This admin tag change is saved in Cloudflare D1.</p>"
+          : "<strong>Tag saved.</strong><p>This admin tag change is saved in this browser.</p>";
+      }
+    } catch {
+      if (confirmation) {
+        confirmation.hidden = false;
+        confirmation.innerHTML =
+          "<strong>Saved locally only.</strong><p>The Cloudflare D1 update failed, so this browser copy was kept.</p>";
+      }
     }
   });
 
-  deleteButton?.addEventListener("click", () => {
+  deleteButton?.addEventListener("click", async () => {
     const originalName = getField("originalName");
     const tagName = getField("name") || "this tag";
     if (!originalName) return;
@@ -307,13 +372,22 @@ const statusOptions = ["Active", "Needs Review", "Deprecated"];
     );
     if (!confirmed) return;
 
-    const tags = readTags().filter((tag) => tag.name !== originalName);
-    writeTags(tags);
-    renderTags();
+    try {
+      await deleteBackendTag(originalName);
+      const tags = readTags().filter((tag) => tag.name !== originalName);
+      writeTags(tags);
+      renderTags();
 
-    if (editor instanceof HTMLFormElement) {
-      editor.reset();
-      editor.hidden = true;
+      if (editor instanceof HTMLFormElement) {
+        editor.reset();
+        editor.hidden = true;
+      }
+    } catch {
+      if (confirmation) {
+        confirmation.hidden = false;
+        confirmation.innerHTML =
+          "<strong>Tag was not deleted.</strong><p>The Cloudflare D1 delete failed. Please try again.</p>";
+      }
     }
   });
 
@@ -325,4 +399,5 @@ const statusOptions = ["Active", "Needs Review", "Deprecated"];
   });
 
   renderTags();
+  loadBackendTags();
 </script>
