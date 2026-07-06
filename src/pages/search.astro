@@ -1,5 +1,6 @@
 ---
 import Layout from "../components/Layout.astro";
+import AppIcon from "../components/AppIcon.astro";
 import SopCard from "../components/SopCard.astro";
 import { PUBLISHED_SOPS_STORAGE_KEY } from "../lib/drafts";
 import { getAllSops, getSopUrl } from "../lib/sops";
@@ -12,60 +13,240 @@ const tools = uniqueSorted(sops.flatMap((sop) => sop.data.tools));
 const owners = uniqueSorted(sops.map((sop) => sop.data.owner));
 const statuses = uniqueSorted(sops.map((sop) => sop.data.status));
 const tags = uniqueSorted(sops.flatMap((sop) => sop.data.tags));
+const recentlyViewedSop = sops.find((sop) => sop.data.id === "sop-ivanti-submit-ticket") ?? sops[0];
+const popularSop = sops.find((sop) => sop.data.category === "QA Processes") ?? sops[1] ?? sops[0];
+const popularSearches = [
+  "D2L course copy",
+  "Ivanti ticket",
+  "Course QA checklist",
+  "New employee onboarding",
+  "Gradebook export",
+];
 ---
 
 <Layout title="Search SOPs" wide>
-  <section class="page-section">
-    <div class="section-heading">
-      <p class="eyebrow">Search</p>
-      <h1>Search SOPs</h1>
+  <section class="page-section search-dashboard-page" aria-labelledby="search-page-title">
+    <nav class="breadcrumbs no-print" aria-label="Breadcrumb">
+      <ol>
+        <li><a href="/">Home</a></li>
+        <li aria-current="page">Search SOPs</li>
+      </ol>
+    </nav>
+
+    <div class="search-page-hero">
+      <div class="search-page-hero__content">
+        <p class="eyebrow">Search</p>
+        <h1 id="search-page-title">Search SOPs</h1>
+        <p>
+          Find the process, guide, or template you need quickly. Use keywords or filters to narrow
+          your results.
+        </p>
+        <div class="search-page-hero__features" aria-label="Search benefits">
+          <div class="search-page-feature">
+            <span class="search-page-feature__icon search-page-feature__icon--blue" aria-hidden="true">
+              <AppIcon name="search" />
+            </span>
+            <span>
+              <strong>Search everything</strong>
+              <small>Titles, tags, tools, owners, and more</small>
+            </span>
+          </div>
+          <div class="search-page-feature">
+            <span class="search-page-feature__icon search-page-feature__icon--green" aria-hidden="true">
+              <AppIcon name="settings" />
+            </span>
+            <span>
+              <strong>Refine your results</strong>
+              <small>Use filters to find exactly what you need</small>
+            </span>
+          </div>
+          <div class="search-page-feature">
+            <span class="search-page-feature__icon search-page-feature__icon--purple" aria-hidden="true">
+              <AppIcon name="tags" />
+            </span>
+            <span>
+              <strong>Save for later</strong>
+              <small>Bookmark and revisit important SOPs</small>
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="search-page-hero__visual" aria-hidden="true">
+        <div class="search-visual">
+          <span class="search-visual__spark search-visual__spark--left">+</span>
+          <span class="search-visual__spark search-visual__spark--right">+</span>
+          <div class="search-visual__document">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <div class="search-visual__window">
+            <div class="search-visual__bar"><span></span><span></span><span></span></div>
+            <div class="search-visual__search-line"></div>
+            <div class="search-visual__line search-visual__line--wide"></div>
+            <div class="search-visual__line"></div>
+            <div class="search-visual__line search-visual__line--short"></div>
+          </div>
+          <div class="search-visual__magnifier"></div>
+          <div class="search-visual__checklist">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <form class="search-filters no-print" id="sop-search-form">
-      <div class="field field--full">
-        <label for="search-query">Search by title, tag, tool, owner, category, or keyword</label>
-        <input id="search-query" type="search" value={initialQuery} autocomplete="off" />
+    <div class="search-filter-panel no-print">
+      <form class="search-filters search-filters--dashboard" id="sop-search-form">
+        <div class="field field--full search-query-field">
+          <label for="search-query">Search</label>
+          <div class="search-query-row">
+            <span aria-hidden="true"><AppIcon name="search" /></span>
+            <input
+              id="search-query"
+              type="search"
+              value={initialQuery}
+              autocomplete="off"
+              placeholder="Search by title, tag, tool, owner, category, or keyword..."
+            />
+            <button class="button button--ghost search-tips-button" type="button">
+              <AppIcon name="ai" />
+              Search tips
+            </button>
+          </div>
+        </div>
+        <div class="search-filter-grid field--full">
+          <div class="field">
+            <label for="filter-category">Category</label>
+            <div class="select-with-icon">
+              <span aria-hidden="true"><AppIcon name="categories" /></span>
+              <select id="filter-category">
+                <option value="">All categories</option>
+                {categories.map((category) => <option value={category}>{category}</option>)}
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label for="filter-tool">Tool</label>
+            <div class="select-with-icon">
+              <span aria-hidden="true"><AppIcon name="settings" /></span>
+              <select id="filter-tool">
+                <option value="">All tools</option>
+                {tools.map((tool) => <option value={tool}>{tool}</option>)}
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label for="filter-owner">Owner</label>
+            <div class="select-with-icon">
+              <span aria-hidden="true"><AppIcon name="users" /></span>
+              <select id="filter-owner">
+                <option value="">All owners</option>
+                {owners.map((owner) => <option value={owner}>{owner}</option>)}
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label for="filter-status">Status</label>
+            <div class="select-with-icon">
+              <span aria-hidden="true"><AppIcon name="qa" /></span>
+              <select id="filter-status">
+                <option value="">All statuses</option>
+                {statuses.map((status) => <option value={status}>{status}</option>)}
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label for="filter-tag">Tag</label>
+            <div class="select-with-icon">
+              <span aria-hidden="true"><AppIcon name="tags" /></span>
+              <select id="filter-tag">
+                <option value="">All tags</option>
+                {tags.map((tag) => <option value={tag}>{tag}</option>)}
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label for="filter-updated">Last updated</label>
+            <div class="select-with-icon">
+              <span aria-hidden="true"><AppIcon name="analytics" /></span>
+              <select id="filter-updated">
+                <option value="">Any time</option>
+                <option value="30">Past 30 days</option>
+                <option value="90">Past 90 days</option>
+                <option value="180">Past 6 months</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="search-filter-actions field--full">
+          <button class="button button--text" type="reset">
+            <AppIcon name="finder" />
+            Clear all filters
+          </button>
+          <div>
+            <button class="button button--ghost" type="button">
+              <AppIcon name="tags" />
+              Save search
+            </button>
+            <button class="button button--primary" type="submit">
+              <AppIcon name="search" />
+              Search SOPs
+            </button>
+          </div>
+        </div>
+      </form>
+      <div class="popular-searches" aria-label="Popular searches">
+        <strong><AppIcon name="analytics" /> Popular searches</strong>
+        <div class="popular-searches__pills">
+          {
+            popularSearches.map((searchTerm) => (
+              <a href={`/search/?q=${encodeURIComponent(searchTerm)}`}>
+                <AppIcon name="search" />
+                {searchTerm}
+              </a>
+            ))
+          }
+        </div>
+        <a class="popular-searches__view-all" href="/admin/analytics/">View all</a>
       </div>
-      <div class="field">
-        <label for="filter-category">Category</label>
-        <select id="filter-category">
-          <option value="">All categories</option>
-          {categories.map((category) => <option value={category}>{category}</option>)}
-        </select>
-      </div>
-      <div class="field">
-        <label for="filter-tool">Tool</label>
-        <select id="filter-tool">
-          <option value="">All tools</option>
-          {tools.map((tool) => <option value={tool}>{tool}</option>)}
-        </select>
-      </div>
-      <div class="field">
-        <label for="filter-owner">Owner</label>
-        <select id="filter-owner">
-          <option value="">All owners</option>
-          {owners.map((owner) => <option value={owner}>{owner}</option>)}
-        </select>
-      </div>
-      <div class="field">
-        <label for="filter-status">Status</label>
-        <select id="filter-status">
-          <option value="">All statuses</option>
-          {statuses.map((status) => <option value={status}>{status}</option>)}
-        </select>
-      </div>
-      <div class="field">
-        <label for="filter-tag">Tag</label>
-        <select id="filter-tag">
-          <option value="">All tags</option>
-          {tags.map((tag) => <option value={tag}>{tag}</option>)}
-        </select>
-      </div>
-      <div class="form-actions field--full">
-        <button class="button button--primary" type="submit">Search SOPs</button>
-        <button class="button button--ghost" type="reset">Clear Filters</button>
-      </div>
-    </form>
+    </div>
+
+    <div class="search-helper-grid no-print" aria-label="Search shortcuts">
+      <a class="search-helper-card" href={recentlyViewedSop ? getSopUrl(recentlyViewedSop) : "/search/"}>
+        <span class="search-helper-card__icon search-helper-card__icon--green" aria-hidden="true">
+          <AppIcon name="tags" />
+        </span>
+        <span>
+          <strong>Recently viewed</strong>
+          <small>
+            {recentlyViewedSop ? `Continue with ${recentlyViewedSop.data.title}` : "Continue where you left off"}
+          </small>
+        </span>
+        <span aria-hidden="true">-&gt;</span>
+      </a>
+      <a class="search-helper-card" href={popularSop ? getSopUrl(popularSop) : "/search/"}>
+        <span class="search-helper-card__icon search-helper-card__icon--blue" aria-hidden="true">
+          <AppIcon name="analytics" />
+        </span>
+        <span>
+          <strong>Popular this week</strong>
+          <small>{popularSop ? popularSop.data.title : "Most viewed by your team"}</small>
+        </span>
+        <span aria-hidden="true">-&gt;</span>
+      </a>
+      <a class="search-helper-card search-helper-card--request" href="/submit/">
+        <span class="search-helper-card__icon search-helper-card__icon--purple" aria-hidden="true">
+          <AppIcon name="support" />
+        </span>
+        <span>
+          <strong>Can't find what you need?</strong>
+          <small>Request a new SOP</small>
+        </span>
+        <span aria-hidden="true">-&gt;</span>
+      </a>
+    </div>
 
     <p class="result-count" id="result-count"></p>
     <div class="empty-state empty-state--search" id="search-empty" hidden>
@@ -83,6 +264,7 @@ const tags = uniqueSorted(sops.flatMap((sop) => sop.data.tags));
             data-owner={sop.data.owner}
             data-status={sop.data.status}
             data-tags={sop.data.tags.join("|")}
+            data-updated={sop.data.lastUpdated}
             data-search={`${sop.data.title} ${sop.data.purpose} ${sop.data.category} ${sop.data.tags.join(" ")} ${sop.data.tools.join(" ")} ${sop.data.owner} ${sop.data.audience.join(" ")} ${sop.data.relatedSops.join(" ")} ${sop.body}`.toLowerCase()}
           >
             <SopCard
@@ -112,6 +294,7 @@ const tags = uniqueSorted(sops.flatMap((sop) => sop.data.tags));
   const ownerFilter = document.getElementById("filter-owner");
   const statusFilter = document.getElementById("filter-status");
   const tagFilter = document.getElementById("filter-tag");
+  const updatedFilter = document.getElementById("filter-updated");
   const resultCount = document.getElementById("result-count");
   const emptyState = document.getElementById("search-empty");
   const results = document.getElementById("search-results");
@@ -223,6 +406,7 @@ const tags = uniqueSorted(sops.flatMap((sop) => sop.data.tags));
     card.dataset.owner = record.owner || "";
     card.dataset.status = status;
     card.dataset.tags = tags.join("|");
+    card.dataset.updated = lastUpdated || "";
     card.dataset.search = searchTextFor({ ...record, tags, tools, audience, relatedSops });
     card.innerHTML = `
       <article class="sop-card">
@@ -300,6 +484,17 @@ const tags = uniqueSorted(sops.flatMap((sop) => sop.data.tags));
       .includes(filterValue);
   }
 
+  function matchesUpdated(dateValue, daysBack) {
+    if (!daysBack) return true;
+    if (!dateValue) return false;
+    const date = new Date(String(dateValue).includes("T") ? dateValue : `${dateValue}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return false;
+    const now = new Date();
+    const cutoff = new Date(now);
+    cutoff.setDate(now.getDate() - Number(daysBack));
+    return date >= cutoff;
+  }
+
   function applySearch() {
     const query = valueOf(queryInput).toLowerCase();
     const category = valueOf(categoryFilter);
@@ -307,6 +502,7 @@ const tags = uniqueSorted(sops.flatMap((sop) => sop.data.tags));
     const owner = valueOf(ownerFilter);
     const status = valueOf(statusFilter);
     const tag = valueOf(tagFilter);
+    const updated = valueOf(updatedFilter);
     let visibleCount = 0;
 
     cards.forEach((card) => {
@@ -316,7 +512,8 @@ const tags = uniqueSorted(sops.flatMap((sop) => sop.data.tags));
         matchesToken(card.dataset.tools, tool) &&
         (!owner || card.dataset.owner === owner) &&
         (!status || card.dataset.status === status) &&
-        matchesToken(card.dataset.tags, tag);
+        matchesToken(card.dataset.tags, tag) &&
+        matchesUpdated(card.dataset.updated, updated);
 
       card.hidden = !visible;
       if (visible) visibleCount += 1;
@@ -339,10 +536,12 @@ const tags = uniqueSorted(sops.flatMap((sop) => sop.data.tags));
     window.setTimeout(applySearch, 0);
   });
 
-  [queryInput, categoryFilter, toolFilter, ownerFilter, statusFilter, tagFilter].forEach((element) => {
-    element?.addEventListener("input", applySearch);
-    element?.addEventListener("change", applySearch);
-  });
+  [queryInput, categoryFilter, toolFilter, ownerFilter, statusFilter, tagFilter, updatedFilter].forEach(
+    (element) => {
+      element?.addEventListener("input", applySearch);
+      element?.addEventListener("change", applySearch);
+    },
+  );
 
   hydratePublishedSops();
   applySearch();

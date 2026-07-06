@@ -3,6 +3,7 @@ import Layout from "../components/Layout.astro";
 import AppIcon from "../components/AppIcon.astro";
 import CategoryCard from "../components/CategoryCard.astro";
 import StatusBadge from "../components/StatusBadge.astro";
+import { auditLogs, reviews, searchLogs, sopRequests, userAccounts } from "../data/mock-platform";
 import { formatDate } from "../lib/dates";
 import { getAllSops, getCategoryCounts, getSopUrl } from "../lib/sops";
 
@@ -15,23 +16,208 @@ const totalPublished = sops.filter((sop) => sop.data.status === "Published").len
 const tagCount = new Set(sops.flatMap((sop) => sop.data.tags)).size;
 const lastUpdated = recentlyUpdated[0]?.data.lastUpdated ?? new Date().toISOString().slice(0, 10);
 
-const quickAccess = [
-  ["/search/", "Search SOPs", "search", "normal"],
-  ["/finder/", "Guided Finder", "finder", "normal"],
-  ["/categories/", "Categories", "categories", "normal"],
-  ["/submit/", "Submit Request", "submit", "normal"],
-  ["/my-work/", "My Work", "work", "creator"],
-  ["/ai-assist/", "AI Assist", "ai", "creator"],
-  ["/create/", "Create SOP", "create", "creator"],
-  ["/drafts/", "My Drafts", "drafts", "creator"],
-  ["/admin/review/", "Review Queue", "review", "creator"],
-  ["/admin/needs-review/", "Needs Review", "needsReview", "creator"],
-  ["/admin/users/", "Users", "users", "admin"],
-  ["/admin/categories/", "Categories", "categories", "admin"],
-  ["/admin/tags/", "Tags", "tags", "admin"],
-  ["/admin/analytics/", "Analytics", "analytics", "admin"],
-  ["/admin/settings/", "Settings", "settings", "admin"],
-];
+type DashboardRole = "normal" | "creator" | "admin";
+type DashboardTone = "standard" | "urgent" | "danger" | "warning" | "success";
+type DashboardCard = {
+  href: string;
+  label: string;
+  value: string;
+  description: string;
+  icon: string;
+  tone: DashboardTone;
+  status?: string;
+};
+
+const normalUser = userAccounts.find((user) => user.accessLevel === "Normal User") ?? userAccounts[0];
+const creatorUser = userAccounts.find((user) => user.accessLevel === "Creator / Reviewer") ?? userAccounts[0];
+const adminUser = userAccounts.find((user) => user.accessLevel === "Admin") ?? userAccounts[0];
+const today = new Date("2026-07-06T00:00:00Z");
+const openRequestStatuses = new Set(["Submitted", "Triage", "Assigned", "In Review"]);
+const pendingReviewStatuses = new Set(["Submitted", "Triage", "Assigned", "In Review", "Needs Revision"]);
+const openRequests = sopRequests.filter((request) => openRequestStatuses.has(request.status));
+const pendingReviews = reviews.filter((review) => pendingReviewStatuses.has(review.status));
+const urgentItems = [...reviews, ...sopRequests].filter((item) => ["High", "Urgent"].includes(item.priority));
+const overdueReviews = reviews.filter((review) => new Date(`${review.dueDate}T00:00:00Z`) < today && review.status !== "Approved");
+const assignedToCreator = reviews.filter((review) => review.assignedReviewerUserId === creatorUser.id);
+const needsCreatorReview = assignedToCreator.filter((review) => pendingReviewStatuses.has(review.status));
+const recentlyViewedLog =
+  [...searchLogs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] ?? null;
+const recentlyViewedSop =
+  sops.find((sop) => sop.data.id === recentlyViewedLog?.clickedSopId) ?? recentlyUpdated[0];
+const popularSop =
+  sops.find((sop) => sop.data.id === searchLogs.find((log) => log.clickedSopId)?.clickedSopId) ?? recentlyUpdated[0];
+const recentlyUpdatedSop = recentlyUpdated[0];
+const contentHealth = Math.round((totalPublished / Math.max(sops.length, 1)) * 100);
+
+const dashboardConfigs: Record<DashboardRole, { title: string; cards: DashboardCard[] }> = {
+  normal: {
+    title: "Recommended for You",
+    cards: [
+      {
+        href: recentlyViewedSop ? getSopUrl(recentlyViewedSop) : "/search/",
+        label: "Recently Viewed",
+        value: recentlyViewedSop?.data.title ?? "No recent SOP",
+        description: recentlyViewedLog ? `Last viewed ${formatDate(recentlyViewedLog.createdAt)}` : "Open an SOP to start your history.",
+        icon: "document",
+        tone: "standard",
+      },
+      {
+        href: "/search/?saved=true",
+        label: "Saved SOPs",
+        value: "4",
+        description: `${normalUser.name} has saved SOPs for quick reference.`,
+        icon: "tags",
+        tone: "standard",
+      },
+      {
+        href: popularSop ? getSopUrl(popularSop) : "/search/",
+        label: "Popular This Week",
+        value: popularSop?.data.title ?? "Browse SOPs",
+        description: "Most viewed published SOP in current sample data.",
+        icon: "analytics",
+        tone: "success",
+      },
+      {
+        href: recentlyUpdatedSop ? getSopUrl(recentlyUpdatedSop) : "/search/",
+        label: "Recently Updated",
+        value: recentlyUpdatedSop?.data.title ?? "No updates",
+        description: recentlyUpdatedSop ? `Updated ${formatDate(recentlyUpdatedSop.data.lastUpdated)}` : "Published SOP updates will appear here.",
+        icon: "review",
+        tone: "standard",
+      },
+      {
+        href: "/categories/",
+        label: "Explore Categories",
+        value: String(categoryCounts.length),
+        description: "Browse available SOP categories.",
+        icon: "categories",
+        tone: "standard",
+      },
+      {
+        href: "/submit/",
+        label: "Can't Find It?",
+        value: "Request SOP",
+        description: "Submit a request when the process you need is missing.",
+        icon: "submit",
+        tone: "warning",
+        status: "Request help",
+      },
+    ],
+  },
+  creator: {
+    title: "My Work Summary",
+    cards: [
+      {
+        href: "/my-work/",
+        label: "Assigned to Me",
+        value: String(assignedToCreator.length || 3),
+        description: "Active SOP tasks waiting on your update.",
+        icon: "work",
+        tone: "standard",
+      },
+      {
+        href: "/admin/needs-review/",
+        label: "Needs My Review",
+        value: String(needsCreatorReview.length || 2),
+        description: "SOPs ready for your approval pass.",
+        icon: "review",
+        tone: "urgent",
+        status: "Action needed",
+      },
+      {
+        href: "/drafts/",
+        label: "My Drafts",
+        value: "4",
+        description: "Draft SOPs saved but not submitted.",
+        icon: "drafts",
+        tone: "standard",
+      },
+      {
+        href: "/my-work/",
+        label: "Overdue Reviews",
+        value: String(overdueReviews.length || 1),
+        description: "Past due review that needs attention.",
+        icon: "needsReview",
+        tone: "danger",
+        status: "Past due",
+      },
+      {
+        href: "/submit/",
+        label: "Open Requests",
+        value: String(openRequests.length || 5),
+        description: "Submitted requests still in progress.",
+        icon: "submit",
+        tone: "warning",
+        status: "Open",
+      },
+      {
+        href: recentlyViewedSop ? getSopUrl(recentlyViewedSop) : "/search/",
+        label: "Recently Viewed",
+        value: recentlyViewedSop?.data.title ?? "Course QA",
+        description: "Last opened SOP from your history.",
+        icon: "search",
+        tone: "standard",
+      },
+    ],
+  },
+  admin: {
+    title: "Knowledge Hub Overview",
+    cards: [
+      {
+        href: "/admin/review/",
+        label: "Pending Reviews",
+        value: String(pendingReviews.length),
+        description: "Review items awaiting admin or reviewer action.",
+        icon: "review",
+        tone: "urgent",
+        status: "Queue",
+      },
+      {
+        href: "/admin/review/",
+        label: "Urgent Items",
+        value: String(urgentItems.length),
+        description: "High-priority requests and reviews across the hub.",
+        icon: "needsReview",
+        tone: "danger",
+        status: "Priority",
+      },
+      {
+        href: "/admin/needs-review/",
+        label: "Past-Due SOP Reviews",
+        value: String(overdueReviews.length),
+        description: "Published or queued items past their review date.",
+        icon: "qa",
+        tone: "danger",
+        status: "Past due",
+      },
+      {
+        href: "/submit/",
+        label: "Open Requests",
+        value: String(openRequests.length),
+        description: "Requests still moving through intake or review.",
+        icon: "submit",
+        tone: "warning",
+        status: "Open",
+      },
+      {
+        href: "/admin/analytics/",
+        label: "Content Health",
+        value: `${contentHealth}%`,
+        description: `${totalPublished} of ${sops.length} SOPs are published.`,
+        icon: "analytics",
+        tone: "success",
+      },
+      {
+        href: "/admin/users/",
+        label: "Recent Admin Activity",
+        value: auditLogs[0]?.action ?? "No activity",
+        description: auditLogs[0] ? `${auditLogs[0].actorName}: ${auditLogs[0].summary}` : `No recent activity for ${adminUser.name}.`,
+        icon: "settings",
+        tone: "standard",
+      },
+    ],
+  },
+};
 
 const announcements = [
   ["New SOP Updates", "Review the latest changed procedures and recently published drafts.", "May 15, 2026"],
@@ -190,19 +376,32 @@ const categoryIconByName: Record<string, string> = {
     </div>
 
     <aside class="dashboard-rail" aria-label="Dashboard tools">
-      <section class="dashboard-panel">
-        <h2>My Quick Access</h2>
-        <div class="quick-access-grid">
-          {
-            quickAccess.map(([href, label, icon, role]) => (
-              <a href={href} data-role-option={role}>
-                <span aria-hidden="true"><AppIcon name={icon} /></span>
-                {label}
-              </a>
-            ))
-          }
-        </div>
-      </section>
+      {
+        (Object.entries(dashboardConfigs) as [DashboardRole, (typeof dashboardConfigs)[DashboardRole]][]).map(
+          ([role, config]) => (
+            <section class="dashboard-panel role-dashboard-panel" data-dashboard-role={role} aria-labelledby={`dashboard-${role}-heading`}>
+              <h2 id={`dashboard-${role}-heading`}>{config.title}</h2>
+              <div class="work-summary-grid">
+                {config.cards.map((item) => (
+                  <a
+                    class:list={["work-summary-card", `work-summary-card--${item.tone}`]}
+                    href={item.href}
+                    aria-label={`${item.label}: ${item.value}. ${item.description}`}
+                  >
+                    <span class="work-summary-card__icon" aria-hidden="true"><AppIcon name={item.icon} /></span>
+                    <span class="work-summary-card__body">
+                      <span class="work-summary-card__label">{item.label}</span>
+                      <strong>{item.value}</strong>
+                      <small>{item.description}</small>
+                    </span>
+                    {item.status && <span class="work-summary-card__status">{item.status}</span>}
+                  </a>
+                ))}
+              </div>
+            </section>
+          ),
+        )
+      }
 
       <section class="dashboard-panel">
         <div class="dashboard-panel__heading">
