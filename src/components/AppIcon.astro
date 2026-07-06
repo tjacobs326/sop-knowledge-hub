@@ -2,9 +2,10 @@
 interface Props {
   name?: string;
   label?: string;
+  variant?: "line" | "illustrated";
 }
 
-const { name = "document", label } = Astro.props;
+const { name = "document", label, variant = "illustrated" } = Astro.props;
 
 const paths: Record<string, string[]> = {
   home: ["M4 11.5 12 5l8 6.5", "M6.5 10.5V19h11v-8.5", "M10 19v-5h4v5"],
@@ -39,15 +40,23 @@ const iconPaths = paths[name] ?? paths.document;
 
 <svg
   class="app-icon"
+  data-variant={variant}
   viewBox="0 0 24 24"
   fill="none"
   stroke="currentColor"
-  stroke-width="2"
+  stroke-width={variant === "illustrated" ? "2.4" : "2"}
   stroke-linecap="round"
   stroke-linejoin="round"
   aria-hidden={label ? undefined : "true"}
   role={label ? "img" : undefined}
   aria-label={label}
 >
+  {variant === "illustrated" && (
+    <>
+      <circle class="app-icon__accent app-icon__accent--soft" cx="17.5" cy="6.5" r="2.25" />
+      <circle class="app-icon__accent app-icon__accent--warm" cx="6.25" cy="17.25" r="2" />
+      <path class="app-icon__accent app-icon__accent--green" d="M16.2 17.5h4.2v2.8h-4.2z" />
+    </>
+  )}
   {iconPaths.map((d) => <path d={d} />)}
 </svg>

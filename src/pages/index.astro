@@ -94,24 +94,36 @@ const categoryIconByName: Record<string, string> = {
 
       <div class="hero-stats dashboard-stats" role="list" aria-label="Knowledge base overview">
         <div class="hero-stats__item" role="listitem">
-          <span class="hero-stats__label">Published SOPs</span>
-          <strong class="hero-stats__value">{totalPublished}</strong>
-          <a href="/search/">View all published</a>
+          <span class="hero-stats__icon hero-stats__icon--published" aria-hidden="true"><AppIcon name="document" variant="illustrated" /></span>
+          <span class="hero-stats__content">
+            <span class="hero-stats__label">Published SOPs</span>
+            <strong class="hero-stats__value">{totalPublished}</strong>
+            <a href="/search/">View all published</a>
+          </span>
         </div>
         <div class="hero-stats__item" role="listitem">
-          <span class="hero-stats__label">Categories</span>
-          <strong class="hero-stats__value">{categoryCounts.length}</strong>
-          <a href="/categories/">View all categories</a>
+          <span class="hero-stats__icon hero-stats__icon--categories" aria-hidden="true"><AppIcon name="categories" variant="illustrated" /></span>
+          <span class="hero-stats__content">
+            <span class="hero-stats__label">Categories</span>
+            <strong class="hero-stats__value">{categoryCounts.length}</strong>
+            <a href="/categories/">View all categories</a>
+          </span>
         </div>
         <div class="hero-stats__item" role="listitem">
-          <span class="hero-stats__label">Tags</span>
-          <strong class="hero-stats__value">{tagCount}</strong>
-          <a href="/admin/tags/">View all tags</a>
+          <span class="hero-stats__icon hero-stats__icon--tags" aria-hidden="true"><AppIcon name="tags" variant="illustrated" /></span>
+          <span class="hero-stats__content">
+            <span class="hero-stats__label">Tags</span>
+            <strong class="hero-stats__value">{tagCount}</strong>
+            <a href="/admin/tags/">View all tags</a>
+          </span>
         </div>
         <div class="hero-stats__item" role="listitem">
-          <span class="hero-stats__label">Last Updated</span>
-          <strong class="hero-stats__value">{formatDate(lastUpdated)}</strong>
-          <a href="/search/">See what's new</a>
+          <span class="hero-stats__icon hero-stats__icon--updated" aria-hidden="true"><AppIcon name="analytics" variant="illustrated" /></span>
+          <span class="hero-stats__content">
+            <span class="hero-stats__label">Last Updated</span>
+            <strong class="hero-stats__value">{formatDate(lastUpdated)}</strong>
+            <a href="/search/">See what's new</a>
+          </span>
         </div>
       </div>
 

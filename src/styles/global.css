@@ -58,6 +58,32 @@ img {
   height: auto;
 }
 
+.app-icon[data-variant="illustrated"] {
+  color: var(--color-ink);
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.8));
+}
+
+.app-icon[data-variant="illustrated"] > path:not(.app-icon__accent) {
+  stroke: var(--color-ink);
+}
+
+.app-icon__accent {
+  stroke: var(--color-ink);
+  stroke-width: 1.6;
+}
+
+.app-icon__accent--soft {
+  fill: #2f6fed;
+}
+
+.app-icon__accent--warm {
+  fill: var(--color-beacon);
+}
+
+.app-icon__accent--green {
+  fill: #7bcf5a;
+}
+
 :focus-visible {
   outline: 3px solid var(--color-focus);
   outline-offset: 3px;
@@ -151,17 +177,18 @@ img {
 
 .topbar-search > span {
   display: grid;
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 2rem;
+  height: 2rem;
   place-items: center;
   color: var(--color-ink);
-  border: 1px solid var(--color-border);
+  background: #fff8ec;
+  border: 1.5px solid rgba(246, 164, 54, 0.62);
   border-radius: 999px;
 }
 
 .topbar-search .app-icon {
-  width: 0.95rem;
-  height: 0.95rem;
+  width: 1.35rem;
+  height: 1.35rem;
 }
 
 .topbar-search input {
@@ -396,8 +423,8 @@ body.role-blocked .site-main {
 
 .main-nav__icon {
   display: grid;
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 2rem;
+  height: 2rem;
   flex: 0 0 auto;
   place-items: center;
   color: rgba(255, 255, 255, 0.88);
@@ -407,8 +434,8 @@ body.role-blocked .site-main {
 }
 
 .main-nav__icon .app-icon {
-  width: 1rem;
-  height: 1rem;
+  width: 1.35rem;
+  height: 1.35rem;
 }
 
 .sidebar-support {
@@ -782,16 +809,44 @@ body.role-blocked .site-main {
   align-items: center;
 }
 
-.dashboard-stats .hero-stats__item::before {
+.hero-stats__icon {
   display: grid;
-  width: 3rem;
-  height: 3rem;
+  width: 3.4rem;
+  height: 3.4rem;
   grid-row: span 3;
   place-items: center;
-  color: #2f6fed;
-  background: #eaf1ff;
-  border-radius: 999px;
-  content: "";
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.22)),
+    #eaf1ff;
+  border: 1.5px solid rgba(7, 26, 68, 0.18);
+  border-radius: 14px;
+  box-shadow: 0 10px 20px rgba(7, 26, 68, 0.08);
+}
+
+.hero-stats__icon .app-icon {
+  width: 2.15rem;
+  height: 2.15rem;
+}
+
+.hero-stats__icon--published {
+  background-color: #eaf1ff;
+}
+
+.hero-stats__icon--categories {
+  background-color: #dcfce7;
+}
+
+.hero-stats__icon--tags {
+  background-color: #fff2d6;
+}
+
+.hero-stats__icon--updated {
+  background-color: #fff2d6;
+}
+
+.hero-stats__content {
+  display: block;
+  min-width: 0;
 }
 
 .dashboard-stats a,
@@ -985,8 +1040,8 @@ body.role-blocked .site-main {
 
 .quick-access-grid span {
   display: grid;
-  width: 2.45rem;
-  height: 2.45rem;
+  width: 2.75rem;
+  height: 2.75rem;
   place-items: center;
   color: var(--color-ink);
   background: #fff8ec;
@@ -995,8 +1050,8 @@ body.role-blocked .site-main {
 }
 
 .quick-access-grid .app-icon {
-  width: 1.25rem;
-  height: 1.25rem;
+  width: 1.8rem;
+  height: 1.8rem;
 }
 
 .announcement-list {
@@ -1131,14 +1186,14 @@ body.role-blocked .site-main {
 }
 
 .category-pill .app-icon {
-  width: 1.35rem;
-  height: 1.35rem;
+  width: 1.75rem;
+  height: 1.75rem;
   flex: 0 0 auto;
-  padding: 0.18rem;
-  color: #fff;
-  background: #2f6fed;
+  padding: 0.12rem;
+  color: var(--color-ink);
+  background: #fff8ec;
   border-radius: 8px;
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(246, 164, 54, 0.52);
 }
 
 .section-heading h2,
@@ -1214,8 +1269,8 @@ body.role-blocked .site-main {
 }
 
 .button .app-icon {
-  width: 1rem;
-  height: 1rem;
+  width: 1.35rem;
+  height: 1.35rem;
   flex: 0 0 auto;
 }
 
@@ -2394,17 +2449,18 @@ legend {
 
 .finder-search__box > span {
   display: grid;
-  width: 1.35rem;
-  height: 1.35rem;
+  width: 2rem;
+  height: 2rem;
   place-items: center;
   color: var(--color-ink);
-  border: 1px solid var(--color-border);
+  background: #fff8ec;
+  border: 1.5px solid rgba(246, 164, 54, 0.62);
   border-radius: 999px;
 }
 
 .finder-search__box .app-icon {
-  width: 0.9rem;
-  height: 0.9rem;
+  width: 1.35rem;
+  height: 1.35rem;
 }
 
 .finder-search input {
@@ -3109,8 +3165,19 @@ tbody tr:hover {
     display: none;
   }
 
-  .dashboard-stats .hero-stats__item::before {
-    display: none;
+  .dashboard-stats .hero-stats__item {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .hero-stats__icon {
+    width: 2.4rem;
+    height: 2.4rem;
+  }
+
+  .hero-stats__icon .app-icon {
+    width: 1.15rem;
+    height: 1.15rem;
   }
 
   .hero-stats dd {

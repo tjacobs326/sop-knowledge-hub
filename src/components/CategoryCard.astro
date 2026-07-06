@@ -32,7 +32,7 @@ const iconName = iconBySlug[slug] ?? "document";
 
 <a class="category-card" href={href} style={`--card-accent: ${color}`}>
   <div class="category-card__header">
-    <span class="category-card__icon" aria-hidden="true"><AppIcon name={iconName} /></span>
+    <span class="category-card__icon" aria-hidden="true"><AppIcon name={iconName} variant="illustrated" /></span>
     <h2 class="category-card__title">{name}</h2>
   </div>
   <p>{description}</p>
@@ -83,8 +83,8 @@ const iconName = iconBySlug[slug] ?? "document";
 
   .category-card__icon {
     display: grid;
-    width: clamp(2.75rem, 4vw, 3.3rem);
-    height: clamp(2.75rem, 4vw, 3.3rem);
+    width: clamp(3.1rem, 4.5vw, 3.7rem);
+    height: clamp(3.1rem, 4.5vw, 3.7rem);
     place-items: center;
     color: var(--color-ink);
     background:
@@ -95,8 +95,8 @@ const iconName = iconBySlug[slug] ?? "document";
   }
 
   .category-card__icon .app-icon {
-    width: 1.65rem;
-    height: 1.65rem;
+    width: 2.25rem;
+    height: 2.25rem;
   }
 
   .category-card__footer {
