@@ -3,7 +3,7 @@
 The SOP Knowledge Hub backend is designed for Cloudflare Pages Functions with:
 
 - D1 for relational app data and analytics rollups.
-- R2 for uploaded screenshots, videos, and document attachments.
+- R2 for uploaded screenshots, videos, and document attachments when the business account enables it.
 - Workers Analytics Engine for optional Cloudflare-native event telemetry.
 - Workers AI for the controlled Knowledge Hub assistant.
 
@@ -13,8 +13,8 @@ The SOP Knowledge Hub backend is designed for Cloudflare Pages Functions with:
 - D1 binding: `DB`
 - D1 database: `sop-knowledge-hub-db`
 - Workers AI binding: `AI`
-- R2 binding expected by the app: `SOP_MEDIA`
-- R2 bucket expected by the app: `sop-knowledge-hub-media`
+- R2 binding: optional `SOP_MEDIA`
+- R2 bucket: optional `sop-knowledge-hub-media`
 - Analytics Engine binding: optional `SOP_ANALYTICS`
 - Analytics Engine dataset: optional `sop_knowledge_hub_events`
 
@@ -28,6 +28,7 @@ Before deploying this backend version, enable these in the Cloudflare dashboard:
      ```bash
      npm run media:bucket:create
      ```
+   - Keep this binding out of `wrangler.jsonc` until the bucket exists in the account.
 
 2. Workers Analytics Engine optional
    - Dashboard path: Workers & Pages > Analytics Engine.

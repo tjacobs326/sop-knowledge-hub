@@ -7,12 +7,6 @@
     "binding": "AI",
     "remote": true
   },
-  "r2_buckets": [
-    {
-      "binding": "SOP_MEDIA",
-      "bucket_name": "sop-knowledge-hub-media"
-    }
-  ],
   "d1_databases": [
     {
       "binding": "DB",
