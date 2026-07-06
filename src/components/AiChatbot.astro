@@ -32,16 +32,18 @@ const starterPrompts = [
       </select>
     </label>
 
-    <div class="ai-chatbot__messages" id="ai-chat-messages" aria-live="polite">
-      <div class="ai-chatbot__message ai-chatbot__message--assistant">
-        <p>Ask a question about an SOP. I will only answer from approved or published SOPs unless admin mode is selected.</p>
+    <div class="ai-chatbot__body">
+      <div class="ai-chatbot__messages" id="ai-chat-messages" aria-live="polite">
+        <div class="ai-chatbot__message ai-chatbot__message--assistant">
+          <p>Ask about an SOP. Answers use approved or published SOPs unless admin mode is selected.</p>
+        </div>
       </div>
-    </div>
 
-    <div class="ai-chatbot__starters" aria-label="Starter prompts">
-      {starterPrompts.map((prompt) => (
-        <button type="button" data-chat-prompt={prompt}>{prompt}</button>
-      ))}
+      <div class="ai-chatbot__starters" aria-label="Starter prompts">
+        {starterPrompts.map((prompt) => (
+          <button type="button" data-chat-prompt={prompt}>{prompt}</button>
+        ))}
+      </div>
     </div>
 
     <form class="ai-chatbot__form" id="ai-chat-form">

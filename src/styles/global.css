@@ -1456,8 +1456,8 @@ dd {
 }
 
 .ai-chatbot__panel {
-  display: grid;
-  grid-template-rows: auto auto auto auto auto;
+  display: flex;
+  flex-direction: column;
   width: min(26rem, calc(100vw - 2rem));
   max-height: min(42rem, calc(100vh - 7rem));
   overflow: hidden;
@@ -1523,27 +1523,42 @@ dd {
   border-color: #9eb3d3;
 }
 
+.ai-chatbot__body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1rem 1rem 1.1rem;
+}
+
 .ai-chatbot__messages {
   display: grid;
   align-content: start;
   gap: 0.65rem;
   min-height: 0;
-  max-height: 10.5rem;
-  overflow-y: auto;
-  padding: 1rem 1rem 0.85rem;
+  flex: 0 0 auto;
+  overflow: visible;
 }
 
 .ai-chatbot__message {
-  width: fit-content;
-  max-width: 92%;
+  display: block;
+  width: min(100%, 24rem);
+  max-width: 100%;
   padding: 0.7rem 0.85rem;
   border-radius: 12px;
   font-size: 0.92rem;
   line-height: 1.45;
+  overflow: visible;
+  word-break: normal;
+  overflow-wrap: anywhere;
 }
 
 .ai-chatbot__message p {
   margin: 0;
+  display: block;
+  line-height: inherit;
 }
 
 .ai-chatbot__message--assistant {
@@ -1569,19 +1584,19 @@ dd {
 }
 
 .ai-chatbot__starters {
-  position: relative;
-  z-index: 1;
   display: flex;
+  flex: 0 0 auto;
   flex-wrap: wrap;
   gap: 0.45rem;
-  max-height: 8.5rem;
-  overflow-y: auto;
-  padding: 0.85rem 1rem 1rem;
-  border-top: 1px solid #d8e4f5;
+  overflow: visible;
+  padding: 0;
   background: #fff;
 }
 
 .ai-chatbot__starters button {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
   border: 1px solid #9eb3d3;
   border-radius: 999px;
   padding: 0.45rem 0.65rem;
@@ -1590,6 +1605,9 @@ dd {
   font: inherit;
   font-size: 0.78rem;
   font-weight: 800;
+  line-height: 1.2;
+  text-align: left;
+  white-space: normal;
   cursor: pointer;
 }
 
