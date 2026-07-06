@@ -1,5 +1,6 @@
 ---
 import { categories } from "../data/categories";
+import AppIcon from "./AppIcon.astro";
 import {
   REVIEW_QUEUE_STORAGE_KEY,
   SUBMISSIONS_STORAGE_KEY,
@@ -17,48 +18,129 @@ const priorities = ["Low", "Medium", "High", "Urgent"];
 const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally", "One-time", "Unsure"];
 ---
 
-<section class="tool-surface" aria-labelledby="submit-heading">
-  <div class="section-heading">
-    <p class="eyebrow">Outside Department Intake</p>
-    <h1 id="submit-heading">Submit an SOP Request</h1>
-    <p>
-      Use this form to request a new SOP, suggest an update, submit a department process, or
-      share a draft SOP for review.
-    </p>
+<section class="submit-request-page" aria-labelledby="submit-heading">
+  <div class="submit-request-hero">
+    <div class="submit-request-hero__content">
+      <p class="eyebrow">Outside Department Intake</p>
+      <h1 id="submit-heading">Submit an SOP Request</h1>
+      <p>
+        Use this form to request a new SOP, suggest an update, submit a department process, or
+        share a draft SOP for review.
+      </p>
+    </div>
+    <div class="submit-request-hero__visual" aria-hidden="true">
+      <div class="submit-visual">
+        <span class="submit-visual__spark submit-visual__spark--left">+</span>
+        <span class="submit-visual__spark submit-visual__spark--right">+</span>
+        <div class="submit-visual__mail">
+          <span></span>
+        </div>
+        <div class="submit-visual__bubble">
+          <span></span><span></span><span></span>
+        </div>
+        <div class="submit-visual__clipboard">
+          <div class="submit-visual__clip"></div>
+          <strong>SOP REQUEST</strong>
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <div class="submit-visual__plus">+</div>
+        <div class="submit-visual__plant">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <form class="form-grid" id="request-form" novalidate>
+  <div class="submit-benefit-grid" aria-label="Submit request benefits">
+    <div class="submit-benefit">
+      <span class="submit-benefit__icon submit-benefit__icon--blue" aria-hidden="true">
+        <AppIcon name="create" />
+      </span>
+      <span>
+        <strong>Request or Suggest</strong>
+        <small>Request a new SOP or suggest an update to existing content.</small>
+      </span>
+    </div>
+    <div class="submit-benefit">
+      <span class="submit-benefit__icon submit-benefit__icon--green" aria-hidden="true">
+        <AppIcon name="users" />
+      </span>
+      <span>
+        <strong>Share & Collaborate</strong>
+        <small>Submit a draft or process for review and collaboration.</small>
+      </span>
+    </div>
+    <div class="submit-benefit">
+      <span class="submit-benefit__icon submit-benefit__icon--orange" aria-hidden="true">
+        <AppIcon name="analytics" />
+      </span>
+      <span>
+        <strong>Track Progress</strong>
+        <small>We'll review your request and keep you updated.</small>
+      </span>
+    </div>
+  </div>
+
+  <form class="form-grid request-form-card" id="request-form" novalidate>
+    <div class="form-section-title form-section-title--with-icon field--full">
+      <span class="form-section-title__icon form-section-title__icon--orange" aria-hidden="true">
+        <AppIcon name="drafts" />
+      </span>
+      <span>
+        <h2>Submission Type</h2>
+        <small>What would you like to submit?</small>
+      </span>
+    </div>
     <div class="field field--full">
-      <label for="submission-type">Submission Type</label>
+      <label class="sr-only" for="submission-type">Submission Type</label>
       <select id="submission-type" name="submissionType" required>
         <option value="">Select submission type</option>
         {submissionTypes.map((type) => <option value={type}>{type}</option>)}
       </select>
     </div>
 
-    <h2 class="form-section-title field--full">Department Information</h2>
-    <div class="field">
-      <label for="department">Department name</label>
-      <input id="department" name="department" type="text" required />
+    <div class="form-section-title form-section-title--with-icon field--full">
+      <span class="form-section-title__icon form-section-title__icon--green" aria-hidden="true">
+        <AppIcon name="operations" />
+      </span>
+      <span>
+        <h2>Department Information</h2>
+        <small>Tell us who you are and which department you're submitting on behalf of.</small>
+      </span>
     </div>
     <div class="field">
-      <label for="submitted-by">Submitted by</label>
-      <input id="submitted-by" name="submittedBy" type="text" required />
+      <label for="department">Department name <span aria-hidden="true">*</span></label>
+      <input id="department" name="department" type="text" placeholder="Enter department name" required />
     </div>
     <div class="field">
-      <label for="submitter-email">Submitter email</label>
-      <input id="submitter-email" name="submitterEmail" type="email" required />
+      <label for="submitted-by">Submitted by <span aria-hidden="true">*</span></label>
+      <input id="submitted-by" name="submittedBy" type="text" placeholder="Your full name" required />
+    </div>
+    <div class="field">
+      <label for="submitter-email">Submitter email <span aria-hidden="true">*</span></label>
+      <input id="submitter-email" name="submitterEmail" type="email" placeholder="you@example.com" required />
     </div>
     <div class="field">
       <label for="role-title">Role or title</label>
-      <input id="role-title" name="submitterRole" type="text" />
+      <input id="role-title" name="submitterRole" type="text" placeholder="Your role or title" />
     </div>
     <div class="field field--full">
       <label for="contact-method">Best contact method</label>
       <input id="contact-method" name="bestContactMethod" type="text" />
     </div>
 
-    <h2 class="form-section-title field--full">Process Information</h2>
+    <div class="form-section-title form-section-title--with-icon field--full">
+      <span class="form-section-title__icon form-section-title__icon--blue" aria-hidden="true">
+        <AppIcon name="finder" />
+      </span>
+      <span>
+        <h2>Process Information</h2>
+        <small>Describe the SOP, audience, tools, timing, and priority.</small>
+      </span>
+    </div>
     <div class="field">
       <label for="requested-title">Requested SOP title</label>
       <input id="requested-title" name="title" type="text" required />
@@ -101,7 +183,15 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
       <input id="desired-date" name="desiredCompletionDate" type="date" />
     </div>
 
-    <h2 class="form-section-title field--full">SOP Details or Draft Content</h2>
+    <div class="form-section-title form-section-title--with-icon field--full">
+      <span class="form-section-title__icon form-section-title__icon--purple" aria-hidden="true">
+        <AppIcon name="document" />
+      </span>
+      <span>
+        <h2>SOP Details or Draft Content</h2>
+        <small>Add the process purpose, steps, attachments, and supporting notes.</small>
+      </span>
+    </div>
     <div class="field field--full">
       <label for="process-purpose">Purpose of the process</label>
       <textarea id="process-purpose" name="purpose" rows="3"></textarea>
