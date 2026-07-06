@@ -21,7 +21,7 @@ const tags = uniqueSorted(sops.flatMap((sop) => sop.data.tags));
       <h1>Search SOPs</h1>
     </div>
 
-    <form class="search-filters search-filters--sticky no-print" id="sop-search-form">
+    <form class="search-filters no-print" id="sop-search-form">
       <div class="field field--full">
         <label for="search-query">Search by title, tag, tool, owner, category, or keyword</label>
         <input id="search-query" type="search" value={initialQuery} autocomplete="off" />

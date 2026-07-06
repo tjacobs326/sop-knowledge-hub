@@ -59,29 +59,43 @@ img {
 }
 
 .app-icon[data-variant="illustrated"] {
-  color: var(--color-ink);
-  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.8));
+  color: #263238;
+  filter: none;
 }
 
-.app-icon[data-variant="illustrated"] > path:not(.app-icon__accent) {
-  stroke: var(--color-ink);
+.app-icon[data-variant="illustrated"] > path:not(.app-icon__fill) {
+  stroke: #263238;
 }
 
-.app-icon__accent {
-  stroke: var(--color-ink);
-  stroke-width: 1.6;
+.app-icon__fill {
+  stroke: #263238;
+  stroke-width: 1.1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-.app-icon__accent--soft {
-  fill: #2f6fed;
+.app-icon__fill--blue {
+  fill: #1592b2;
 }
 
-.app-icon__accent--warm {
-  fill: var(--color-beacon);
+.app-icon__fill--green {
+  fill: #9cca4b;
 }
 
-.app-icon__accent--green {
-  fill: #7bcf5a;
+.app-icon__fill--orange {
+  fill: #f6c431;
+}
+
+.app-icon__fill--pink {
+  fill: #f75f78;
+}
+
+.app-icon__fill--soft {
+  fill: #dceff5;
+}
+
+.app-icon__fill--yellow {
+  fill: #f6c431;
 }
 
 :focus-visible {
@@ -436,6 +450,45 @@ body.role-blocked .site-main {
 .main-nav__icon .app-icon {
   width: 1.35rem;
   height: 1.35rem;
+}
+
+.site-sidebar .main-nav__icon .app-icon[data-variant="illustrated"] {
+  color: #f8fbff;
+}
+
+.site-sidebar .main-nav__icon .app-icon[data-variant="illustrated"] > path:not(.app-icon__fill) {
+  stroke: #f8fbff;
+}
+
+.site-sidebar .main-nav__icon .app-icon__fill {
+  stroke: #f8fbff;
+}
+
+.site-sidebar .main-nav__icon .app-icon__fill--blue,
+.site-sidebar .main-nav__icon .app-icon__fill--soft {
+  fill: #3ec6e8;
+}
+
+.site-sidebar .main-nav__icon .app-icon__fill--green {
+  fill: #b6e35a;
+}
+
+.site-sidebar .main-nav__icon .app-icon__fill--orange,
+.site-sidebar .main-nav__icon .app-icon__fill--yellow {
+  fill: #ffcf4a;
+}
+
+.site-sidebar .main-nav__icon .app-icon__fill--pink {
+  fill: #ff7890;
+}
+
+.main-nav a[aria-current="page"] .main-nav__icon .app-icon[data-variant="illustrated"] {
+  color: var(--color-ink);
+}
+
+.main-nav a[aria-current="page"] .main-nav__icon .app-icon[data-variant="illustrated"] > path:not(.app-icon__fill),
+.main-nav a[aria-current="page"] .main-nav__icon .app-icon__fill {
+  stroke: var(--color-ink);
 }
 
 .sidebar-support {
