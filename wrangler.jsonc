@@ -13,12 +13,6 @@
       "bucket_name": "sop-knowledge-hub-media"
     }
   ],
-  "analytics_engine_datasets": [
-    {
-      "binding": "SOP_ANALYTICS",
-      "dataset": "sop_knowledge_hub_events"
-    }
-  ],
   "d1_databases": [
     {
       "binding": "DB",
