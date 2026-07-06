@@ -44,7 +44,7 @@ const { finderData, sops } = Astro.props;
     <div class="finder-hero__content">
       <p class="eyebrow">Guided Finder</p>
       <h1 id="finder-heading">What are you trying to do?</h1>
-      <p>Tell us what you need and we’ll help you find the right SOP, template, or guide.</p>
+      <p>Tell us what you need and we'll help you find the right SOP, template, or guide.</p>
     </div>
     <div class="finder-hero__art" aria-hidden="true">
       <span class="finder-spark finder-spark--one"></span>
@@ -55,15 +55,19 @@ const { finderData, sops } = Astro.props;
         <span></span>
       </div>
       <div class="finder-compass">
-        <div class="finder-compass__window"></div>
+        <span class="finder-compass__ring"></span>
+        <span class="finder-compass__tick finder-compass__tick--north"></span>
+        <span class="finder-compass__tick finder-compass__tick--east"></span>
+        <span class="finder-compass__tick finder-compass__tick--south"></span>
+        <span class="finder-compass__tick finder-compass__tick--west"></span>
         <span class="finder-compass__needle"></span>
+        <span class="finder-compass__pin"></span>
       </div>
       <div class="finder-art-card finder-art-card--checklist">
         <span></span>
         <span></span>
         <span></span>
       </div>
-      <span class="finder-magnifier"></span>
     </div>
   </div>
 
@@ -134,7 +138,7 @@ const { finderData, sops } = Astro.props;
             <button class="finder-answer finder-answer--${icon.tone}" type="button" data-answer-index="${index}">
               <span class="finder-answer__icon" aria-hidden="true">${escapeHtml(icon.icon)}</span>
               <span class="finder-answer__label">${escapeHtml(answer.label)}</span>
-              <span class="finder-answer__arrow" aria-hidden="true">›</span>
+              <span class="finder-answer__arrow" aria-hidden="true">-&gt;</span>
             </button>
           `;
         },

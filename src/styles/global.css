@@ -3611,78 +3611,105 @@ legend {
 
 .finder-compass {
   position: absolute;
-  left: 34%;
-  top: 18%;
-  width: 10rem;
-  height: 8.4rem;
-  background: #fff;
-  border: 1px solid #b8c8e4;
-  border-radius: 8px;
-  box-shadow: 0 16px 34px rgba(13, 45, 99, 0.18);
+  left: 38%;
+  top: 13%;
+  width: 10.7rem;
+  height: 10.7rem;
+  background:
+    radial-gradient(circle at 36% 32%, rgba(255, 255, 255, 0.95), rgba(248, 251, 255, 0.92) 42%, #dce9fb 100%);
+  border: 0.52rem solid #173a73;
+  border-radius: 999px;
+  box-shadow: 0 18px 34px rgba(13, 45, 99, 0.18);
 }
 
-.finder-compass__window {
-  height: 1.25rem;
-  border-radius: 8px 8px 0 0;
-  background: #2f6fed;
-}
-
-.finder-compass__window::before {
-  display: block;
-  width: 2rem;
-  height: 0.35rem;
-  margin: 0.45rem 0 0 0.55rem;
-  background: radial-gradient(circle, #ffb84d 20%, transparent 22%) 0 0 / 0.55rem 0.35rem;
+.finder-compass::before {
+  position: absolute;
+  inset: 0.75rem;
+  border: 0.22rem solid #8ba4ca;
+  border-radius: inherit;
   content: "";
 }
 
-.finder-compass::after {
+.finder-compass__ring {
+  position: absolute;
+  inset: 1.35rem;
+  border: 0.16rem dashed rgba(47, 111, 237, 0.35);
+  border-radius: inherit;
+}
+
+.finder-compass__tick {
   position: absolute;
   left: 50%;
-  top: 54%;
-  width: 5.1rem;
-  height: 5.1rem;
-  border: 0.34rem solid #6f87b1;
+  top: 50%;
+  width: 0.28rem;
+  height: 1rem;
+  background: #173a73;
   border-radius: 999px;
   content: "";
-  transform: translate(-50%, -50%);
+  transform-origin: 50% -3.15rem;
+}
+
+.finder-compass__tick--north {
+  transform: translate(-50%, 3.15rem);
+}
+
+.finder-compass__tick--east {
+  transform: translate(-50%, 3.15rem) rotate(90deg);
+}
+
+.finder-compass__tick--south {
+  transform: translate(-50%, 3.15rem) rotate(180deg);
+}
+
+.finder-compass__tick--west {
+  transform: translate(-50%, 3.15rem) rotate(270deg);
 }
 
 .finder-compass__needle {
   position: absolute;
   left: 50%;
-  top: 54%;
-  width: 0;
-  height: 0;
-  border-right: 0.8rem solid transparent;
-  border-left: 0.8rem solid transparent;
-  border-bottom: 3.9rem solid #ff9f1c;
-  transform: translate(-50%, -58%) rotate(42deg);
-  transform-origin: 50% 88%;
+  top: 50%;
+  width: 6.5rem;
+  height: 1.9rem;
+  transform: translate(-50%, -50%) rotate(-45deg);
+  transform-origin: center;
   z-index: 1;
 }
 
-.finder-magnifier {
+.finder-compass__needle::before,
+.finder-compass__needle::after {
   position: absolute;
-  right: 24%;
-  bottom: 16%;
-  width: 3.1rem;
-  height: 3.1rem;
-  border: 0.35rem solid #12366c;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.34);
+  top: 50%;
+  width: 3.35rem;
+  height: 1.55rem;
+  content: "";
+  transform: translateY(-50%);
 }
 
-.finder-magnifier::after {
+.finder-compass__needle::before {
+  right: 50%;
+  background: #2f6fed;
+  clip-path: polygon(0 50%, 100% 0, 100% 100%);
+}
+
+.finder-compass__needle::after {
+  left: 50%;
+  background: #ff9f1c;
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+
+.finder-compass__pin {
   position: absolute;
-  right: -1.45rem;
-  bottom: -1.1rem;
-  width: 2.3rem;
-  height: 0.45rem;
+  left: 50%;
+  top: 50%;
+  width: 1rem;
+  height: 1rem;
+  background: #173a73;
+  border: 0.18rem solid var(--color-white);
   border-radius: 999px;
-  background: #12366c;
-  content: "";
-  transform: rotate(45deg);
+  box-shadow: 0 2px 5px rgba(11, 31, 68, 0.2);
+  transform: translate(-50%, -50%);
+  z-index: 2;
 }
 
 .finder-art-card {

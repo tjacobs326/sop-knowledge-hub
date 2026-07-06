@@ -8,10 +8,9 @@ import {
 
 const submissionTypes = [
   "Request a new SOP",
-  "Submit a draft SOP",
-  "Suggest an update to an existing SOP",
-  "Report an issue with an SOP",
-  "Request a template",
+  "Suggest an update",
+  "Submit a department process",
+  "Share a draft SOP for review",
 ];
 
 const priorities = ["Low", "Medium", "High", "Urgent"];
@@ -262,6 +261,7 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
   const attachmentFileInput = document.getElementById("attachments-file");
   const attachmentList = document.querySelector("[data-attachment-list]");
   const attachmentPasteTarget = document.querySelector("[data-attachment-paste]");
+  const submitButton = form?.querySelector('button[type="submit"]');
 
   const attachments = [];
 
@@ -496,11 +496,76 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
     };
   }
 
-  form?.addEventListener("submit", (event) => {
+  async function sendSubmissionToApi(submission) {
+    const draftLines = [
+      submission.purpose ? `Purpose:\n${submission.purpose}` : "",
+      submission.beforeYouBegin ? `Before you begin:\n${submission.beforeYouBegin}` : "",
+      submission.procedureSteps?.length ? `Procedure:\n${submission.procedureSteps.join("\n")}` : "",
+      submission.knownIssues ? `Known issues:\n${submission.knownIssues}` : "",
+      submission.additionalNotes ? `Additional notes:\n${submission.additionalNotes}` : "",
+      submission.screenshots?.length ? `Attachments:\n${submission.screenshots.join("\n")}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+
+    const response = await fetch("/api/sop-requests", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        requestType: submission.submissionType,
+        requestedTitle: submission.title,
+        departmentName: submission.department,
+        submittedByName: submission.submittedBy,
+        submittedByEmail: submission.submitterEmail,
+        roleTitle: submission.submitterRole,
+        description: submission.businessNeed || submission.purpose || submission.title,
+        priority: submission.priority,
+        desiredCompletionAt: submission.desiredCompletionDate,
+        draftContent: draftLines,
+        relatedLinks: submission.relatedResources,
+        documentationLocation: submission.documentationLocation,
+      }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data?.success === false) {
+      const fields = data?.error?.fields || {};
+      const fieldMessages = Object.values(fields);
+      const message = data?.error?.message || "The request could not be saved to D1.";
+      throw new Error([message, ...fieldMessages].join(" "));
+    }
+    return data?.data?.request;
+  }
+
+  form?.addEventListener("submit", async (event) => {
     event.preventDefault();
 
     const submission = buildSubmission();
     if (!validateSubmission(submission)) return;
+
+    if (submitButton instanceof HTMLButtonElement) {
+      submitButton.disabled = true;
+      submitButton.textContent = "Submitting...";
+    }
+
+    let backendRequest = null;
+    try {
+      backendRequest = await sendSubmissionToApi(submission);
+      if (backendRequest?.id) {
+        submission.id = backendRequest.id;
+      }
+    } catch (error) {
+      if (errorsEl instanceof HTMLElement) {
+        errorsEl.hidden = false;
+        errorsEl.innerHTML = `<p>${escapeHtml(
+          error instanceof Error
+            ? `${error.message} The request was saved locally so the current demo workflow still works.`
+            : "The request was saved locally so the current demo workflow still works.",
+        )}</p>`;
+      }
+    }
 
     const submissions = readStorage(SUBMISSIONS_STORAGE_KEY);
     writeStorage(SUBMISSIONS_STORAGE_KEY, [...submissions, submission]);
@@ -531,8 +596,17 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
     }
     confirmationEl.hidden = false;
     confirmationEl.innerHTML =
-      "<strong>Your SOP submission has been received.</strong><p>Next steps: The SOP team will triage your submission, assign an owner, review the details, and follow up if more information is needed.</p>";
+      backendRequest?.id
+        ? `<strong>Your SOP submission has been saved to D1.</strong><p>Tracking ID: ${escapeHtml(
+            backendRequest.id,
+          )}. Next steps: The SOP team will triage your submission, assign an owner, review the details, and follow up if more information is needed.</p>`
+        : "<strong>Your SOP submission has been received locally.</strong><p>Next steps: The SOP team will triage your submission, assign an owner, review the details, and follow up if more information is needed.</p>";
     confirmationEl.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    if (submitButton instanceof HTMLButtonElement) {
+      submitButton.disabled = false;
+      submitButton.textContent = "Submit SOP Request";
+    }
   });
 
   attachmentFileInput?.addEventListener("change", (event) => {

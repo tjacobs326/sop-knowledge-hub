@@ -7,6 +7,7 @@ export interface D1PreparedStatement {
 
 export interface D1DatabaseBinding {
   prepare: (query: string) => D1PreparedStatement;
+  batch?: (statements: D1PreparedStatement[]) => Promise<unknown[]>;
 }
 
 export interface R2ObjectBinding {

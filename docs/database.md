@@ -91,9 +91,14 @@ an `r2_buckets` binding to `wrangler.jsonc`.
 
 ## Current Validation
 
-Both local and remote D1 were migrated and seeded successfully.
+Local D1 migrations were applied successfully through `0003_d1_single_source_foundation.sql`.
+The current local smoke checks verified:
 
-Remote verification counts:
+- `GET /api/categories`
+- `GET /api/sops?limit=2`
+- `POST /api/sop-requests`
+
+Earlier remote verification counts:
 
 - 44 tables/views
 - 5 users
@@ -106,15 +111,32 @@ Remote verification counts:
 - 3 reviews
 - 6 daily analytics rows
 
-## Runtime Integration Note
+## Runtime Integration
 
-The current Astro app still builds as static output. Cloudflare bindings such as D1 and R2
-require Pages Functions or Workers runtime code. The database is ready; the next backend
-step is to add API endpoints for:
+Cloudflare Pages Functions now expose D1-backed endpoints for:
 
-- authentication/session user lookup
-- SOP create/edit/publish
-- request submission
-- review queue updates
-- media upload signing or direct R2 upload
-- search and admin analytics reads
+- published SOP search/list/detail reads
+- category and tag reads
+- SOP draft creation
+- SOP metadata updates
+- SOP version list/create
+- review workflow transitions: submit for review, request changes, approve, publish, archive
+- SOP view tracking
+- helpful/not helpful feedback
+- SOP request submission, assignment, and status updates
+- search logging
+
+The submit request page writes to `/api/sop-requests` first and keeps the existing browser
+storage workflow as a static-preview fallback.
+
+Before deploying this schema to production, run:
+
+```bash
+npm run db:migrate:remote
+```
+
+Then redeploy the Pages project:
+
+```bash
+npm run cf:deploy:direct
+```
