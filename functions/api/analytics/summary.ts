@@ -1,3 +1,4 @@
+import { requirePermission } from "../../_shared/auth";
 import { jsonResponse, type PagesFunctionContext } from "../../_shared/cloudflare";
 
 async function safeAll<T>(env: PagesFunctionContext["env"], query: string) {
@@ -19,8 +20,11 @@ async function safeFirst<T>(env: PagesFunctionContext["env"], query: string) {
   }
 }
 
-export const onRequestGet = async ({ env }: PagesFunctionContext) => {
+export const onRequestGet = async (context: PagesFunctionContext) => {
+  const { env } = context;
   if (!env.DB) return jsonResponse({ error: "D1 database binding DB is not available." }, 503);
+  const auth = await requirePermission(context, "View Analytics");
+  if (auth.response) return auth.response;
 
   const [
     totals,

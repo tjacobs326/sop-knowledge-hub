@@ -1,5 +1,6 @@
-import { failure, roleFromRequest, cacheHeaders, readBody, requireRole, optionalText, success, unixNow, type ApiRole } from "../_shared/api";
+import { failure, roleFromRequest, cacheHeaders, readBody, optionalText, success, unixNow, type ApiRole } from "../_shared/api";
 import { requireDb, slugify } from "../_shared/admin";
+import { getAuthUser, requirePermission } from "../_shared/auth";
 import { newId, type PagesFunctionContext } from "../_shared/cloudflare";
 import { countSops, listSops, type SopFilters } from "../_shared/sop-data";
 
@@ -28,7 +29,9 @@ export const onRequestGet = async ({ request, env }: PagesFunctionContext) => {
   if (missingDb) return missingDb;
 
   try {
-    const role = roleFromRequest(request);
+    const url = new URL(request.url);
+    const user = await getAuthUser({ request, env });
+    const role = url.searchParams.has("status") && user ? user.role : roleFromRequest(request);
     const filters = readFilters(request, role);
     const [sops, total] = await Promise.all([
       listSops(env.DB!, filters),
@@ -95,8 +98,8 @@ function listValue(value: unknown) {
 export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
-  const forbidden = requireRole(request, ["creator", "admin"]);
-  if (forbidden) return forbidden;
+  const auth = await requirePermission({ request, env }, "Create SOPs");
+  if (auth.response) return auth.response;
 
   const [payload, parseError] = await readBody<CreateSopPayload>(request);
   if (parseError) return parseError;
@@ -143,7 +146,7 @@ export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
       Number(payload?.estimatedMinutes || 0) || null,
       payload?.estimatedMinutes ? `${payload.estimatedMinutes} minutes` : null,
       listValue(payload?.audience).join("|"),
-      payload?.createdBy || null,
+      payload?.createdBy || auth.user?.id || null,
       "Database",
       "Internal",
       nowIso,
@@ -174,8 +177,8 @@ export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
       metadata,
       optionalText(payload?.changeSummary || "Initial draft created.", 2000),
       "Draft",
-      payload?.createdBy || null,
-      payload?.createdBy || null,
+      payload?.createdBy || auth.user?.id || null,
+      payload?.createdBy || auth.user?.id || null,
       nowIso,
       now,
     )
@@ -185,7 +188,7 @@ export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
     `INSERT INTO audit_logs (id, actor_user_id, action, entity_type, entity_id, after_json, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
   )
-    .bind(newId("audit"), payload?.createdBy || null, "create_draft", "sop", id, JSON.stringify({ title, versionId }), now)
+    .bind(newId("audit"), payload?.createdBy || auth.user?.id || null, "create_draft", "sop", id, JSON.stringify({ title, versionId }), now)
     .run();
 
   return success({ sop: { id, slug, currentVersionId: versionId } }, "SOP draft created.", 201);

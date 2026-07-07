@@ -3,11 +3,11 @@ import {
   getRouteParam,
   optionalText,
   readBody,
-  requireRole,
   success,
   unixNow,
 } from "../../../_shared/api";
 import { requireDb } from "../../../_shared/admin";
+import { requirePermission } from "../../../_shared/auth";
 import { newId, type PagesFunctionContext } from "../../../_shared/cloudflare";
 
 interface SopVersionPayload {
@@ -72,8 +72,8 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
 export const onRequestPost = async (context: PagesFunctionContext) => {
   const missingDb = requireDb(context.env.DB);
   if (missingDb) return missingDb;
-  const forbidden = requireRole(context.request, ["creator", "admin"]);
-  if (forbidden) return forbidden;
+  const auth = await requirePermission(context, "Edit Drafts");
+  if (auth.response) return auth.response;
 
   const sopId = getRouteParam(context, "id");
   const [payload, parseError] = await readBody<SopVersionPayload>(context.request);
@@ -123,8 +123,8 @@ export const onRequestPost = async (context: PagesFunctionContext) => {
       metadata,
       optionalText(payload?.changeSummary || "Draft version created.", 2000),
       "Draft",
-      payload?.actorUserId || null,
-      payload?.actorUserId || null,
+      payload?.actorUserId || auth.user?.id || null,
+      payload?.actorUserId || auth.user?.id || null,
       nowIso,
       now,
     )

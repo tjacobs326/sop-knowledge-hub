@@ -18,6 +18,12 @@ export interface SopWorkflowInput {
   notes?: string;
 }
 
+interface WorkflowTransitionRow {
+  toStatus: string;
+  createsReview: number;
+  requiresNotes: number;
+}
+
 async function runStatements(db: D1DatabaseBinding, statements: D1PreparedStatement[]) {
   if (typeof db.batch === "function") {
     await db.batch(statements);
@@ -29,6 +35,29 @@ async function runStatements(db: D1DatabaseBinding, statements: D1PreparedStatem
   }
 }
 
+async function configuredTransition(
+  db: D1DatabaseBinding,
+  action: SopWorkflowAction,
+  currentStatus: string,
+) {
+  try {
+    return await db
+      .prepare(
+        `SELECT
+          to_status AS toStatus,
+          creates_review AS createsReview,
+          requires_notes AS requiresNotes
+         FROM sop_workflow_transitions
+         WHERE action = ? AND from_status = ?
+         LIMIT 1`,
+      )
+      .bind(action, currentStatus)
+      .first<WorkflowTransitionRow>();
+  } catch {
+    return null;
+  }
+}
+
 export async function transitionSop(db: D1DatabaseBinding, input: SopWorkflowInput) {
   const sop = await db
     .prepare("SELECT id, status, current_version_id AS currentVersionId FROM sops WHERE id = ? LIMIT 1")
@@ -37,11 +66,16 @@ export async function transitionSop(db: D1DatabaseBinding, input: SopWorkflowInp
 
   if (!sop) return null;
 
-  const newStatus = statusByAction[input.action];
+  const configured = await configuredTransition(db, input.action, sop.status);
+  const newStatus = configured?.toStatus || statusByAction[input.action];
   const versionId = input.versionId || sop.currentVersionId || null;
   const now = Math.floor(Date.now() / 1000);
   const nowIso = new Date(now * 1000).toISOString();
   const statements: D1PreparedStatement[] = [];
+
+  if (configured?.requiresNotes && !input.notes?.trim()) {
+    throw new Error("This workflow transition requires notes.");
+  }
 
   if (input.action === "publish") {
     statements.push(
@@ -141,6 +175,25 @@ export async function transitionSop(db: D1DatabaseBinding, input: SopWorkflowInp
         now,
       ),
   );
+
+  if (configured?.createsReview && versionId) {
+    statements.push(
+      db
+        .prepare(
+          `INSERT INTO sop_reviews (
+            id, sop_id, version_id, reviewer_id, status, comments, created_at, updated_at
+          ) VALUES (?, ?, ?, NULL, 'assigned', ?, ?, ?)`,
+        )
+        .bind(
+          newId("review"),
+          input.sopId,
+          versionId,
+          input.notes || "Submitted for review.",
+          now,
+          now,
+        ),
+    );
+  }
 
   await runStatements(db, statements);
   return { previousStatus: sop.status, newStatus, versionId };

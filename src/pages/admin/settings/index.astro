@@ -1,41 +1,10 @@
 ---
 import Layout from "../../../components/Layout.astro";
+import { adminSettings, adminSettingStatusOptions } from "../../../data/platform-config";
 
 // Future access note: restrict this route to admins with Cloudflare Access.
-const settings = [
-  {
-    id: "access-model",
-    label: "Access model",
-    description: "Use Cloudflare Access groups for Normal Users, Creators / Reviewers, and Admins.",
-    owner: "SOP administrators",
-    primaryPolicy: "Cloudflare Access role groups",
-    status: "Planned",
-    notes: "Map each navigation role to an Access group before sharing broadly.",
-    options: ["Normal Users", "Creators / Reviewers", "Admins"],
-  },
-  {
-    id: "review-workflow",
-    label: "Review workflow",
-    description: "Route submitted requests into the review queue before publishing.",
-    owner: "Instructional Technology",
-    primaryPolicy: "Submitted -> Triage -> Drafting -> In Review -> Approved -> Published",
-    status: "Active",
-    notes: "Reviewers can move items through the queue and convert submissions into editable drafts.",
-    options: ["Require owner assignment", "Require review date", "Allow direct publish"],
-  },
-  {
-    id: "taxonomy",
-    label: "Taxonomy",
-    description: "Maintain categories and tags as shared admin-controlled lists.",
-    owner: "Knowledge Manager",
-    primaryPolicy: "Admin-managed categories and tags",
-    status: "Active",
-    notes: "Categories define major SOP buckets. Tags improve search, analytics, and cross-category discovery.",
-    options: ["Allow category edits", "Allow tag edits", "Track unused tags"],
-  },
-];
-
-const statusOptions = ["Planned", "Active", "Paused", "Needs Review"];
+const settings = adminSettings;
+const statusOptions = adminSettingStatusOptions;
 ---
 
 <Layout title="Settings" wide>
@@ -266,4 +235,3 @@ const statusOptions = ["Planned", "Active", "Paused", "Needs Review"];
 
   renderSettings();
 </script>
-

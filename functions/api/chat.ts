@@ -1,19 +1,12 @@
 import { aiKnowledgeSources, type AiKnowledgeSource } from "../../src/data/ai-knowledge";
+import { getAuthUser } from "../_shared/auth";
+import { type PagesFunctionContext } from "../_shared/cloudflare";
 
 type ChatRole = "normal" | "creator" | "admin";
 
 interface ChatRequestBody {
   message?: string;
   role?: ChatRole;
-}
-
-interface PagesFunctionContext {
-  request: Request;
-  env: {
-    AI?: {
-      run: (model: string, input: unknown) => Promise<unknown>;
-    };
-  };
 }
 
 interface WorkersAiTextResponse {
@@ -136,7 +129,8 @@ export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
   }
 
   const message = String(body.message || "").trim();
-  const role: ChatRole = body.role === "admin" ? "admin" : body.role === "creator" ? "creator" : "normal";
+  const authUser = await getAuthUser({ request, env });
+  const role: ChatRole = authUser?.role === "admin" ? "admin" : authUser?.role === "creator" ? "creator" : "normal";
 
   if (!message) {
     return jsonResponse({ error: "Ask a question first." }, 400);

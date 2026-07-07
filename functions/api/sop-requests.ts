@@ -3,13 +3,13 @@ import {
   isEmail,
   optionalText,
   readBody,
-  requireRole,
   roleFromRequest,
   success,
   unixFromDate,
   unixNow,
 } from "../_shared/api";
 import { requireDb } from "../_shared/admin";
+import { requirePermission } from "../_shared/auth";
 import { newId, type PagesFunctionContext } from "../_shared/cloudflare";
 
 interface SopRequestPayload {
@@ -77,15 +77,17 @@ function selectRequests() {
 export const onRequestGet = async ({ request, env }: PagesFunctionContext) => {
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
+  const auth = await requirePermission({ request, env }, "Submit Requests");
+  if (auth.response) return auth.response;
 
-  const role = roleFromRequest(request);
+  const role = auth.user?.role || roleFromRequest(request);
   const url = new URL(request.url);
   const status = url.searchParams.get("status");
   const where: string[] = [];
   const values: unknown[] = [];
 
   if (role === "normal") {
-    const email = url.searchParams.get("email");
+    const email = auth.user?.email || url.searchParams.get("email");
     if (!email) return failure("FORBIDDEN", "Normal users must filter requests by email.", 403);
     where.push("sop_requests.submitted_by_email = ?");
     values.push(email);
@@ -112,6 +114,8 @@ export const onRequestGet = async ({ request, env }: PagesFunctionContext) => {
 export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
+  const auth = await requirePermission({ request, env }, "Submit Requests");
+  if (auth.response) return auth.response;
 
   const [payload, parseError] = await readBody<SopRequestPayload>(request);
   if (parseError) return parseError;
@@ -189,8 +193,8 @@ export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
 export const onRequestPut = async ({ request, env }: PagesFunctionContext) => {
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
-  const forbidden = requireRole(request, ["creator", "admin"]);
-  if (forbidden) return forbidden;
+  const auth = await requirePermission({ request, env }, "Review SOPs");
+  if (auth.response) return auth.response;
 
   const [payload, parseError] = await readBody<SopRequestPayload & { id?: string }>(request);
   if (parseError) return parseError;

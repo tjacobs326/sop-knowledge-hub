@@ -1,4 +1,5 @@
 import { readJsonBody, requireDb } from "../_shared/admin";
+import { requirePermission } from "../_shared/auth";
 import { jsonResponse, newId, type PagesFunctionContext } from "../_shared/cloudflare";
 
 interface RequestPayload {
@@ -101,8 +102,11 @@ function reviewSelect() {
 }
 
 export const onRequestGet = async ({ request, env }: PagesFunctionContext) => {
+  const context = { request, env };
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
+  const auth = await requirePermission(context, "Review SOPs");
+  if (auth.response) return auth.response;
   const db = env.DB!;
 
   const url = new URL(request.url);
@@ -132,8 +136,11 @@ export const onRequestGet = async ({ request, env }: PagesFunctionContext) => {
 };
 
 export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
+  const context = { request, env };
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
+  const auth = await requirePermission(context, "Review SOPs");
+  if (auth.response) return auth.response;
   const db = env.DB!;
 
   const url = new URL(request.url);
@@ -142,8 +149,11 @@ export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
 };
 
 export const onRequestPut = async ({ request, env }: PagesFunctionContext) => {
+  const context = { request, env };
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
+  const auth = await requirePermission(context, "Review SOPs");
+  if (auth.response) return auth.response;
   const db = env.DB!;
 
   const url = new URL(request.url);

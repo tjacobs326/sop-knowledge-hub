@@ -4,12 +4,11 @@ import {
   getRouteParam,
   optionalText,
   readBody,
-  requireRole,
-  roleFromRequest,
   success,
   unixNow,
 } from "../../_shared/api";
 import { requireDb } from "../../_shared/admin";
+import { getAuthUser, requirePermission } from "../../_shared/auth";
 import { newId, type PagesFunctionContext } from "../../_shared/cloudflare";
 import { getSopById } from "../../_shared/sop-data";
 
@@ -18,7 +17,8 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
   if (missingDb) return missingDb;
 
   const id = getRouteParam(context, "id");
-  const publicOnly = roleFromRequest(context.request) === "normal";
+  const user = await getAuthUser(context);
+  const publicOnly = !user || user.role === "normal";
   const sop = await getSopById(context.env.DB!, id, publicOnly);
   if (!sop) return failure("NOT_FOUND", "SOP not found.", 404);
 
@@ -55,8 +55,8 @@ function listValue(value: unknown) {
 export const onRequestPut = async (context: PagesFunctionContext) => {
   const missingDb = requireDb(context.env.DB);
   if (missingDb) return missingDb;
-  const forbidden = requireRole(context.request, ["creator", "admin"]);
-  if (forbidden) return forbidden;
+  const auth = await requirePermission(context, "Edit Drafts");
+  if (auth.response) return auth.response;
 
   const id = getRouteParam(context, "id");
   const existing = await getSopById(context.env.DB!, id, false);
@@ -108,7 +108,7 @@ export const onRequestPut = async (context: PagesFunctionContext) => {
   )
     .bind(
       newId("audit"),
-      payload?.actorUserId || null,
+      payload?.actorUserId || auth.user?.id || null,
       "update_sop",
       "sop",
       id,

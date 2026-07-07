@@ -1,30 +1,5 @@
 ---
-const roles = [
-  {
-    id: "normal",
-    title: "Normal User",
-    label: "Normal Users",
-    description: "Search SOPs, use Guided Finder, browse categories, and submit requests.",
-    landingPage: "/search/",
-    options: ["Search SOPs", "Guided Finder", "Categories", "Submit Request"],
-  },
-  {
-    id: "creator",
-    title: "Creator / Reviewer",
-    label: "Creators / Reviewers",
-    description: "Create SOPs, manage drafts, review submissions, and handle assigned work.",
-    landingPage: "/my-work/",
-    options: ["My Work", "AI Assist", "Create SOP", "Review Queue", "Needs Review"],
-  },
-  {
-    id: "admin",
-    title: "Admin",
-    label: "Admins",
-    description: "Manage users, taxonomy, analytics, settings, and platform governance.",
-    landingPage: "/admin/users/",
-    options: ["Users", "Categories", "Tags", "Analytics", "Settings"],
-  },
-];
+import { roleAccessViews, roleRouteRules } from "../data/platform-config";
 ---
 
 <section class="role-gate no-print" id="role-gate" aria-labelledby="role-gate-heading" hidden>
@@ -48,7 +23,7 @@ const roles = [
     </div>
 
     <div class="role-gate__grid">
-      {roles.map((role) => (
+      {roleAccessViews.map((role) => (
         <button
           class="role-gate__card"
           type="button"
@@ -78,18 +53,10 @@ const roles = [
   </div>
 </section>
 
-<script>
+<script is:inline define:vars={{ roleAccessViews, roleRouteRules }}>
   const ROLE_KEY = "sopHubSelectedRole";
-  const ROLE_LABELS: Record<string, string> = {
-    normal: "Normal User",
-    creator: "Creator / Reviewer",
-    admin: "Admin",
-  };
-  const ROLE_LANDING: Record<string, string> = {
-    normal: "/search/",
-    creator: "/my-work/",
-    admin: "/admin/users/",
-  };
+  const ROLE_LABELS = Object.fromEntries(roleAccessViews.map((role) => [role.id, role.title]));
+  const ROLE_LANDING = Object.fromEntries(roleAccessViews.map((role) => [role.id, role.landingPage]));
 
   const gate = document.getElementById("role-gate");
   const accessDenied = document.getElementById("role-access-denied");
@@ -97,31 +64,22 @@ const roles = [
   const landingLink = document.getElementById("role-landing-link");
   const body = document.body;
 
-  const routeRules = [
-    { pattern: /^\/admin\/users\//, roles: ["admin"] },
-    { pattern: /^\/admin\/categories\//, roles: ["admin"] },
-    { pattern: /^\/admin\/tags\//, roles: ["admin"] },
-    { pattern: /^\/admin\/analytics\//, roles: ["admin"] },
-    { pattern: /^\/admin\/settings\//, roles: ["admin"] },
-    { pattern: /^\/admin\/review\//, roles: ["creator"] },
-    { pattern: /^\/admin\/needs-review\//, roles: ["creator"] },
-    { pattern: /^\/create\//, roles: ["creator"] },
-    { pattern: /^\/drafts\//, roles: ["creator"] },
-    { pattern: /^\/my-work\//, roles: ["creator"] },
-    { pattern: /^\/ai-assist\//, roles: ["creator"] },
-  ];
+  const routeRules = roleRouteRules.map((rule) => ({
+    pattern: new RegExp(rule.pattern),
+    roles: rule.roles,
+  }));
 
-  function normalizeRole(role: string | null) {
+  function normalizeRole(role) {
     return role === "admin" || role === "creator" || role === "normal" ? role : "";
   }
 
-  function roleCanAccessPath(role: string, pathname: string) {
+  function roleCanAccessPath(role, pathname) {
     const rule = routeRules.find((item) => item.pattern.test(pathname));
     if (!rule) return true;
     return rule.roles.includes(role);
   }
 
-  function syncRoleInputs(role: string) {
+  function syncRoleInputs(role) {
     const chatRole = document.getElementById("ai-chat-role");
     const assistRole = document.getElementById("assist-role");
     const apiRole = role === "admin" ? "admin" : role === "creator" ? "creator" : "normal";
@@ -135,7 +93,7 @@ const roles = [
     }
   }
 
-  function applyRole(role: string) {
+  function applyRole(role) {
     const selectedRole = normalizeRole(role);
     body.dataset.sopRole = selectedRole;
     body.classList.toggle("role-unselected", !selectedRole);
@@ -166,7 +124,7 @@ const roles = [
     }
   }
 
-  function setRole(role: string, landing?: string) {
+  function setRole(role, landing) {
     const selectedRole = normalizeRole(role);
     if (!selectedRole) return;
     localStorage.setItem(ROLE_KEY, selectedRole);

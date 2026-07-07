@@ -101,13 +101,34 @@ const { finderData, sops } = Astro.props;
   const finderSearchInput = document.getElementById("finder-search-input");
 
   const answerIcons = [
-    { icon: "Ticket", tone: "ticket" },
-    { icon: "Course", tone: "course" },
-    { icon: "Q", tone: "qa" },
-    { icon: "AI", tone: "ai" },
-    { icon: "F", tone: "fix" },
-    { icon: "Doc", tone: "template" },
-    { icon: "More", tone: "other" },
+    {
+      icon: '<svg viewBox="0 0 24 24" focusable="false"><path d="M5 9.25V6.5A1.5 1.5 0 0 1 6.5 5h11A1.5 1.5 0 0 1 19 6.5v2.75a2.75 2.75 0 0 0 0 5.5v2.75a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 17.5v-2.75a2.75 2.75 0 0 0 0-5.5Z"/><path d="M9.25 8.25h5.5M9.25 12h5.5M9.25 15.75h3.5"/></svg>',
+      tone: "ticket",
+    },
+    {
+      icon: '<svg viewBox="0 0 24 24" focusable="false"><path d="M5.5 5.75h5.25A2.25 2.25 0 0 1 13 8v10.25a2.25 2.25 0 0 0-2.25-2.25H5.5V5.75Z"/><path d="M18.5 5.75h-5.25A2.25 2.25 0 0 0 11 8v10.25a2.25 2.25 0 0 1 2.25-2.25h5.25V5.75Z"/></svg>',
+      tone: "course",
+    },
+    {
+      icon: '<svg viewBox="0 0 24 24" focusable="false"><path d="m7 12 3.25 3.25L17.5 8"/><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z"/></svg>',
+      tone: "qa",
+    },
+    {
+      icon: '<svg viewBox="0 0 24 24" focusable="false"><path d="M12 3.75 13.9 9l5.35 1.9-5.35 1.9L12 18.25l-1.9-5.45-5.35-1.9L10.1 9 12 3.75Z"/><path d="m18.5 16 .65 1.85L21 18.5l-1.85.65L18.5 21l-.65-1.85L16 18.5l1.85-.65.65-1.85Z"/></svg>',
+      tone: "ai",
+    },
+    {
+      icon: '<svg viewBox="0 0 24 24" focusable="false"><path d="M14.5 5.5a4.75 4.75 0 0 0 4 6.85l-6.15 6.15a2.75 2.75 0 0 1-3.9-3.9l6.15-6.15a4.75 4.75 0 0 0-.1-2.95Z"/><path d="m7.75 16.25 2 2"/></svg>',
+      tone: "fix",
+    },
+    {
+      icon: '<svg viewBox="0 0 24 24" focusable="false"><path d="M7 4.5h6.25L17 8.25V19.5H7V4.5Z"/><path d="M13 4.75V8.5h3.75"/><path d="M9.75 12.25h4.5M9.75 15.25h4.5"/></svg>',
+      tone: "template",
+    },
+    {
+      icon: '<svg viewBox="0 0 24 24" focusable="false"><path d="M6.75 12h.01M12 12h.01M17.25 12h.01"/></svg>',
+      tone: "other",
+    },
   ];
 
   let currentNodeId = finderData.startNode;
@@ -136,9 +157,8 @@ const { finderData, sops } = Astro.props;
           const icon = answerIcons[index % answerIcons.length];
           return `
             <button class="finder-answer finder-answer--${icon.tone}" type="button" data-answer-index="${index}">
-              <span class="finder-answer__icon" aria-hidden="true">${escapeHtml(icon.icon)}</span>
+              <span class="finder-answer__icon" aria-hidden="true">${icon.icon}</span>
               <span class="finder-answer__label">${escapeHtml(answer.label)}</span>
-              <span class="finder-answer__arrow" aria-hidden="true">-&gt;</span>
             </button>
           `;
         },

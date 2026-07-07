@@ -192,6 +192,8 @@ const publishingUsers = [...userAccounts]
 
 <SopDraftPreview />
 
+<script is:inline id="publishing-users-data" type="application/json" set:html={JSON.stringify(publishingUsers)} />
+
 <script
   is:inline
   define:vars={{
@@ -200,7 +202,6 @@ const publishingUsers = [...userAccounts]
     PUBLISHED_SOPS_STORAGE_KEY,
     REVIEW_QUEUE_STORAGE_KEY,
     USER_STORAGE_KEY,
-    initialPublishingUsers: publishingUsers,
   }}
 >
   const form = document.getElementById("create-sop-form");
@@ -214,6 +215,8 @@ const publishingUsers = [...userAccounts]
   const previewButton = document.getElementById("preview-sop");
   const publishButton = document.getElementById("publish-sop");
   const publishingAccount = document.getElementById("publishing-account");
+  const publishingUsersData = document.getElementById("publishing-users-data");
+  const publishingUsersSeed = JSON.parse(publishingUsersData?.textContent || "[]");
   const publishPermission = document.getElementById("publish-permission");
   const preview = document.getElementById("draft-preview");
   const confirmation = document.getElementById("create-confirmation");
@@ -749,7 +752,7 @@ const publishingUsers = [...userAccounts]
   }
 
   function getPublishingUsers() {
-    return mergeById(initialPublishingUsers, readStorage(USER_STORAGE_KEY))
+    return mergeById(publishingUsersSeed, readStorage(USER_STORAGE_KEY))
       .filter((user) => user.status === "Active")
       .sort((a, b) => {
         const aCanPublish = a.accessLevel === "Creator / Reviewer";

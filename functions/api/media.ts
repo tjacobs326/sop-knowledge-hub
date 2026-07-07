@@ -4,6 +4,7 @@ import {
   newId,
   type PagesFunctionContext,
 } from "../_shared/cloudflare";
+import { requirePermission } from "../_shared/auth";
 
 const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 const ALLOWED_MIME_PREFIXES = ["image/", "video/"];
@@ -54,9 +55,11 @@ export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
       503,
     );
   }
+  const auth = await requirePermission({ request, env }, "Upload Media");
+  if (auth.response) return auth.response;
 
   const formData = await request.formData();
-  const uploadedByUserId = String(formData.get("uploadedByUserId") || "") || null;
+  const uploadedByUserId = String(formData.get("uploadedByUserId") || auth.user?.id || "") || null;
   const purpose = String(formData.get("purpose") || "Other");
   const entityType = String(formData.get("entityType") || "");
   const entityId = String(formData.get("entityId") || "") || null;

@@ -1,5 +1,6 @@
-import { failure, getRouteParam, optionalText, readBody, requireRole, success, unixNow } from "../../_shared/api";
+import { failure, getRouteParam, optionalText, readBody, success, unixNow } from "../../_shared/api";
 import { requireDb } from "../../_shared/admin";
+import { getAuthUser, requirePermission } from "../../_shared/auth";
 import { type PagesFunctionContext } from "../../_shared/cloudflare";
 
 interface RequestUpdatePayload {
@@ -42,18 +43,26 @@ function selectRequest() {
 export const onRequestGet = async (context: PagesFunctionContext) => {
   const missingDb = requireDb(context.env.DB);
   if (missingDb) return missingDb;
+  const user = await getAuthUser(context);
+  if (!user) return failure("UNAUTHENTICATED", "Sign in before using this API.", 401);
 
   const id = getRouteParam(context, "id");
   const request = await context.env.DB!.prepare(selectRequest()).bind(id).first();
   if (!request) return failure("NOT_FOUND", "SOP request not found.", 404);
+  if (
+    user.role === "normal" &&
+    String((request as Record<string, unknown>).submittedByEmail || "").toLowerCase() !== user.email
+  ) {
+    return failure("FORBIDDEN", "You can only view your own SOP requests.", 403);
+  }
   return success({ request });
 };
 
 export const onRequestPut = async (context: PagesFunctionContext) => {
   const missingDb = requireDb(context.env.DB);
   if (missingDb) return missingDb;
-  const forbidden = requireRole(context.request, ["creator", "admin"]);
-  if (forbidden) return forbidden;
+  const auth = await requirePermission(context, "Review SOPs");
+  if (auth.response) return auth.response;
 
   const id = getRouteParam(context, "id");
   const [payload, parseError] = await readBody<RequestUpdatePayload>(context.request);

@@ -1,4 +1,5 @@
 import { idFrom, readJsonBody, requireDb, slugify } from "../../_shared/admin";
+import { requirePermission } from "../../_shared/auth";
 import { jsonResponse, type PagesFunctionContext } from "../../_shared/cloudflare";
 
 interface CategoryPayload {
@@ -26,18 +27,24 @@ function categorySelect() {
   FROM categories`;
 }
 
-export const onRequestGet = async ({ env }: PagesFunctionContext) => {
+export const onRequestGet = async (context: PagesFunctionContext) => {
+  const { env } = context;
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
+  const auth = await requirePermission(context, "Manage Categories");
+  if (auth.response) return auth.response;
   const db = env.DB!;
 
   const result = await db.prepare(`${categorySelect()} ORDER BY sort_order ASC, name ASC`).all();
   return jsonResponse({ categories: result.results || [] });
 };
 
-export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
+export const onRequestPost = async (context: PagesFunctionContext) => {
+  const { request, env } = context;
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
+  const auth = await requirePermission(context, "Manage Categories");
+  if (auth.response) return auth.response;
   const db = env.DB!;
 
   const [payload, parseError] = await readJsonBody<CategoryPayload>(request);
@@ -68,9 +75,12 @@ export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
   return jsonResponse({ category }, 201);
 };
 
-export const onRequestPut = async ({ request, env }: PagesFunctionContext) => {
+export const onRequestPut = async (context: PagesFunctionContext) => {
+  const { request, env } = context;
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
+  const auth = await requirePermission(context, "Manage Categories");
+  if (auth.response) return auth.response;
   const db = env.DB!;
 
   const [payload, parseError] = await readJsonBody<CategoryPayload>(request);
@@ -107,9 +117,12 @@ export const onRequestPut = async ({ request, env }: PagesFunctionContext) => {
   return jsonResponse({ category });
 };
 
-export const onRequestDelete = async ({ request, env }: PagesFunctionContext) => {
+export const onRequestDelete = async (context: PagesFunctionContext) => {
+  const { request, env } = context;
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
+  const auth = await requirePermission(context, "Manage Categories");
+  if (auth.response) return auth.response;
   const db = env.DB!;
 
   const url = new URL(request.url);

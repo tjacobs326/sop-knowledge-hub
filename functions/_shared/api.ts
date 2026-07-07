@@ -53,10 +53,14 @@ export function cacheHeaders(kind: "public" | "private" = "private") {
 }
 
 export function roleFromRequest(request: Request): ApiRole {
+  const hostname = new URL(request.url).hostname;
+  const allowDevRoleOverride = hostname === "127.0.0.1" || hostname === "localhost";
   const raw =
-    request.headers.get("x-sop-role") ||
-    request.headers.get("x-user-role") ||
-    new URL(request.url).searchParams.get("role") ||
+    (allowDevRoleOverride
+      ? request.headers.get("x-sop-role") ||
+        request.headers.get("x-user-role") ||
+        new URL(request.url).searchParams.get("role")
+      : "") ||
     "normal";
   const normalized = raw.toLowerCase();
   if (normalized.includes("admin")) return "admin";

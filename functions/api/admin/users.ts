@@ -6,6 +6,7 @@ import {
   type AccessLevel,
   type UserStatus,
 } from "../../_shared/admin";
+import { requirePermission } from "../../_shared/auth";
 import { jsonResponse, type D1DatabaseBinding, type PagesFunctionContext } from "../../_shared/cloudflare";
 
 interface UserPayload {
@@ -95,9 +96,12 @@ async function replaceUserRole(db: D1DatabaseBinding, userId: string, roleId: st
   }
 }
 
-export const onRequestGet = async ({ env }: PagesFunctionContext) => {
+export const onRequestGet = async (context: PagesFunctionContext) => {
+  const { env } = context;
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
+  const auth = await requirePermission(context, "Manage Users");
+  if (auth.response) return auth.response;
   const db = env.DB!;
 
   const [usersResult, rolesResult] = await Promise.all([
@@ -111,9 +115,12 @@ export const onRequestGet = async ({ env }: PagesFunctionContext) => {
   });
 };
 
-export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
+export const onRequestPost = async (context: PagesFunctionContext) => {
+  const { request, env } = context;
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
+  const auth = await requirePermission(context, "Manage Users");
+  if (auth.response) return auth.response;
   const db = env.DB!;
 
   const url = new URL(request.url);
@@ -121,9 +128,12 @@ export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
   return saveUser(request, db, false);
 };
 
-export const onRequestPut = async ({ request, env }: PagesFunctionContext) => {
+export const onRequestPut = async (context: PagesFunctionContext) => {
+  const { request, env } = context;
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
+  const auth = await requirePermission(context, "Manage Users");
+  if (auth.response) return auth.response;
   const db = env.DB!;
 
   const url = new URL(request.url);
@@ -131,9 +141,12 @@ export const onRequestPut = async ({ request, env }: PagesFunctionContext) => {
   return saveUser(request, db, true);
 };
 
-export const onRequestDelete = async ({ request, env }: PagesFunctionContext) => {
+export const onRequestDelete = async (context: PagesFunctionContext) => {
+  const { request, env } = context;
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
+  const auth = await requirePermission(context, "Manage Users");
+  if (auth.response) return auth.response;
   const db = env.DB!;
 
   const url = new URL(request.url);

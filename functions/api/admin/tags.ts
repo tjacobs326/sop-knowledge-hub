@@ -1,4 +1,5 @@
 import { idFrom, readJsonBody, requireDb, slugify } from "../../_shared/admin";
+import { requirePermission } from "../../_shared/auth";
 import { jsonResponse, type PagesFunctionContext } from "../../_shared/cloudflare";
 
 interface TagPayload {
@@ -26,9 +27,12 @@ function tagSelect() {
   LEFT JOIN sop_tags ON sop_tags.tag_id = tags.id`;
 }
 
-export const onRequestGet = async ({ env }: PagesFunctionContext) => {
+export const onRequestGet = async (context: PagesFunctionContext) => {
+  const { env } = context;
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
+  const auth = await requirePermission(context, "Manage Tags");
+  if (auth.response) return auth.response;
   const db = env.DB!;
 
   const result = await db.prepare(
@@ -39,9 +43,12 @@ export const onRequestGet = async ({ env }: PagesFunctionContext) => {
   return jsonResponse({ tags: result.results || [] });
 };
 
-export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
+export const onRequestPost = async (context: PagesFunctionContext) => {
+  const { request, env } = context;
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
+  const auth = await requirePermission(context, "Manage Tags");
+  if (auth.response) return auth.response;
   const db = env.DB!;
 
   const [payload, parseError] = await readJsonBody<TagPayload>(request);
@@ -65,9 +72,12 @@ export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
   return jsonResponse({ tag }, 201);
 };
 
-export const onRequestPut = async ({ request, env }: PagesFunctionContext) => {
+export const onRequestPut = async (context: PagesFunctionContext) => {
+  const { request, env } = context;
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
+  const auth = await requirePermission(context, "Manage Tags");
+  if (auth.response) return auth.response;
   const db = env.DB!;
 
   const [payload, parseError] = await readJsonBody<TagPayload>(request);
@@ -95,9 +105,12 @@ export const onRequestPut = async ({ request, env }: PagesFunctionContext) => {
   return jsonResponse({ tag });
 };
 
-export const onRequestDelete = async ({ request, env }: PagesFunctionContext) => {
+export const onRequestDelete = async (context: PagesFunctionContext) => {
+  const { request, env } = context;
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
+  const auth = await requirePermission(context, "Manage Tags");
+  if (auth.response) return auth.response;
   const db = env.DB!;
 
   const name = new URL(request.url).searchParams.get("name");
