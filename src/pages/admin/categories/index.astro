@@ -44,24 +44,21 @@ import { categories } from "../../../data/categories";
       </table>
     </div>
 
-    <form class="form-grid" id="category-editor" hidden>
+    <form class="form-grid admin-category-editor" id="category-editor" hidden>
       <h2 class="form-section-title field--full" id="category-editor-heading">Edit Category</h2>
       <input id="category-original-slug" name="originalSlug" type="hidden" />
+      <input id="category-slug" name="slug" type="hidden" />
       <div class="field">
         <label for="category-name">Category name</label>
         <input id="category-name" name="name" type="text" required />
       </div>
       <div class="field">
-        <label for="category-slug">Slug</label>
-        <input id="category-slug" name="slug" type="text" required />
-      </div>
-      <div class="field">
-        <label for="category-icon">Icon</label>
-        <input id="category-icon" name="icon" type="text" />
-      </div>
-      <div class="field">
         <label for="category-color">Color</label>
         <input id="category-color" name="color" type="color" />
+      </div>
+      <div class="field field--full">
+        <label for="category-icon">Icon</label>
+        <input id="category-icon" name="icon" type="text" />
       </div>
       <div class="field field--full">
         <label for="category-description">Description</label>

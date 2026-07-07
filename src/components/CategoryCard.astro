@@ -60,7 +60,7 @@ const iconName = iconBySlug[slug] ?? "document";
   .category-card__header {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: 1.05rem;
+    gap: 0.95rem;
     align-items: start;
     padding-bottom: 1.05rem;
     margin-bottom: 0.75rem;
@@ -86,21 +86,48 @@ const iconName = iconBySlug[slug] ?? "document";
 
   .category-card__icon {
     display: grid;
-    width: 4.1rem;
-    height: 4.1rem;
+    width: 3.8rem;
+    height: 3.35rem;
     place-items: center;
     color: var(--color-ink);
-    background:
-      radial-gradient(circle at 30% 18%, rgba(255, 255, 255, 0.82), transparent 34%),
-      linear-gradient(145deg, color-mix(in srgb, var(--card-accent, var(--color-dune)), var(--color-kindle) 16%), rgba(255, 255, 255, 0.86));
-    border: 1.5px solid color-mix(in srgb, var(--card-accent, var(--color-dune)), var(--color-ink) 24%);
-    border-radius: 999px;
-    box-shadow: 0 14px 28px rgba(26, 50, 99, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
   }
 
   .category-card__icon .app-icon {
-    width: 2.45rem;
-    height: 2.45rem;
+    width: 3.25rem;
+    height: 3.25rem;
+  }
+
+  .category-card__icon .app-icon[data-variant="illustrated"] > path:not(.app-icon__fill),
+  .category-card__icon .app-icon__fill {
+    stroke: var(--color-ink);
+  }
+
+  .category-card__icon .app-icon__fill--blue {
+    fill: var(--color-ink);
+  }
+
+  .category-card__icon .app-icon__fill--green {
+    fill: var(--color-success);
+  }
+
+  .category-card__icon .app-icon__fill--orange {
+    fill: var(--color-kindle-accessible);
+  }
+
+  .category-card__icon .app-icon__fill--pink {
+    fill: var(--color-danger);
+  }
+
+  .category-card__icon .app-icon__fill--soft {
+    fill: var(--color-muted);
+  }
+
+  .category-card__icon .app-icon__fill--yellow {
+    fill: var(--color-beacon-accessible);
   }
 
   .category-card p {
