@@ -7,3 +7,5 @@ dist/
 *.log
 .env.local
 .env*.local
+.helpdocs-import/
+helpdocs-live-*.json
