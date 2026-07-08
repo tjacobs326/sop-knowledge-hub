@@ -1,0 +1,1204 @@
+﻿{
+    "categories":  [
+                       {
+                           "category_id":  "kkg0wehqq8",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "",
+                           "title":  "Archive",
+                           "description":  "",
+                           "slug":  "archive",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "Archive",
+                                                    "description":  "",
+                                                    "slug":  "archive"
+                                                }
+                                            ],
+                           "created_at":  "2024-04-25T13:50:22.263552Z",
+                           "updated_at":  "2024-04-25T13:50:36.900059Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/kkg0wehqq8-archive",
+                           "relative_url":  "/category/kkg0wehqq8-archive"
+                       },
+                       {
+                           "category_id":  "4m08jrid47",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "",
+                           "title":  "Curriculum Teams SOPs",
+                           "description":  "",
+                           "slug":  "sops",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "Curriculum Teams SOPs",
+                                                    "description":  "",
+                                                    "slug":  "sops"
+                                                }
+                                            ],
+                           "created_at":  "2022-09-16T14:30:24.293281Z",
+                           "updated_at":  "2022-10-21T15:47:52.554776Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/4m08jrid47-sops",
+                           "relative_url":  "/category/4m08jrid47-sops"
+                       },
+                       {
+                           "category_id":  "5wfn8c3k3d",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "4m08jrid47",
+                           "title":  "CLW SOPs",
+                           "description":  "",
+                           "slug":  "sop",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "CLW SOPs",
+                                                    "description":  "",
+                                                    "slug":  "sop"
+                                                }
+                                            ],
+                           "created_at":  "2022-08-29T19:48:22.494701Z",
+                           "updated_at":  "2022-09-16T14:32:23.832999Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/5wfn8c3k3d-sop",
+                           "relative_url":  "/category/5wfn8c3k3d-sop"
+                       },
+                       {
+                           "category_id":  "6c43de33qh",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "4m08jrid47",
+                           "title":  "Cross Functional SOPs",
+                           "description":  "",
+                           "slug":  "cross-functional-sops",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "Cross Functional SOPs",
+                                                    "description":  "",
+                                                    "slug":  "cross-functional-sops"
+                                                }
+                                            ],
+                           "created_at":  "2023-01-25T21:43:44.535863Z",
+                           "updated_at":  "2023-01-25T21:44:01.07049Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/6c43de33qh-cross-functional-sops",
+                           "relative_url":  "/category/6c43de33qh-cross-functional-sops"
+                       },
+                       {
+                           "category_id":  "n90eyulp37",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "4m08jrid47",
+                           "title":  "ID Articles",
+                           "description":  "Location for all ID team articles categorized by SOP, Job Aid, etc.",
+                           "slug":  "id-articles",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "ID Articles",
+                                                    "description":  "Location for all ID team articles categorized by SOP, Job Aid, etc.",
+                                                    "slug":  "id-articles"
+                                                }
+                                            ],
+                           "created_at":  "2024-11-06T23:44:16.655222Z",
+                           "updated_at":  "2024-11-06T23:45:31.134502Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/n90eyulp37-id-articles",
+                           "relative_url":  "/category/n90eyulp37-id-articles"
+                       },
+                       {
+                           "category_id":  "0qtw5syspp",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "n90eyulp37",
+                           "title":  "ID Job Aids",
+                           "description":  "",
+                           "slug":  "id-jobaids",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "ID Job Aids",
+                                                    "description":  "",
+                                                    "slug":  "id-jobaids"
+                                                }
+                                            ],
+                           "created_at":  "2024-11-06T23:47:09.146422Z",
+                           "updated_at":  "2024-11-06T23:47:46.518637Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/0qtw5syspp-id-jobaids",
+                           "relative_url":  "/category/0qtw5syspp-id-jobaids"
+                       },
+                       {
+                           "category_id":  "9gavo7y0wf",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "n90eyulp37",
+                           "title":  "ID SOPs",
+                           "description":  "",
+                           "slug":  "id-sops",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "ID SOPs",
+                                                    "description":  "",
+                                                    "slug":  "id-sops"
+                                                }
+                                            ],
+                           "created_at":  "2024-11-06T23:49:41.583212Z",
+                           "updated_at":  "2024-11-06T23:50:02.491007Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/9gavo7y0wf-id-sops",
+                           "relative_url":  "/category/9gavo7y0wf-id-sops"
+                       },
+                       {
+                           "category_id":  "zqmvkr5lyi",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "4m08jrid47",
+                           "title":  "ITS SOPs",
+                           "description":  "Instructional Technology Specialist",
+                           "slug":  "sop",
+                           "is_featured":  false,
+                           "icon":  "https://files.helpdocs.io/ich648uje2/other/1714598710606/instructional-technology-logo.png",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "ITS SOPs",
+                                                    "description":  "Instructional Technology Specialist",
+                                                    "slug":  "sop"
+                                                }
+                                            ],
+                           "created_at":  "2022-08-29T19:47:33.276106Z",
+                           "updated_at":  "2024-05-01T21:25:13.351249Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/zqmvkr5lyi-sop",
+                           "relative_url":  "/category/zqmvkr5lyi-sop"
+                       },
+                       {
+                           "category_id":  "nqnfe2cobv",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "zqmvkr5lyi",
+                           "title":  "Cengage",
+                           "description":  "",
+                           "slug":  "cengage",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "Cengage",
+                                                    "description":  "",
+                                                    "slug":  "cengage"
+                                                }
+                                            ],
+                           "created_at":  "2024-03-14T15:32:58.158803Z",
+                           "updated_at":  "2024-03-14T15:33:17.883236Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/nqnfe2cobv-cengage",
+                           "relative_url":  "/category/nqnfe2cobv-cengage"
+                       },
+                       {
+                           "category_id":  "zekoyhvb6x",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "zqmvkr5lyi",
+                           "title":  "Nasium",
+                           "description":  "",
+                           "slug":  "nasium",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "Nasium",
+                                                    "description":  "",
+                                                    "slug":  "nasium"
+                                                }
+                                            ],
+                           "created_at":  "2024-04-29T21:38:09.939321Z",
+                           "updated_at":  "2024-05-01T21:36:17.88731Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/zekoyhvb6x-nasium",
+                           "relative_url":  "/category/zekoyhvb6x-nasium"
+                       },
+                       {
+                           "category_id":  "fwd03fynz3",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "zqmvkr5lyi",
+                           "title":  "ONL",
+                           "description":  "",
+                           "slug":  "onl",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "ONL",
+                                                    "description":  "",
+                                                    "slug":  "onl"
+                                                }
+                                            ],
+                           "created_at":  "2023-09-26T17:26:19.288295Z",
+                           "updated_at":  "2024-04-29T21:38:59.833745Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/fwd03fynz3-onl",
+                           "relative_url":  "/category/fwd03fynz3-onl"
+                       },
+                       {
+                           "category_id":  "dopawvsbga",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "fwd03fynz3",
+                           "title":  "Badges and Certificates",
+                           "description":  "",
+                           "slug":  "badges-and-certificates",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "Badges and Certificates",
+                                                    "description":  "",
+                                                    "slug":  "badges-and-certificates"
+                                                }
+                                            ],
+                           "created_at":  "2024-05-07T22:45:14.204968Z",
+                           "updated_at":  "2024-05-07T22:45:44.098225Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/dopawvsbga-badges-and-certificates",
+                           "relative_url":  "/category/dopawvsbga-badges-and-certificates"
+                       },
+                       {
+                           "category_id":  "0d9a60859s",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "fwd03fynz3",
+                           "title":  "Content/Web Pages/Overviews",
+                           "description":  "",
+                           "slug":  "content-web-pages",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "Content/Web Pages/Overviews",
+                                                    "description":  "",
+                                                    "slug":  "content-web-pages"
+                                                }
+                                            ],
+                           "created_at":  "2024-05-02T13:40:57.074527Z",
+                           "updated_at":  "2024-05-02T19:51:15.175684Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/0d9a60859s-content-web-pages",
+                           "relative_url":  "/category/0d9a60859s-content-web-pages"
+                       },
+                       {
+                           "category_id":  "v81t98cuhj",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "0d9a60859s",
+                           "title":  "HTML \u0026 Bootstrap",
+                           "description":  "",
+                           "slug":  "html-bootstrap",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "HTML \u0026 Bootstrap",
+                                                    "description":  "",
+                                                    "slug":  "html-bootstrap"
+                                                }
+                                            ],
+                           "created_at":  "2024-05-02T13:41:20.69729Z",
+                           "updated_at":  "2024-05-07T21:08:46.798779Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/v81t98cuhj-html-bootstrap",
+                           "relative_url":  "/category/v81t98cuhj-html-bootstrap"
+                       },
+                       {
+                           "category_id":  "se69nca8gt",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "v81t98cuhj",
+                           "title":  "Bootstrap 4 Programs \u0026 Code",
+                           "description":  "",
+                           "slug":  "bootstrap-4-programs-code",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "Bootstrap 4 Programs \u0026 Code",
+                                                    "description":  "",
+                                                    "slug":  "bootstrap-4-programs-code"
+                                                }
+                                            ],
+                           "created_at":  "2024-05-07T21:10:17.528128Z",
+                           "updated_at":  "2024-05-07T21:10:51.875322Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/se69nca8gt-bootstrap-4-programs-code",
+                           "relative_url":  "/category/se69nca8gt-bootstrap-4-programs-code"
+                       },
+                       {
+                           "category_id":  "aeodwqnd1u",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "fwd03fynz3",
+                           "title":  "Course Build Other",
+                           "description":  "",
+                           "slug":  "course-build-other",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "Course Build Other",
+                                                    "description":  "",
+                                                    "slug":  "course-build-other"
+                                                }
+                                            ],
+                           "created_at":  "2024-05-02T14:10:29.594673Z",
+                           "updated_at":  "2024-05-02T14:14:12.097491Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/aeodwqnd1u-course-build-other",
+                           "relative_url":  "/category/aeodwqnd1u-course-build-other"
+                       },
+                       {
+                           "category_id":  "1u23n8zsnc",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "fwd03fynz3",
+                           "title":  "D2L Assessment Tool",
+                           "description":  "",
+                           "slug":  "d-2-l-assessment-tool",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "D2L Assessment Tool",
+                                                    "description":  "",
+                                                    "slug":  "d-2-l-assessment-tool"
+                                                }
+                                            ],
+                           "created_at":  "2024-05-01T21:36:45.326412Z",
+                           "updated_at":  "2024-05-01T21:37:12.91805Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/1u23n8zsnc-d-2-l-assessment-tool",
+                           "relative_url":  "/category/1u23n8zsnc-d-2-l-assessment-tool"
+                       },
+                       {
+                           "category_id":  "t1cz2c879a",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "fwd03fynz3",
+                           "title":  "D2L Assignment Tool",
+                           "description":  "",
+                           "slug":  "d-2-l-assignment-tool",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "D2L Assignment Tool",
+                                                    "description":  "",
+                                                    "slug":  "d-2-l-assignment-tool"
+                                                }
+                                            ],
+                           "created_at":  "2024-05-01T21:38:21.892136Z",
+                           "updated_at":  "2024-05-01T21:39:09.897471Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/t1cz2c879a-d-2-l-assignment-tool",
+                           "relative_url":  "/category/t1cz2c879a-d-2-l-assignment-tool"
+                       },
+                       {
+                           "category_id":  "bah82pierw",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "fwd03fynz3",
+                           "title":  "Date Managment",
+                           "description":  "",
+                           "slug":  "date-managment",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "Date Managment",
+                                                    "description":  "",
+                                                    "slug":  "date-managment"
+                                                }
+                                            ],
+                           "created_at":  "2024-04-25T14:56:31.865316Z",
+                           "updated_at":  "2024-04-25T14:57:07.735127Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/bah82pierw-date-managment",
+                           "relative_url":  "/category/bah82pierw-date-managment"
+                       },
+                       {
+                           "category_id":  "xhnby5n9fy",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "fwd03fynz3",
+                           "title":  "Discussions",
+                           "description":  "",
+                           "slug":  "discussions",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "Discussions",
+                                                    "description":  "",
+                                                    "slug":  "discussions"
+                                                }
+                                            ],
+                           "created_at":  "2024-05-02T19:37:40.053709Z",
+                           "updated_at":  "2024-05-02T19:38:09.14423Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/xhnby5n9fy-discussions",
+                           "relative_url":  "/category/xhnby5n9fy-discussions"
+                       },
+                       {
+                           "category_id":  "3u7uahgv9u",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "fwd03fynz3",
+                           "title":  "Gradebook",
+                           "description":  "",
+                           "slug":  "gradebook",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "Gradebook",
+                                                    "description":  "",
+                                                    "slug":  "gradebook"
+                                                }
+                                            ],
+                           "created_at":  "2024-05-02T19:46:22.210091Z",
+                           "updated_at":  "2024-05-02T19:47:29.842283Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/3u7uahgv9u-gradebook",
+                           "relative_url":  "/category/3u7uahgv9u-gradebook"
+                       },
+                       {
+                           "category_id":  "kl96t753q6",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "fwd03fynz3",
+                           "title":  "Groups",
+                           "description":  "",
+                           "slug":  "groups",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "Groups",
+                                                    "description":  "",
+                                                    "slug":  "groups"
+                                                }
+                                            ],
+                           "created_at":  "2024-05-02T13:51:48.379662Z",
+                           "updated_at":  "2024-05-02T13:52:13.504355Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/kl96t753q6-groups",
+                           "relative_url":  "/category/kl96t753q6-groups"
+                       },
+                       {
+                           "category_id":  "p1ek1kj4f8",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "fwd03fynz3",
+                           "title":  "Intelligent Agents",
+                           "description":  "",
+                           "slug":  "intelligent-agents",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "Intelligent Agents",
+                                                    "description":  "",
+                                                    "slug":  "intelligent-agents"
+                                                }
+                                            ],
+                           "created_at":  "2024-04-29T21:39:16.971745Z",
+                           "updated_at":  "2024-04-29T21:39:49.481081Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/p1ek1kj4f8-intelligent-agents",
+                           "relative_url":  "/category/p1ek1kj4f8-intelligent-agents"
+                       },
+                       {
+                           "category_id":  "3jg4zl3nv2",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "fwd03fynz3",
+                           "title":  "Interactives",
+                           "description":  "",
+                           "slug":  "interactives",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "Interactives",
+                                                    "description":  "",
+                                                    "slug":  "interactives"
+                                                }
+                                            ],
+                           "created_at":  "2024-05-02T14:14:50.725771Z",
+                           "updated_at":  "2024-05-02T14:15:48.052052Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/3jg4zl3nv2-interactives",
+                           "relative_url":  "/category/3jg4zl3nv2-interactives"
+                       },
+                       {
+                           "category_id":  "w0vpo66ooi",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "fwd03fynz3",
+                           "title":  "Kaltura",
+                           "description":  "",
+                           "slug":  "kaltura",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "Kaltura",
+                                                    "description":  "",
+                                                    "slug":  "kaltura"
+                                                }
+                                            ],
+                           "created_at":  "2024-04-29T21:42:37.483638Z",
+                           "updated_at":  "2024-04-29T21:43:08.916484Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/w0vpo66ooi-kaltura",
+                           "relative_url":  "/category/w0vpo66ooi-kaltura"
+                       },
+                       {
+                           "category_id":  "7siezbjmxg",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "fwd03fynz3",
+                           "title":  "PDFs",
+                           "description":  "",
+                           "slug":  "pdfs",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "PDFs",
+                                                    "description":  "",
+                                                    "slug":  "pdfs"
+                                                }
+                                            ],
+                           "created_at":  "2024-05-01T21:42:51.095575Z",
+                           "updated_at":  "2024-05-01T21:43:09.811735Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/7siezbjmxg-pdfs",
+                           "relative_url":  "/category/7siezbjmxg-pdfs"
+                       },
+                       {
+                           "category_id":  "6yu75j1v55",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "fwd03fynz3",
+                           "title":  "Respondus",
+                           "description":  "Help Docs tied to Respondus",
+                           "slug":  "respondus",
+                           "is_featured":  false,
+                           "icon":  "https://files.helpdocs.io/ich648uje2/other/1706800335416/respondus-ico.png",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "Respondus",
+                                                    "description":  "Help Docs tied to Respondus",
+                                                    "slug":  "respondus"
+                                                }
+                                            ],
+                           "created_at":  "2024-02-01T15:10:35.421378Z",
+                           "updated_at":  "2024-02-01T15:12:21.081473Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/6yu75j1v55-respondus",
+                           "relative_url":  "/category/6yu75j1v55-respondus"
+                       },
+                       {
+                           "category_id":  "frd3xszxos",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "fwd03fynz3",
+                           "title":  "Roadmap",
+                           "description":  "",
+                           "slug":  "roadmap",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "Roadmap",
+                                                    "description":  "",
+                                                    "slug":  "roadmap"
+                                                }
+                                            ],
+                           "created_at":  "2024-05-02T19:48:02.08305Z",
+                           "updated_at":  "2024-05-02T19:48:52.234497Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/frd3xszxos-roadmap",
+                           "relative_url":  "/category/frd3xszxos-roadmap"
+                       },
+                       {
+                           "category_id":  "p6whubv1pc",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "fwd03fynz3",
+                           "title":  "Study Groups",
+                           "description":  "",
+                           "slug":  "study-groups",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "Study Groups",
+                                                    "description":  "",
+                                                    "slug":  "study-groups"
+                                                }
+                                            ],
+                           "created_at":  "2024-04-25T15:37:57.079439Z",
+                           "updated_at":  "2024-04-25T15:38:32.301847Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/p6whubv1pc-study-groups",
+                           "relative_url":  "/category/p6whubv1pc-study-groups"
+                       },
+                       {
+                           "category_id":  "syiueox2uu",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "fwd03fynz3",
+                           "title":  "iDash",
+                           "description":  "",
+                           "slug":  "i-dash",
+                           "is_featured":  false,
+                           "icon":  "https://files.helpdocs.io/ich648uje2/other/1714053525789/i-dash.png",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "iDash",
+                                                    "description":  "",
+                                                    "slug":  "i-dash"
+                                                }
+                                            ],
+                           "created_at":  "2024-04-25T13:55:13.57139Z",
+                           "updated_at":  "2024-04-25T13:58:48.283077Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/syiueox2uu-i-dash",
+                           "relative_url":  "/category/syiueox2uu-i-dash"
+                       },
+                       {
+                           "category_id":  "q2a0ttej4f",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "zqmvkr5lyi",
+                           "title":  "Project Instructions",
+                           "description":  "This is a category for SOPs based on the completion of various projects",
+                           "slug":  "project-instructions",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "Project Instructions",
+                                                    "description":  "This is a category for SOPs based on the completion of various projects",
+                                                    "slug":  "project-instructions"
+                                                }
+                                            ],
+                           "created_at":  "2024-10-22T19:45:12.605316Z",
+                           "updated_at":  "2024-10-22T19:46:03.833467Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/q2a0ttej4f-project-instructions",
+                           "relative_url":  "/category/q2a0ttej4f-project-instructions"
+                       },
+                       {
+                           "category_id":  "l2tysc2klt",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "zqmvkr5lyi",
+                           "title":  "Tickets, Software, Other",
+                           "description":  "",
+                           "slug":  "tickets-software-other",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "Tickets, Software, Other",
+                                                    "description":  "",
+                                                    "slug":  "tickets-software-other"
+                                                }
+                                            ],
+                           "created_at":  "2024-05-01T21:41:43.870654Z",
+                           "updated_at":  "2024-05-01T21:52:43.185953Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/l2tysc2klt-tickets-software-other",
+                           "relative_url":  "/category/l2tysc2klt-tickets-software-other"
+                       },
+                       {
+                           "category_id":  "7a1hk640e4",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "zqmvkr5lyi",
+                           "title":  "Vendor LTI",
+                           "description":  "",
+                           "slug":  "vendor-lti",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "Vendor LTI",
+                                                    "description":  "",
+                                                    "slug":  "vendor-lti"
+                                                }
+                                            ],
+                           "created_at":  "2024-05-01T21:41:12.002198Z",
+                           "updated_at":  "2024-05-01T21:41:38.455745Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/7a1hk640e4-vendor-lti",
+                           "relative_url":  "/category/7a1hk640e4-vendor-lti"
+                       },
+                       {
+                           "category_id":  "valvmn8iqk",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "7a1hk640e4",
+                           "title":  "Kaltura",
+                           "description":  "",
+                           "slug":  "kaltura",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "Kaltura",
+                                                    "description":  "",
+                                                    "slug":  "kaltura"
+                                                }
+                                            ],
+                           "created_at":  "2024-05-01T21:53:46.298886Z",
+                           "updated_at":  "2024-05-01T21:54:07.026409Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/valvmn8iqk-kaltura",
+                           "relative_url":  "/category/valvmn8iqk-kaltura"
+                       },
+                       {
+                           "category_id":  "3a9qf0j11s",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "4m08jrid47",
+                           "title":  "MM SOPs",
+                           "description":  "",
+                           "slug":  "sops",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "MM SOPs",
+                                                    "description":  "",
+                                                    "slug":  "sops"
+                                                }
+                                            ],
+                           "created_at":  "2022-08-29T19:47:49.739585Z",
+                           "updated_at":  "2022-09-16T14:32:56.048838Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/3a9qf0j11s-sops",
+                           "relative_url":  "/category/3a9qf0j11s-sops"
+                       },
+                       {
+                           "category_id":  "vhh1z6ren8",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "4m08jrid47",
+                           "title":  "QA SOPs",
+                           "description":  "",
+                           "slug":  "sop",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "QA SOPs",
+                                                    "description":  "",
+                                                    "slug":  "sop"
+                                                }
+                                            ],
+                           "created_at":  "2022-08-29T19:48:05.410447Z",
+                           "updated_at":  "2022-09-16T14:33:11.806703Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/vhh1z6ren8-sop",
+                           "relative_url":  "/category/vhh1z6ren8-sop"
+                       },
+                       {
+                           "category_id":  "dou1cdrzdl",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "vhh1z6ren8",
+                           "title":  "QA Job Aids",
+                           "description":  "",
+                           "slug":  "qa-job-aids",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "QA Job Aids",
+                                                    "description":  "",
+                                                    "slug":  "qa-job-aids"
+                                                }
+                                            ],
+                           "created_at":  "2024-02-02T16:25:03.63923Z",
+                           "updated_at":  "2024-02-02T16:25:37.057029Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/dou1cdrzdl-qa-job-aids",
+                           "relative_url":  "/category/dou1cdrzdl-qa-job-aids"
+                       },
+                       {
+                           "category_id":  "mbuvdsq8hq",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "",
+                           "title":  "Live Course Issues FAQ",
+                           "description":  "Live Course Issues FAQ",
+                           "slug":  "live-course-issues-faq",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "Live Course Issues FAQ",
+                                                    "description":  "Live Course Issues FAQ",
+                                                    "slug":  "live-course-issues-faq"
+                                                }
+                                            ],
+                           "created_at":  "2022-07-07T21:37:53.392769Z",
+                           "updated_at":  "2022-07-07T21:39:00.091314Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/mbuvdsq8hq-live-course-issues-faq",
+                           "relative_url":  "/category/mbuvdsq8hq-live-course-issues-faq"
+                       },
+                       {
+                           "category_id":  "pa30ueea8o",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "",
+                           "title":  "Monday.com SOPs",
+                           "description":  "",
+                           "slug":  "monday-com-sops",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "Monday.com SOPs",
+                                                    "description":  "",
+                                                    "slug":  "monday-com-sops"
+                                                }
+                                            ],
+                           "created_at":  "2023-07-25T20:56:58.830901Z",
+                           "updated_at":  "2023-07-25T20:57:31.572491Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/pa30ueea8o-monday-com-sops",
+                           "relative_url":  "/category/pa30ueea8o-monday-com-sops"
+                       },
+                       {
+                           "category_id":  "gru695czz8",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "",
+                           "title":  "Nasium Help Docs",
+                           "description":  "",
+                           "slug":  "nasium-help-docs",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "Nasium Help Docs",
+                                                    "description":  "",
+                                                    "slug":  "nasium-help-docs"
+                                                }
+                                            ],
+                           "created_at":  "2025-03-13T20:20:27.780568Z",
+                           "updated_at":  "2025-03-13T20:21:17.071759Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/gru695czz8-nasium-help-docs",
+                           "relative_url":  "/category/gru695czz8-nasium-help-docs"
+                       },
+                       {
+                           "category_id":  "7krl1myq0q",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "",
+                           "title":  "PM SOPs",
+                           "description":  "",
+                           "slug":  "pm-sops",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "PM SOPs",
+                                                    "description":  "",
+                                                    "slug":  "pm-sops"
+                                                }
+                                            ],
+                           "created_at":  "2022-09-16T14:29:31.598042Z",
+                           "updated_at":  "2022-10-17T13:57:59.142083Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/7krl1myq0q-pm-sops",
+                           "relative_url":  "/category/7krl1myq0q-pm-sops"
+                       },
+                       {
+                           "category_id":  "rbkvumm526",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "7krl1myq0q",
+                           "title":  "1. PM Initiation Phase SOPs",
+                           "description":  "",
+                           "slug":  "pm-initiation-phase-sops",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "1. PM Initiation Phase SOPs",
+                                                    "description":  "",
+                                                    "slug":  "pm-initiation-phase-sops"
+                                                }
+                                            ],
+                           "created_at":  "2023-07-25T21:33:26.277626Z",
+                           "updated_at":  "2024-06-05T16:09:13.517188Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/rbkvumm526-pm-initiation-phase-sops",
+                           "relative_url":  "/category/rbkvumm526-pm-initiation-phase-sops"
+                       },
+                       {
+                           "category_id":  "merrad1bkq",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "7krl1myq0q",
+                           "title":  "2. PM Planning Phase SOPs",
+                           "description":  "",
+                           "slug":  "pm-planning-phase-sops",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "2. PM Planning Phase SOPs",
+                                                    "description":  "",
+                                                    "slug":  "pm-planning-phase-sops"
+                                                }
+                                            ],
+                           "created_at":  "2023-07-25T21:33:54.771076Z",
+                           "updated_at":  "2024-06-05T16:09:19.858354Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/merrad1bkq-pm-planning-phase-sops",
+                           "relative_url":  "/category/merrad1bkq-pm-planning-phase-sops"
+                       },
+                       {
+                           "category_id":  "tpquqmkxnn",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "7krl1myq0q",
+                           "title":  "3. PM Execution \u0026 Monitoring Phase SOPs",
+                           "description":  "",
+                           "slug":  "pm-execution-monitoring-phase-sops",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "3. PM Execution \u0026 Monitoring Phase SOPs",
+                                                    "description":  "",
+                                                    "slug":  "pm-execution-monitoring-phase-sops"
+                                                }
+                                            ],
+                           "created_at":  "2023-07-25T21:34:09.641019Z",
+                           "updated_at":  "2024-06-05T16:09:05.319826Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/tpquqmkxnn-pm-execution-monitoring-phase-sops",
+                           "relative_url":  "/category/tpquqmkxnn-pm-execution-monitoring-phase-sops"
+                       },
+                       {
+                           "category_id":  "kyxop9hbkc",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "7krl1myq0q",
+                           "title":  "4. PM Closing Phase SOPs",
+                           "description":  "",
+                           "slug":  "pm-closing-phase-sops",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "4. PM Closing Phase SOPs",
+                                                    "description":  "",
+                                                    "slug":  "pm-closing-phase-sops"
+                                                }
+                                            ],
+                           "created_at":  "2023-07-25T21:34:40.954258Z",
+                           "updated_at":  "2024-06-05T16:08:52.942991Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/kyxop9hbkc-pm-closing-phase-sops",
+                           "relative_url":  "/category/kyxop9hbkc-pm-closing-phase-sops"
+                       },
+                       {
+                           "category_id":  "d02jq4hdvj",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "7krl1myq0q",
+                           "title":  "5. Other PM SOPs",
+                           "description":  "",
+                           "slug":  "other-pm-sops",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "5. Other PM SOPs",
+                                                    "description":  "",
+                                                    "slug":  "other-pm-sops"
+                                                }
+                                            ],
+                           "created_at":  "2023-08-01T19:36:18.396788Z",
+                           "updated_at":  "2024-06-05T16:08:44.47208Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/d02jq4hdvj-other-pm-sops",
+                           "relative_url":  "/category/d02jq4hdvj-other-pm-sops"
+                       },
+                       {
+                           "category_id":  "m540trmsgt",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "",
+                           "title":  "PMO, SOP Project",
+                           "description":  "SOP lists by team \u0026 other PM documents",
+                           "slug":  "pmo-sop-project",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "PMO, SOP Project",
+                                                    "description":  "SOP lists by team \u0026 other PM documents",
+                                                    "slug":  "pmo-sop-project"
+                                                }
+                                            ],
+                           "created_at":  "2022-08-26T14:40:11.494614Z",
+                           "updated_at":  "2022-08-26T19:41:32.046556Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/m540trmsgt-pmo-sop-project",
+                           "relative_url":  "/category/m540trmsgt-pmo-sop-project"
+                       },
+                       {
+                           "category_id":  "8p2eosqciz",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "",
+                           "title":  "Uncategorized SOP depository",
+                           "description":  "Use this space to hold non-curriculum SOPs",
+                           "slug":  "uncategorized-sop-depository",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "Uncategorized SOP depository",
+                                                    "description":  "Use this space to hold non-curriculum SOPs",
+                                                    "slug":  "uncategorized-sop-depository"
+                                                }
+                                            ],
+                           "created_at":  "2023-02-21T14:56:57.657723Z",
+                           "updated_at":  "2023-03-27T16:53:41.479529Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/8p2eosqciz-uncategorized-sop-depository",
+                           "relative_url":  "/category/8p2eosqciz-uncategorized-sop-depository"
+                       },
+                       {
+                           "category_id":  "il3o2ebuju",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "",
+                           "title":  "Workforce Transformation",
+                           "description":  "",
+                           "slug":  "workforce-transformation",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "Workforce Transformation",
+                                                    "description":  "",
+                                                    "slug":  "workforce-transformation"
+                                                }
+                                            ],
+                           "created_at":  "2023-09-25T22:17:13.89291Z",
+                           "updated_at":  "2023-09-25T22:18:49.252556Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/il3o2ebuju-workforce-transformation",
+                           "relative_url":  "/category/il3o2ebuju-workforce-transformation"
+                       },
+                       {
+                           "category_id":  "2mq3j6n1ag",
+                           "account_id":  "ich648uje2",
+                           "parent_category_id":  "",
+                           "title":  "untitled category",
+                           "description":  "",
+                           "slug":  "untitled-category",
+                           "is_featured":  false,
+                           "icon":  "",
+                           "multilingual":  [
+                                                {
+                                                    "language_code":  "en",
+                                                    "title":  "untitled category",
+                                                    "description":  "",
+                                                    "slug":  "untitled-category"
+                                                }
+                                            ],
+                           "created_at":  "2024-11-06T23:45:33.468668Z",
+                           "updated_at":  "2024-11-06T23:45:33.468668Z",
+                           "permission_groups":  null,
+                           "enforce_permissions":  false,
+                           "url":  "https://umacurriculum.helpdocs.io/category/2mq3j6n1ag-untitled-category",
+                           "relative_url":  "/category/2mq3j6n1ag-untitled-category"
+                       }
+                   ]
+}

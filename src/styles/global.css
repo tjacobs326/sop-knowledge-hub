@@ -6304,41 +6304,49 @@ tbody tr:hover {
   filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.80));
 }
 
-.app-icon[data-variant="illustrated"] > path:not(.app-icon__fill):not(.app-icon__blob):not(.app-icon__sparkle) {
+.app-icon[data-variant="illustrated"] > path:not(.app-icon__fill):not(.app-icon__blob):not(.app-icon__sparkle),
+.app-icon__glyph-line {
   stroke: #2b2445 !important;
-  stroke-width: 1.95;
+  stroke-width: 4.2;
 }
 
+.app-icon__scene-blob,
 .app-icon__blob {
   fill: #e7e7ea;
   stroke: none !important;
   opacity: 0.98;
 }
 
+.app-icon__scene-blob--blue,
 .app-icon__blob--blue {
   fill: #e9eef9;
 }
 
+.app-icon__scene-blob--green,
 .app-icon__blob--green {
   fill: #e8f3ec;
 }
 
+.app-icon__scene-blob--orange,
+.app-icon__scene-blob--yellow,
 .app-icon__blob--orange,
 .app-icon__blob--yellow {
   fill: #eeeeef;
 }
 
+.app-icon__scene-blob--pink,
 .app-icon__blob--pink {
   fill: #ece8f4;
 }
 
+.app-icon__scene-blob--soft,
 .app-icon__blob--soft {
   fill: #e8e8ea;
 }
 
 .app-icon__fill {
   stroke: #2b2445 !important;
-  stroke-width: 1.45;
+  stroke-width: 3.8;
   stroke-linecap: round;
   stroke-linejoin: round;
   opacity: 1;
@@ -6371,7 +6379,7 @@ tbody tr:hover {
 .app-icon__sparkle {
   fill: none;
   stroke: #ff981f !important;
-  stroke-width: 1.55;
+  stroke-width: 3.2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -6379,6 +6387,27 @@ tbody tr:hover {
 .app-icon__sparkle--secondary {
   stroke: #8f9aad !important;
   opacity: 0.82;
+}
+
+.app-icon__scene-cloud {
+  fill: none;
+  stroke: #9aa0ad !important;
+  stroke-width: 3.2;
+  opacity: 0.9;
+}
+
+.app-icon__scene-detail {
+  fill: none;
+  stroke: #9aa0ad !important;
+  stroke-width: 2.8;
+  opacity: 0.68;
+}
+
+.app-icon__scene-baseline {
+  fill: none;
+  stroke: #9aa0ad !important;
+  stroke-width: 2.8;
+  opacity: 0.78;
 }
 
 .main-nav__icon,
@@ -6399,8 +6428,8 @@ tbody tr:hover {
 .main-nav__icon .app-icon,
 .sidebar-support__icon .app-icon,
 .topbar-search .app-icon {
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 1.95rem;
+  height: 1.95rem;
 }
 
 .main-nav a[aria-current="page"] .main-nav__icon {
@@ -6465,4 +6494,62 @@ tbody tr:hover {
 .popular-searches .app-icon .app-icon__blob,
 .popular-searches .app-icon .app-icon__sparkle {
   display: none;
+}
+
+.main-nav__icon .app-icon__scene-blob,
+.main-nav__icon .app-icon__scene-cloud,
+.main-nav__icon .app-icon__scene-detail,
+.main-nav__icon .app-icon__scene-baseline,
+.main-nav__icon .app-icon__sparkle,
+.sidebar-support__icon .app-icon__scene-blob,
+.sidebar-support__icon .app-icon__scene-cloud,
+.sidebar-support__icon .app-icon__scene-detail,
+.sidebar-support__icon .app-icon__scene-baseline,
+.sidebar-support__icon .app-icon__sparkle,
+.topbar-search .app-icon__scene-blob,
+.topbar-search .app-icon__scene-cloud,
+.topbar-search .app-icon__scene-detail,
+.topbar-search .app-icon__scene-baseline,
+.topbar-search .app-icon__sparkle,
+.search-page-feature__icon .app-icon__scene-blob,
+.search-page-feature__icon .app-icon__scene-cloud,
+.search-page-feature__icon .app-icon__scene-detail,
+.search-page-feature__icon .app-icon__scene-baseline,
+.search-page-feature__icon .app-icon__sparkle,
+.search-query-row > span .app-icon__scene-blob,
+.search-query-row > span .app-icon__scene-cloud,
+.search-query-row > span .app-icon__scene-detail,
+.search-query-row > span .app-icon__scene-baseline,
+.search-query-row > span .app-icon__sparkle,
+.select-with-icon > span .app-icon__scene-blob,
+.select-with-icon > span .app-icon__scene-cloud,
+.select-with-icon > span .app-icon__scene-detail,
+.select-with-icon > span .app-icon__scene-baseline,
+.select-with-icon > span .app-icon__sparkle,
+.popular-searches .app-icon__scene-blob,
+.popular-searches .app-icon__scene-cloud,
+.popular-searches .app-icon__scene-detail,
+.popular-searches .app-icon__scene-baseline,
+.popular-searches .app-icon__sparkle {
+  display: none;
+}
+
+.main-nav__icon .app-icon__glyph-line,
+.sidebar-support__icon .app-icon__glyph-line,
+.topbar-search .app-icon__glyph-line,
+.search-page-feature__icon .app-icon__glyph-line,
+.search-query-row > span .app-icon__glyph-line,
+.select-with-icon > span .app-icon__glyph-line,
+.popular-searches .app-icon__glyph-line {
+  stroke-width: 3.6;
+}
+
+.main-nav__icon .app-icon__fill,
+.sidebar-support__icon .app-icon__fill,
+.topbar-search .app-icon__fill,
+.search-page-feature__icon .app-icon__fill,
+.search-query-row > span .app-icon__fill,
+.select-with-icon > span .app-icon__fill,
+.popular-searches .app-icon__fill {
+  stroke-width: 3.4;
 }

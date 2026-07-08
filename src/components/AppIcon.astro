@@ -195,29 +195,50 @@ const iconAccents = accentPaths[name] ?? accentPaths.document;
 const blobTone = blobToneByName[name] ?? "soft";
 ---
 
-<svg
-  class="app-icon"
-  data-variant={variant}
-  viewBox="0 0 24 24"
-  fill="none"
-  stroke="currentColor"
-  stroke-width={variant === "illustrated" ? "1.8" : "2"}
-  stroke-linecap="round"
-  stroke-linejoin="round"
-  aria-hidden={label ? undefined : "true"}
-  role={label ? "img" : undefined}
-  aria-label={label}
->
-  {variant === "illustrated" && (
-    <>
+{
+  variant === "line" ? (
+    <svg
+      class="app-icon"
+      data-variant="line"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden={label ? undefined : "true"}
+      role={label ? "img" : undefined}
+      aria-label={label}
+    >
+      {iconPaths.map((d) => <path d={d} />)}
+    </svg>
+  ) : (
+    <svg
+      class="app-icon"
+      data-variant="illustrated"
+      viewBox="0 0 96 96"
+      fill="none"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden={label ? undefined : "true"}
+      role={label ? "img" : undefined}
+      aria-label={label}
+    >
       <path
-        class={`app-icon__blob app-icon__blob--${blobTone}`}
-        d="M5.1 17.4C2.1 13.1 3 7.8 7.2 5.1c4.1-2.7 9.9-1.6 12.1 2.6 2.3 4.2.8 9.4-3.6 11.8-4.1 2.3-8.2 1.4-10.6-2.1Z"
+        class={`app-icon__scene-blob app-icon__scene-blob--${blobTone}`}
+        d="M18 67c-11-18-1-43 21-52 23-9 47 1 55 22 8 21-6 43-30 50-19 5-38-2-46-20Z"
       />
-      {iconAccents.map(({ d, tone }) => <path class={`app-icon__fill app-icon__fill--${tone}`} d={d} />)}
-      <path class="app-icon__sparkle app-icon__sparkle--primary" d="M19 3.5v2.7M17.65 4.85h2.7" />
-      <path class="app-icon__sparkle app-icon__sparkle--secondary" d="M4.7 18.3v2.2M3.6 19.4h2.2" />
-    </>
-  )}
-  {iconPaths.map((d) => <path d={d} />)}
-</svg>
+      <path class="app-icon__scene-cloud" d="M8 67c0-5 4-9 9-9 2-7 8-12 16-11 6 1 11 5 13 11 5 1 8 5 8 10" />
+      <path class="app-icon__scene-detail" d="M10 30h9M13 35h13M72 26h9M76 31h10" />
+      <path class="app-icon__scene-baseline" d="M15 82h64" />
+      <path class="app-icon__sparkle app-icon__sparkle--primary" d="M79 13v10M74 18h10M86 24l4 4" />
+      <path class="app-icon__sparkle app-icon__sparkle--secondary" d="M16 74v8M12 78h8M24 18v7M20.5 21.5h7" />
+      <g class="app-icon__glyph" transform="translate(12 9) scale(3)">
+        {iconAccents.map(({ d, tone }) => (
+          <path class={`app-icon__fill app-icon__fill--${tone}`} d={d} vector-effect="non-scaling-stroke" />
+        ))}
+        {iconPaths.map((d) => <path class="app-icon__glyph-line" d={d} vector-effect="non-scaling-stroke" />)}
+      </g>
+    </svg>
+  )
+}
