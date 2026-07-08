@@ -52,7 +52,7 @@ const quickLinks = [
     <h1 id="admin-heading">SOP Operations</h1>
   </div>
 
-  <div class="stat-grid">
+  <div class="stat-grid" id="admin-dashboard-stats">
     {stats.map(([label, value]) => (
       <article class="stat-card">
         <span>{label}</span>
@@ -80,7 +80,7 @@ const quickLinks = [
             <th scope="col">Updated</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody id="admin-recent-published">
           {recentlyPublished.map((sop) => (
             <tr>
               <td><a href={getSopUrl(sop)}>{sop.data.title}</a></td>
@@ -94,3 +94,96 @@ const quickLinks = [
     </div>
   </section>
 </section>
+
+<script>
+  // @ts-nocheck
+  import { fetchAllD1Sops, fetchRecentD1Sops } from "../lib/sop-api";
+
+  const escapeHtml = (value) =>
+    String(value ?? "").replace(/[&<>"']/g, (character) => {
+      const replacements = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      };
+      return replacements[character];
+    });
+
+  function formatDateClient(value) {
+    if (!value) return "Not set";
+    const date = new Date(String(value).includes("T") ? value : `${value}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }).format(date);
+  }
+
+  function daysUntilClient(value) {
+    if (!value) return null;
+    const reviewDate = new Date(`${String(value).slice(0, 10)}T00:00:00`);
+    if (Number.isNaN(reviewDate.getTime())) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return Math.ceil((reviewDate.getTime() - today.getTime()) / 86400000);
+  }
+
+  function renderStat(label, value) {
+    return `
+      <article class="stat-card">
+        <span>${escapeHtml(label)}</span>
+        <strong>${escapeHtml(value)}</strong>
+      </article>
+    `;
+  }
+
+  function renderRecentRow(sop) {
+    return `
+      <tr>
+        <td><a href="${escapeHtml(sop.detailUrl)}">${escapeHtml(sop.title)}</a></td>
+        <td>${escapeHtml(sop.category)}</td>
+        <td>${escapeHtml(sop.owner)}</td>
+        <td>${escapeHtml(formatDateClient(sop.updatedAt))}</td>
+      </tr>
+    `;
+  }
+
+  async function hydrateAdminDashboard() {
+    try {
+      const [sops, recent] = await Promise.all([
+        fetchAllD1Sops({ limit: 100, sort: "recent" }),
+        fetchRecentD1Sops(4),
+      ]);
+      if (!sops.length) return;
+
+      const stats = [
+        ["Total SOPs", sops.length],
+        ["Draft SOPs", sops.filter((sop) => sop.status === "Draft").length],
+        ["SOPs In Review", sops.filter((sop) => sop.status === "In Review").length],
+        ["Published SOPs", sops.filter((sop) => sop.status === "Published").length],
+        ["Submissions Waiting for Triage", 0],
+        ["Urgent Requests", 0],
+        [
+          "SOPs Due for Review",
+          sops.filter((sop) => {
+            const days = daysUntilClient(sop.reviewDate);
+            return days !== null && days <= 45;
+          }).length,
+        ],
+      ];
+
+      const statGrid = document.getElementById("admin-dashboard-stats");
+      if (statGrid) statGrid.innerHTML = stats.map(([label, value]) => renderStat(label, value)).join("");
+
+      const rows = document.getElementById("admin-recent-published");
+      if (rows && recent.length) rows.innerHTML = recent.map(renderRecentRow).join("");
+    } catch {
+      // Static admin snapshot remains available without Cloudflare D1.
+    }
+  }
+
+  hydrateAdminDashboard();
+</script>

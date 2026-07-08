@@ -163,7 +163,23 @@ const assistActions = [
   </section>
 </Layout>
 
-<script is:inline define:vars={{ approvedSources, adminOnlySources }}>
+<script is:inline type="application/json" id="ai-approved-sources-json" set:html={JSON.stringify(approvedSources)}></script>
+<script is:inline type="application/json" id="ai-admin-sources-json" set:html={JSON.stringify(adminOnlySources)}></script>
+
+<script>
+  // @ts-nocheck
+  function readJson(id, fallback) {
+    const element = document.getElementById(id);
+    if (!element?.textContent) return fallback;
+    try {
+      return JSON.parse(element.textContent);
+    } catch {
+      return fallback;
+    }
+  }
+
+  let approvedSources = readJson("ai-approved-sources-json", []);
+  const adminOnlySources = readJson("ai-admin-sources-json", []);
   const roleSelect = document.getElementById("assist-role");
   const sourceSelect = document.getElementById("assist-source");
   const notesInput = document.getElementById("assist-notes");
@@ -201,6 +217,36 @@ const assistActions = [
       return [...approvedSources, ...adminOnlySources];
     }
     return approvedSources;
+  }
+
+  function normalizeAiSource(sop) {
+    return {
+      id: sop.id,
+      title: sop.title,
+      purpose: sop.purpose || sop.summary,
+      category: sop.category,
+      tags: sop.tags,
+      status: sop.status,
+      url: sop.detailUrl || (sop.slug ? `/sops/detail/?slug=${encodeURIComponent(sop.slug)}` : `/sops/detail/?id=${encodeURIComponent(sop.id)}`),
+      body: sop.body || sop.version?.content || sop.bodyMarkdown || sop.purpose || sop.summary,
+      sourceType: ["HelpDocs", "Imported"].includes(sop.sourceType) ? "HelpDocs SOP" : "Published SOP",
+    };
+  }
+
+  async function fetchAllPublishedSops() {
+    const all = [];
+    const limit = 100;
+    let offset = 0;
+    while (true) {
+      const response = await fetch(`/api/sops?limit=${limit}&offset=${offset}`);
+      if (!response.ok) throw new Error("Unable to load D1 SOPs.");
+      const payload = await response.json();
+      const records = payload.sops || payload.data?.sops || [];
+      all.push(...records);
+      if (records.length < limit) break;
+      offset += limit;
+    }
+    return all;
   }
 
   function getSelectedSource() {
@@ -434,4 +480,19 @@ const assistActions = [
   });
 
   renderSourceOptions();
+
+  async function hydrateAssistSources() {
+    try {
+      const records = await fetchAllPublishedSops();
+      const published = records.filter((sop) => sop.status === "Published").map(normalizeAiSource);
+      if (published.length) {
+        approvedSources = published;
+        renderSourceOptions();
+      }
+    } catch {
+      // Keep static approved sources when D1 is unavailable.
+    }
+  }
+
+  hydrateAssistSources();
 </script>

@@ -93,7 +93,25 @@ const { finderData, sops } = Astro.props;
   </div>
 </section>
 
-<script is:inline define:vars={{ finderData, sopRecords: sops }}>
+<script is:inline type="application/json" id="finder-data-json" set:html={JSON.stringify(finderData)}></script>
+<script is:inline type="application/json" id="finder-sops-json" set:html={JSON.stringify(sops)}></script>
+
+<script>
+  // @ts-nocheck
+  import { fetchAllD1Sops, toSearchRecord } from "../lib/sop-api";
+
+  function readJson(id, fallback) {
+    const element = document.getElementById(id);
+    if (!element?.textContent) return fallback;
+    try {
+      return JSON.parse(element.textContent);
+    } catch {
+      return fallback;
+    }
+  }
+
+  const finderData = readJson("finder-data-json", { startNode: "", nodes: {} });
+  let sopRecords = readJson("finder-sops-json", []);
   const questionEl = document.getElementById("finder-question");
   const answersEl = document.getElementById("finder-answers");
   const resultsEl = document.getElementById("finder-results");
@@ -237,4 +255,15 @@ const { finderData, sops } = Astro.props;
   });
 
   renderNode(finderData.startNode);
+
+  async function hydrateFinderSops() {
+    try {
+      const records = await fetchAllD1Sops({ limit: 100, sort: "recent" });
+      if (records.length) sopRecords = records.map(toSearchRecord);
+    } catch {
+      // Keep static content records as the fallback for local preview without D1.
+    }
+  }
+
+  hydrateFinderSops();
 </script>

@@ -120,7 +120,7 @@ const topStats = [
       </div>
     </section>
 
-    <div class="stat-grid">
+    <div class="stat-grid" id="analytics-top-stats">
       {topStats.map(([label, value]) => (
         <article class="stat-card">
           <span>{label}</span>
@@ -141,7 +141,7 @@ const topStats = [
                 <th scope="col">Helpful</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody id="analytics-most-viewed">
               {mostViewed.map((item) => (
                 <tr>
                   <td><a href={getSopUrl(item.sop!)}>{item.sop!.data.title}</a></td>
@@ -200,7 +200,7 @@ const topStats = [
 
       <article class="analytics-card">
         <h2>Helpful / Not Helpful Ratings</h2>
-        <div class="rating-summary" aria-label="Helpful rating summary">
+        <div class="rating-summary" id="analytics-helpful-summary" aria-label="Helpful rating summary">
           <strong>{helpfulRate}% helpful</strong>
           <span>{ratingTotals.helpful} helpful responses</span>
           <span>{ratingTotals.notHelpful} not helpful responses</span>
@@ -214,7 +214,7 @@ const topStats = [
                 <th scope="col">Not Helpful</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody id="analytics-helpful-table">
               {mostViewed.map((item) => (
                 <tr>
                   <td>{item.sop!.data.title}</td>
@@ -243,7 +243,7 @@ const topStats = [
                     <th scope="col">Days Past Due</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody id="analytics-past-review">
                   {pastReview.map((item) => (
                     <tr>
                       <td><a href={getSopUrl(item.sop)}>{item.sop.data.title}</a></td>
@@ -291,7 +291,7 @@ const topStats = [
 
       <article class="analytics-card">
         <h2>Number of SOPs by Category</h2>
-        <div class="category-breakdown">
+        <div class="category-breakdown" id="analytics-category-breakdown">
           {categoryCounts.map((item) => (
             <div class="category-bar">
               <div>
@@ -330,6 +330,9 @@ const topStats = [
 </Layout>
 
 <script>
+  // @ts-nocheck
+  import { fetchAnalyticsSummary } from "../../../lib/sop-api";
+
   const status = document.getElementById("cloudflare-analytics-status");
   const statGrid = document.getElementById("cloudflare-stat-grid");
   const tables = document.getElementById("cloudflare-analytics-tables");
@@ -347,6 +350,17 @@ const topStats = [
     });
 
   const numberFormat = new Intl.NumberFormat();
+
+  function formatDateClient(value: unknown) {
+    if (!value) return "Not set";
+    const date = new Date(String(value).includes("T") ? String(value) : `${String(value).slice(0, 10)}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }).format(date);
+  }
 
   function renderRows(rows: Array<Record<string, unknown>>, columns: Array<[string, string]>) {
     if (!rows.length) return `<p class="empty-state">No live events recorded yet.</p>`;
@@ -433,13 +447,119 @@ const topStats = [
         </article>
       `;
     }
+
+    const topStats = document.getElementById("analytics-top-stats");
+    const liveTotals = data.totals || {};
+    const helpfulRows = data.helpfulRatings || [];
+    const helpful = Number(helpfulRows.find((row: any) => String(row.rating).toLowerCase() === "helpful")?.count || 0);
+    const notHelpful = Number(helpfulRows.find((row: any) => String(row.rating).toLowerCase() === "not_helpful")?.count || 0);
+    const totalRatings = helpful + notHelpful;
+    const helpfulRate = totalRatings > 0 ? Math.round((helpful / totalRatings) * 100) : 0;
+
+    if (topStats) {
+      topStats.innerHTML = [
+        ["Total SOP Views", liveTotals.sop_views],
+        ["Helpful Rating", `${helpfulRate}%`],
+        ["Avg. Time to Approval", "Live"],
+        ["Past Review Date", (data.pastReview || []).length],
+        ["Searches With No Results", (data.noResultSearches || []).reduce((total: number, row: any) => total + Number(row.searches || 0), 0)],
+        ["Open Requests", "Live"],
+      ]
+        .map(
+          ([label, value]) => `
+            <article class="stat-card">
+              <span>${escapeHtml(label)}</span>
+              <strong>${escapeHtml(value ?? 0)}</strong>
+            </article>
+          `,
+        )
+        .join("");
+    }
+
+    const mostViewed = document.getElementById("analytics-most-viewed");
+    if (mostViewed) {
+      mostViewed.innerHTML = (data.mostViewedSops || []).length
+        ? (data.mostViewedSops || [])
+            .map(
+              (row: any) => `
+                <tr>
+                  <td>${escapeHtml(row.title)}</td>
+                  <td>${escapeHtml(row.views)}</td>
+                  <td>${escapeHtml(row.helpful || 0)}</td>
+                </tr>
+              `,
+            )
+            .join("")
+        : `<tr><td colspan="3"><p class="empty-state">No SOP view events recorded yet.</p></td></tr>`;
+    }
+
+    const helpfulSummary = document.getElementById("analytics-helpful-summary");
+    if (helpfulSummary) {
+      helpfulSummary.innerHTML = `
+        <strong>${escapeHtml(helpfulRate)}% helpful</strong>
+        <span>${escapeHtml(helpful)} helpful responses</span>
+        <span>${escapeHtml(notHelpful)} not helpful responses</span>
+      `;
+    }
+
+    const helpfulTable = document.getElementById("analytics-helpful-table");
+    if (helpfulTable) {
+      helpfulTable.innerHTML = helpfulRows.length
+        ? helpfulRows
+            .map(
+              (row: any) => `
+                <tr>
+                  <td>${escapeHtml(row.rating)}</td>
+                  <td>${escapeHtml(row.count)}</td>
+                  <td>--</td>
+                </tr>
+              `,
+            )
+            .join("")
+        : `<tr><td colspan="3"><p class="empty-state">No helpfulness feedback recorded yet.</p></td></tr>`;
+    }
+
+    const pastReviewRows = document.getElementById("analytics-past-review");
+    if (pastReviewRows && Array.isArray(data.pastReview) && data.pastReview.length) {
+      pastReviewRows.innerHTML = data.pastReview
+        .map(
+          (row: any) => `
+            <tr>
+              <td><a href="/sops/detail/?id=${encodeURIComponent(row.id)}">${escapeHtml(row.title)}</a></td>
+              <td>${escapeHtml(formatDateClient(row.review_date))}</td>
+              <td><span class="status-badge status-badge--past-due">Past Due</span></td>
+              <td>${escapeHtml(
+                Math.max(
+                  0,
+                  Math.round((Date.now() - new Date(`${String(row.review_date).slice(0, 10)}T00:00:00`).getTime()) / 86400000),
+                ),
+              )}</td>
+            </tr>
+          `,
+        )
+        .join("");
+    }
+
+    const categoryBreakdown = document.getElementById("analytics-category-breakdown");
+    if (categoryBreakdown && Array.isArray(data.categoryCounts) && data.categoryCounts.length) {
+      const max = Math.max(...data.categoryCounts.map((row: any) => Number(row.count || 0)), 1);
+      categoryBreakdown.innerHTML = data.categoryCounts
+        .map(
+          (row: any) => `
+            <div class="category-bar">
+              <div>
+                <strong>${escapeHtml(row.category)}</strong>
+                <span>${escapeHtml(row.count)} SOP${Number(row.count) === 1 ? "" : "s"}</span>
+              </div>
+              <meter min="0" max="${escapeHtml(max)}" value="${escapeHtml(row.count)}">${escapeHtml(row.count)}</meter>
+            </div>
+          `,
+        )
+        .join("");
+    }
   }
 
-  fetch("/api/analytics/summary")
-    .then((response) => {
-      if (!response.ok) throw new Error("Cloudflare analytics endpoint is unavailable.");
-      return response.json();
-    })
+  fetchAnalyticsSummary()
     .then(renderLiveAnalytics)
     .catch(() => {
       if (status) {

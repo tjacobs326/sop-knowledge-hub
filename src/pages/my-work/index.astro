@@ -195,21 +195,44 @@ const sopRecords = sops.map((sop) => ({
   </section>
 </Layout>
 
-<script
-  is:inline
-  define:vars={{
-    currentUsers,
-    initialSops: sopRecords,
-    initialDrafts: mockDrafts,
-    initialSubmissions: mockSubmissions,
-    initialReviewItems: reviewItems,
-    DRAFTS_STORAGE_KEY,
-    SUBMISSIONS_STORAGE_KEY,
-    REVIEW_QUEUE_STORAGE_KEY,
-    priorityBadgeDefinitions,
-    statusBadgeDefinitions,
-  }}
->
+<script is:inline type="application/json" id="my-work-data-json" set:html={JSON.stringify({
+  currentUsers,
+  initialSops: sopRecords,
+  initialDrafts: mockDrafts,
+  initialSubmissions: mockSubmissions,
+  initialReviewItems: reviewItems,
+  DRAFTS_STORAGE_KEY,
+  SUBMISSIONS_STORAGE_KEY,
+  REVIEW_QUEUE_STORAGE_KEY,
+  priorityBadgeDefinitions,
+  statusBadgeDefinitions,
+})}></script>
+
+<script>
+  // @ts-nocheck
+  import { fetchAllD1Sops } from "../../lib/sop-api";
+
+  function readJson(id, fallback) {
+    const element = document.getElementById(id);
+    if (!element?.textContent) return fallback;
+    try {
+      return JSON.parse(element.textContent);
+    } catch {
+      return fallback;
+    }
+  }
+
+  const myWorkData = readJson("my-work-data-json", {});
+  const currentUsers = myWorkData.currentUsers || [];
+  let initialSops = myWorkData.initialSops || [];
+  const initialDrafts = myWorkData.initialDrafts || [];
+  const initialSubmissions = myWorkData.initialSubmissions || [];
+  const initialReviewItems = myWorkData.initialReviewItems || [];
+  const DRAFTS_STORAGE_KEY = myWorkData.DRAFTS_STORAGE_KEY;
+  const SUBMISSIONS_STORAGE_KEY = myWorkData.SUBMISSIONS_STORAGE_KEY;
+  const REVIEW_QUEUE_STORAGE_KEY = myWorkData.REVIEW_QUEUE_STORAGE_KEY;
+  const priorityBadgeDefinitions = myWorkData.priorityBadgeDefinitions || {};
+  const statusBadgeDefinitions = myWorkData.statusBadgeDefinitions || {};
   const currentUserSelect = document.getElementById("current-user");
   const currentAccessLevel = document.getElementById("current-access-level");
   const today = new Date().toISOString().slice(0, 10);
@@ -441,4 +464,26 @@ const sopRecords = sops.map((sop) => ({
 
   currentUserSelect?.addEventListener("change", renderDashboard);
   renderDashboard();
+
+  async function hydrateMyWorkSops() {
+    try {
+      const records = await fetchAllD1Sops({ limit: 100, sort: "recent" });
+      if (!records.length) return;
+      initialSops = records.map((sop) => ({
+        id: sop.id,
+        title: sop.title,
+        category: sop.category,
+        owner: sop.owner,
+        status: sop.status,
+        reviewDate: sop.reviewDate,
+        lastUpdated: sop.updatedAt,
+        url: sop.detailUrl,
+      }));
+      renderDashboard();
+    } catch {
+      // Keep static work records when D1 is unavailable.
+    }
+  }
+
+  hydrateMyWorkSops();
 </script>

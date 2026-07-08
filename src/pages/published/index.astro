@@ -48,7 +48,23 @@ import { PUBLISHED_SOPS_STORAGE_KEY } from "../../lib/drafts";
   </section>
 </Layout>
 
-<script is:inline define:vars={{ PUBLISHED_SOPS_STORAGE_KEY }}>
+<script is:inline type="application/json" id="published-config-json" set:html={JSON.stringify({ PUBLISHED_SOPS_STORAGE_KEY })}></script>
+
+<script>
+  // @ts-nocheck
+  import { normalizeSop } from "../../lib/sop-api";
+
+  function readJson(id, fallback) {
+    const element = document.getElementById(id);
+    if (!element?.textContent) return fallback;
+    try {
+      return JSON.parse(element.textContent);
+    } catch {
+      return fallback;
+    }
+  }
+
+  const { PUBLISHED_SOPS_STORAGE_KEY } = readJson("published-config-json", {});
   const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (character) => {
       const replacements = {
@@ -84,6 +100,22 @@ import { PUBLISHED_SOPS_STORAGE_KEY } from "../../lib/drafts";
   function setText(id, value) {
     const element = document.getElementById(id);
     if (element) element.textContent = value || "";
+  }
+
+  function sanitizeHtml(html) {
+    const parser = new DOMParser();
+    const documentFragment = parser.parseFromString(String(html || ""), "text/html");
+    documentFragment.querySelectorAll("script, style, iframe, object, embed").forEach((node) => node.remove());
+    documentFragment.querySelectorAll("*").forEach((node) => {
+      Array.from(node.attributes).forEach((attribute) => {
+        const name = attribute.name.toLowerCase();
+        const value = attribute.value.trim().toLowerCase();
+        if (name.startsWith("on") || value.startsWith("javascript:")) {
+          node.removeAttribute(attribute.name);
+        }
+      });
+    });
+    return documentFragment.body.innerHTML;
   }
 
   function renderSteps(steps) {
@@ -134,8 +166,64 @@ import { PUBLISHED_SOPS_STORAGE_KEY } from "../../lib/drafts";
       : "<p>No troubleshooting notes are listed for this SOP.</p>";
   }
 
-  function renderPublishedSop() {
-    const id = new URLSearchParams(window.location.search).get("id");
+  function renderD1Sop(record) {
+    const sop = normalizeSop(record);
+    document.title = `${sop.title} | SOP Knowledge Hub`;
+    setText("published-category", sop.category);
+    setText("published-title", sop.title);
+    setText("published-purpose", sop.summary || sop.purpose);
+    setText("published-purpose-body", sop.purpose || sop.summary);
+    setText("published-before", record.version?.beforeYouBegin || "Review the SOP metadata, required tools, and audience before starting.");
+
+    const editLink = document.getElementById("published-edit-link");
+    if (editLink instanceof HTMLAnchorElement) {
+      editLink.href = `/create/?source=${encodeURIComponent(sop.id)}`;
+    }
+
+    const meta = document.getElementById("published-meta");
+    if (meta) {
+      meta.innerHTML = `
+        <div><dt>Owner</dt><dd>${escapeHtml(sop.owner)}</dd></div>
+        <div><dt>Last updated</dt><dd>${escapeHtml(formatDate(sop.updatedAt))}</dd></div>
+        <div><dt>Review date</dt><dd>${escapeHtml(formatDate(sop.reviewDate))}</dd></div>
+        <div><dt>Category</dt><dd>${escapeHtml(sop.category)}</dd></div>
+        <div><dt>Tools used</dt><dd>${escapeHtml(sop.tools.join(", ") || "Not listed")}</dd></div>
+        <div><dt>Audience</dt><dd>${escapeHtml(sop.audience.join(", ") || "Internal SOP users")}</dd></div>
+        <div><dt>Status</dt><dd><span class="status-badge status-badge--published">${escapeHtml(sop.status)}</span></dd></div>
+        <div><dt>Version</dt><dd>${escapeHtml(record.version?.number || "")}</dd></div>
+        <div><dt>Source</dt><dd>${escapeHtml(sop.sourceType)}</dd></div>
+      `;
+    }
+
+    const list = document.getElementById("published-steps");
+    if (list) {
+      list.outerHTML = `<div class="sop-rich-content" id="published-d1-content">${sanitizeHtml(sop.body)}</div>`;
+    }
+    renderTroubleshooting(record.version?.troubleshooting);
+  }
+
+  async function tryRenderD1Sop(params) {
+    const slug = params.get("slug");
+    const id = params.get("id");
+    if (!slug && !id) return false;
+
+    const endpoint = slug
+      ? `/api/sops/slug/${encodeURIComponent(slug)}`
+      : `/api/sops/${encodeURIComponent(id)}`;
+    const response = await fetch(endpoint);
+    if (!response.ok) return false;
+    const payload = await response.json();
+    const sop = payload.sop || payload.data?.sop;
+    if (!sop) return false;
+    renderD1Sop(sop);
+    return true;
+  }
+
+  async function renderPublishedSop() {
+    const params = new URLSearchParams(window.location.search);
+    if (await tryRenderD1Sop(params)) return;
+
+    const id = params.get("id");
     const records = readPublishedSops();
     const record = id ? records.find((item) => item.draftId === id || item.id === id) : records.at(-1);
     const empty = document.getElementById("published-empty");
