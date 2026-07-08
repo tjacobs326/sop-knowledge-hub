@@ -1,6 +1,7 @@
 ---
 import Layout from "../components/Layout.astro";
 import AppIcon from "../components/AppIcon.astro";
+import HeroIllustrationIcon from "../components/HeroIllustrationIcon.astro";
 import CategoryCard from "../components/CategoryCard.astro";
 import { auditLogs, reviews, searchLogs, sopRequests, userAccounts } from "../data/mock-platform";
 import { formatDate } from "../lib/dates";
@@ -255,9 +256,43 @@ const categoryIconByName: Record<string, string> = {
           <p class="hero__subtitle">
             Your central hub for official standard operating procedures, guides, and best practices.
           </p>
-          <div class="hero-actions">
-            <a class="button button--primary" href="/search/"><AppIcon name="search" />Search SOPs</a>
-            <a class="button button--ghost hero-button" href="/finder/"><AppIcon name="finder" />Guided Finder</a>
+          <div class="hero-benefits" aria-label="Knowledge hub benefits">
+            <span class="hero-benefit">
+              <span class="hero-benefit__icon hero-benefit__icon--orange" aria-hidden="true">
+                <HeroIllustrationIcon name="shield" />
+              </span>
+              <span>
+                <strong>Official</strong>
+                <small>Trusted and approved content</small>
+              </span>
+            </span>
+            <span class="hero-benefit">
+              <span class="hero-benefit__icon hero-benefit__icon--blue" aria-hidden="true">
+                <HeroIllustrationIcon name="search" />
+              </span>
+              <span>
+                <strong>Find Fast</strong>
+                <small>Search and discover what you need</small>
+              </span>
+            </span>
+            <span class="hero-benefit">
+              <span class="hero-benefit__icon hero-benefit__icon--purple" aria-hidden="true">
+                <HeroIllustrationIcon name="people" />
+              </span>
+              <span>
+                <strong>Stay Consistent</strong>
+                <small>Follow standard processes</small>
+              </span>
+            </span>
+            <span class="hero-benefit">
+              <span class="hero-benefit__icon hero-benefit__icon--green" aria-hidden="true">
+                <HeroIllustrationIcon name="chart" />
+              </span>
+              <span>
+                <strong>Improve Outcomes</strong>
+                <small>Best practices for your success</small>
+              </span>
+            </span>
           </div>
         </div>
         <div class="hero-illustration" aria-hidden="true">
@@ -271,10 +306,37 @@ const categoryIconByName: Record<string, string> = {
               <li></li>
               <li></li>
             </ul>
+            <div class="document-card__preview">
+              <span class="document-card__file"><HeroIllustrationIcon name="documentShield" /></span>
+            </div>
           </div>
-          <span class="floating-tile">OK</span>
-          <span class="floating-tile floating-tile--left">KB</span>
         </div>
+        <div class="hero-actions">
+          <a class="hero-action-card hero-action-card--search" href="/search/">
+            <span class="hero-action-card__icon" aria-hidden="true"><HeroIllustrationIcon name="target" /></span>
+            <span class="hero-action-card__copy">
+              <strong>Search SOPs</strong>
+              <small>Find the information you need.</small>
+            </span>
+            <svg class="hero-action-card__arrow" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 12h13m-5-5 5 5-5 5" />
+            </svg>
+          </a>
+          <a class="hero-action-card hero-action-card--finder" href="/finder/">
+            <span class="hero-action-card__icon" aria-hidden="true"><HeroIllustrationIcon name="book" /></span>
+            <span class="hero-action-card__copy">
+              <strong>Guided Finder</strong>
+              <small>Answer a few questions and we'll point you in the right direction.</small>
+            </span>
+            <svg class="hero-action-card__arrow" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 12h13m-5-5 5 5-5 5" />
+            </svg>
+          </a>
+        </div>
+        <p class="hero-request">
+          <span aria-hidden="true"><HeroIllustrationIcon name="support" /></span>
+          Can't find what you need? <a href="/submit/">Submit a request</a> and our team will help.
+        </p>
       </section>
 
       <div class="hero-stats dashboard-stats" role="list" aria-label="Knowledge base overview">
