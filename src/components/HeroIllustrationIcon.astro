@@ -1,6 +1,17 @@
 ---
 interface Props {
-  name: "shield" | "search" | "people" | "chart" | "target" | "book" | "documentShield" | "support";
+  name:
+    | "shield"
+    | "search"
+    | "people"
+    | "chart"
+    | "target"
+    | "book"
+    | "documentShield"
+    | "support"
+    | "ticket"
+    | "courseStack"
+    | "aiSpark";
 }
 
 const { name } = Astro.props;
@@ -109,6 +120,47 @@ const { name } = Astro.props;
       <circle cx="32" cy="32" r="23" fill="#ffffff" stroke="#10225b" stroke-width="4" />
       <circle cx="32" cy="32" r="10" fill="#f7fbff" stroke="#10225b" stroke-width="3" />
       <path d="m17 17 10 10M47 17 37 27M17 47l10-10M47 47 37 37" fill="none" stroke="#19b7e8" stroke-width="5" stroke-linecap="round" />
+    </svg>
+  )
+}
+
+{
+  name === "ticket" && (
+    <svg class="hero-art-icon hero-art-icon--ticket" viewBox="0 0 112 88" role="img" aria-hidden="true">
+      <path d="M22 62c-10-16-2-38 16-47 18-8 41-1 49 16 8 18-4 38-24 44-16 5-33 0-41-13Z" fill="#e7e7ea" opacity=".96" />
+      <path d="M31 30c3 0 5-2 5-5h40c0 3 2 5 5 5v27c-3 0-5 2-5 5H36c0-3-2-5-5-5V30Z" fill="#ffad32" stroke="#2b2445" stroke-width="5.2" stroke-linejoin="round" />
+      <path d="M44 41h24" fill="none" stroke="#2b2445" stroke-width="7" stroke-linecap="round" />
+      <path d="M44 41h24" fill="none" stroke="#10225b" stroke-width="4.4" stroke-linecap="round" />
+      <path d="M85 18v8M81 22h8" fill="none" stroke="#ff981f" stroke-width="3.4" stroke-linecap="round" />
+      <path d="M23 65v7M19.5 68.5h7" fill="none" stroke="#9aa0ad" stroke-width="3" stroke-linecap="round" />
+    </svg>
+  )
+}
+
+{
+  name === "courseStack" && (
+    <svg class="hero-art-icon hero-art-icon--course-stack" viewBox="0 0 112 88" role="img" aria-hidden="true">
+      <path d="M24 63c-11-16-2-38 17-47 18-9 41-1 49 16 8 18-4 39-24 45-17 5-34-1-42-14Z" fill="#e8e8ea" opacity=".96" />
+      <path d="M56 16 24 31l32 16 32-16-32-15Z" fill="#18bcea" stroke="#2b2445" stroke-width="4.4" stroke-linejoin="round" />
+      <path d="m27 43 29 15 29-15" fill="none" stroke="#2b2445" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="m27 43 29 15 29-15" fill="none" stroke="#ffad32" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="m30 55 26 13 26-13" fill="none" stroke="#2b2445" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="m30 55 26 13 26-13" fill="none" stroke="#7067ff" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M83 18v8M79 22h8" fill="none" stroke="#ff981f" stroke-width="3.4" stroke-linecap="round" />
+      <path d="M26 69v7M22.5 72.5h7" fill="none" stroke="#9aa0ad" stroke-width="3" stroke-linecap="round" />
+    </svg>
+  )
+}
+
+{
+  name === "aiSpark" && (
+    <svg class="hero-art-icon hero-art-icon--ai-spark" viewBox="0 0 112 88" role="img" aria-hidden="true">
+      <path d="M23 62c-10-16-2-38 16-47 19-9 42-1 50 17 8 18-4 39-25 45-16 5-33-1-41-15Z" fill="#ece8f4" opacity=".96" />
+      <path d="M56 18 62 38l20 6-20 6-6 20-6-20-20-6 20-6 6-20Z" fill="#ff5370" stroke="#2b2445" stroke-width="4.8" stroke-linejoin="round" />
+      <path d="M32 70h48" fill="none" stroke="#2b2445" stroke-width="8" stroke-linecap="round" />
+      <path d="M36 70h40" fill="none" stroke="#18bcea" stroke-width="4.8" stroke-linecap="round" />
+      <path d="M80 18v8M76 22h8" fill="none" stroke="#ff981f" stroke-width="3.4" stroke-linecap="round" />
+      <path d="M24 68v7M20.5 71.5h7" fill="none" stroke="#9aa0ad" stroke-width="3" stroke-linecap="round" />
     </svg>
   )
 }

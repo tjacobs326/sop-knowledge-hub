@@ -13,6 +13,36 @@ interface AccentPath {
   tone: AccentTone;
 }
 
+const blobToneByName: Record<string, AccentTone> = {
+  home: "orange",
+  search: "soft",
+  target: "soft",
+  finder: "soft",
+  categories: "blue",
+  submit: "orange",
+  work: "blue",
+  ai: "pink",
+  create: "orange",
+  drafts: "soft",
+  review: "soft",
+  needsReview: "yellow",
+  users: "pink",
+  tags: "yellow",
+  analytics: "green",
+  settings: "soft",
+  qa: "yellow",
+  d2l: "yellow",
+  template: "soft",
+  course: "pink",
+  ticket: "blue",
+  operations: "soft",
+  finance: "green",
+  marketing: "pink",
+  troubleshooting: "orange",
+  support: "soft",
+  document: "soft",
+};
+
 const paths: Record<string, string[]> = {
   home: ["M4 11.5 12 5l8 6.5", "M6.5 10.5V19h11v-8.5", "M10 19v-5h4v5"],
   search: ["M10.8 17.2a6.4 6.4 0 1 1 0-12.8 6.4 6.4 0 0 1 0 12.8Z", "M15.5 15.5 20 20"],
@@ -21,7 +51,7 @@ const paths: Record<string, string[]> = {
   categories: ["M5 5h5v5H5z", "M14 5h5v5h-5z", "M5 14h5v5H5z", "M14 14h5v5h-5z"],
   submit: ["M5 19h14", "M7 15l5-10 5 10", "M9 13h6"],
   work: ["M5 7h14v12H5z", "M8 7V5h8v2", "M8 11h8"],
-  ai: ["M12 4l1.4 4.1L17.5 9.5l-4.1 1.4L12 15l-1.4-4.1L6.5 9.5l4.1-1.4L12 4Z", "M6 17h12"],
+  ai: ["M12 3.8l1.5 4.5L18 9.8l-4.5 1.5L12 15.8l-1.5-4.5L6 9.8l4.5-1.5L12 3.8Z", "M7.2 18h9.6", "M7.9 20h8.2"],
   create: ["M12 5v14", "M5 12h14"],
   drafts: ["M7 4h7l3 3v13H7z", "M14 4v4h4", "M9 13h6", "M9 16h4"],
   review: ["M6 5h12v14H6z", "M9 9h6", "M9 13h6", "M9 17h4"],
@@ -30,11 +60,11 @@ const paths: Record<string, string[]> = {
   tags: ["M4 10V5h5l10 10-5 5L4 10Z", "M7.5 7.5h.01"],
   analytics: ["M5 19V9", "M12 19V5", "M19 19v-7"],
   settings: ["M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z", "M12 3v3", "M12 18v3", "M3 12h3", "M18 12h3", "M5.6 5.6l2.1 2.1", "M16.3 16.3l2.1 2.1", "M18.4 5.6l-2.1 2.1", "M7.7 16.3l-2.1 2.1"],
-  qa: ["M12 4l7 3v5c0 4.2-2.8 7.5-7 8-4.2-.5-7-3.8-7-8V7l7-3Z", "M9 12l2 2 4-5"],
-  d2l: ["M5 6.5c2.3-.9 4.3-.7 7 .8 2.7-1.5 4.7-1.7 7-.8v11c-2.4-.8-4.4-.5-7 1-2.6-1.5-4.6-1.8-7-1v-11Z", "M12 7.3v11.2"],
+  qa: ["M12 3.8 19.2 7v5.1c0 4.4-2.9 7.6-7.2 8.3-4.3-.7-7.2-3.9-7.2-8.3V7L12 3.8Z", "M8.9 12.2l2.1 2.1 4.4-5"],
+  d2l: ["M4.8 6.5c2.4-.9 4.6-.7 7.2.9 2.6-1.6 4.8-1.8 7.2-.9v11.4c-2.6-.9-4.8-.6-7.2 1-2.4-1.6-4.6-1.9-7.2-1V6.5Z", "M12 7.4v11.4"],
   template: ["M7 4h8l3 3v13H7z", "M15 4v4h4", "M9 13h5", "M9 16h6"],
-  course: ["M12 4 4 8l8 4 8-4-8-4Z", "M4 12l8 4 8-4", "M4 16l8 4 8-4"],
-  ticket: ["M5 8a2 2 0 0 0 2-2h10a2 2 0 0 0 2 2v8a2 2 0 0 0-2 2H7a2 2 0 0 0-2-2V8Z", "M9 12h6"],
+  course: ["M12 3.8 3.8 7.8 12 12l8.2-4.2L12 3.8Z", "M4.5 12.1 12 16l7.5-3.9", "M5 16.1 12 19.8l7-3.7"],
+  ticket: ["M5.1 8.1a2.1 2.1 0 0 0 2.1-2.1h9.6a2.1 2.1 0 0 0 2.1 2.1v7.8a2.1 2.1 0 0 0-2.1 2.1H7.2a2.1 2.1 0 0 0-2.1-2.1V8.1Z", "M8.6 12h6.8"],
   operations: ["M7 7h10v10H7z", "M4 12h3", "M17 12h3", "M12 4v3", "M12 17v3"],
   finance: ["M12 4v16", "M8 8.5c0-1.4 1.5-2.5 4-2.5s4 1.1 4 2.5-1.5 2.3-4 2.3-4 1-4 2.7S9.7 16 12 16s4-1.1 4-2.5"],
   marketing: ["M5 13V8l10-3v14L5 16v-3Z", "M15 9h2a3 3 0 0 1 0 6h-2", "M7 16l1 4"],
@@ -77,8 +107,8 @@ const accentPaths: Record<string, AccentPath[]> = {
     { tone: "orange", d: "M8 7V5h8v2Z" },
   ],
   ai: [
-    { tone: "pink", d: "M12 4l1.4 4.1L17.5 9.5l-4.1 1.4L12 15l-1.4-4.1L6.5 9.5l4.1-1.4L12 4Z" },
-    { tone: "orange", d: "M6 17h12v2H6z" },
+    { tone: "pink", d: "M12 4.4l1.2 3.6 3.6 1.2-3.6 1.2L12 14l-1.2-3.6-3.6-1.2L10.8 8 12 4.4Z" },
+    { tone: "blue", d: "M8 18h8v1.7H8Z" },
   ],
   create: [
     { tone: "orange", d: "M10 10h4v4h-4z" },
@@ -114,25 +144,25 @@ const accentPaths: Record<string, AccentPath[]> = {
     { tone: "orange", d: "M12 10.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6Z" },
   ],
   qa: [
-    { tone: "blue", d: "M12 4l7 3v5c0 4.2-2.8 7.5-7 8-4.2-.5-7-3.8-7-8V7l7-3Z" },
+    { tone: "blue", d: "M12 4.2 18.1 7v4.9c0 3.9-2.5 6.7-6.1 7.5-3.6-.8-6.1-3.6-6.1-7.5V7L12 4.2Z" },
     { tone: "green", d: "M9 12l2 2 4-5" },
   ],
   d2l: [
-    { tone: "blue", d: "M5 6.5c2.3-.9 4.3-.7 7 .8v11.2c-2.6-1.5-4.6-1.8-7-1v-11Z" },
-    { tone: "green", d: "M12 7.3c2.7-1.5 4.7-1.7 7-.8v11c-2.4-.8-4.4-.5-7 1V7.3Z" },
+    { tone: "blue", d: "M5 6.8c2.4-.9 4.5-.6 7 1v10.5c-2.5-1.5-4.6-1.8-7-1V6.8Z" },
+    { tone: "green", d: "M12 7.8c2.5-1.6 4.6-1.9 7-1v10.5c-2.4-.8-4.5-.5-7 1V7.8Z" },
   ],
   template: [
     { tone: "soft", d: "M7 4h8l3 3v13H7z" },
     { tone: "orange", d: "M15 4v4h4Z" },
   ],
   course: [
-    { tone: "blue", d: "M12 4 4 8l8 4 8-4-8-4Z" },
-    { tone: "green", d: "M4 12l8 4 8-4" },
-    { tone: "orange", d: "M4 16l8 4 8-4" },
+    { tone: "blue", d: "M12 4.4 5 7.9l7 3.6 7-3.6-7-3.5Z" },
+    { tone: "green", d: "M5 12.2 12 15.8l7-3.6" },
+    { tone: "orange", d: "M5.3 16.1 12 19.4l6.7-3.3" },
   ],
   ticket: [
-    { tone: "orange", d: "M5 8a2 2 0 0 0 2-2h10a2 2 0 0 0 2 2v8a2 2 0 0 0-2 2H7a2 2 0 0 0-2-2V8Z" },
-    { tone: "blue", d: "M9 11h6v2H9z" },
+    { tone: "orange", d: "M5.7 8.3a2.3 2.3 0 0 0 2.3-2h8a2.3 2.3 0 0 0 2.3 2v7.4a2.3 2.3 0 0 0-2.3 2H8a2.3 2.3 0 0 0-2.3-2V8.3Z" },
+    { tone: "blue", d: "M8.5 11h7v2.4h-7Z" },
   ],
   operations: [
     { tone: "blue", d: "M7 7h10v10H7z" },
@@ -162,6 +192,7 @@ const accentPaths: Record<string, AccentPath[]> = {
 
 const iconPaths = paths[name] ?? paths.document;
 const iconAccents = accentPaths[name] ?? accentPaths.document;
+const blobTone = blobToneByName[name] ?? "soft";
 ---
 
 <svg
@@ -179,7 +210,13 @@ const iconAccents = accentPaths[name] ?? accentPaths.document;
 >
   {variant === "illustrated" && (
     <>
+      <path
+        class={`app-icon__blob app-icon__blob--${blobTone}`}
+        d="M5.1 17.4C2.1 13.1 3 7.8 7.2 5.1c4.1-2.7 9.9-1.6 12.1 2.6 2.3 4.2.8 9.4-3.6 11.8-4.1 2.3-8.2 1.4-10.6-2.1Z"
+      />
       {iconAccents.map(({ d, tone }) => <path class={`app-icon__fill app-icon__fill--${tone}`} d={d} />)}
+      <path class="app-icon__sparkle app-icon__sparkle--primary" d="M19 3.5v2.7M17.65 4.85h2.7" />
+      <path class="app-icon__sparkle app-icon__sparkle--secondary" d="M4.7 18.3v2.2M3.6 19.4h2.2" />
     </>
   )}
   {iconPaths.map((d) => <path d={d} />)}

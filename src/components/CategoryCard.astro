@@ -1,6 +1,7 @@
 ---
 import { getCategoryUrl } from "../lib/sops";
 import AppIcon from "./AppIcon.astro";
+import HeroIllustrationIcon from "./HeroIllustrationIcon.astro";
 
 interface Props {
   name: string;
@@ -28,17 +29,29 @@ const iconBySlug: Record<string, string> = {
 };
 
 const iconName = iconBySlug[slug] ?? "document";
+
+const illustrationBySlug: Record<string, "ticket" | "book" | "courseStack" | "shield" | "aiSpark"> = {
+  "ivanti-ticketing-system": "ticket",
+  "brightspace-d2l": "book",
+  "course-builds": "courseStack",
+  "qa-processes": "shield",
+  "ai-tools": "aiSpark",
+};
+
+const illustrationName = illustrationBySlug[slug];
 ---
 
 <a class="category-card" href={href} style={`--card-accent: ${color}`}>
   <div class="category-card__header">
-    <span class="category-card__icon" aria-hidden="true"><AppIcon name={iconName} variant="illustrated" /></span>
+    <span class="category-card__icon" aria-hidden="true">
+      {illustrationName ? <HeroIllustrationIcon name={illustrationName} /> : <AppIcon name={iconName} variant="illustrated" />}
+    </span>
     <h2 class="category-card__title">{name}</h2>
   </div>
   <p>{description}</p>
   <div class="category-card__footer">
     {count !== undefined && (
-      <span class="category-card__count"><AppIcon name="document" />{count} {count === 1 ? "SOP" : "SOPs"}</span>
+      <span class="category-card__count"><AppIcon name="document" variant="line" />{count} {count === 1 ? "SOP" : "SOPs"}</span>
     )}
   </div>
 </a>
@@ -60,9 +73,9 @@ const iconName = iconBySlug[slug] ?? "document";
   .category-card__header {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: 0.95rem;
+    gap: 1.25rem;
     align-items: start;
-    padding-bottom: 1.05rem;
+    padding-bottom: 1.15rem;
     margin-bottom: 0.75rem;
   }
 
@@ -86,9 +99,10 @@ const iconName = iconBySlug[slug] ?? "document";
 
   .category-card__icon {
     display: grid;
-    width: 3.8rem;
-    height: 3.35rem;
+    width: 9.2rem;
+    height: 6.35rem;
     place-items: center;
+    justify-items: start;
     color: var(--color-ink);
     background: transparent;
     border: 0;
@@ -99,6 +113,12 @@ const iconName = iconBySlug[slug] ?? "document";
   .category-card__icon .app-icon {
     width: 3.25rem;
     height: 3.25rem;
+  }
+
+  .category-card__icon .hero-art-icon {
+    width: 7.15rem;
+    height: 5.9rem;
+    overflow: visible;
   }
 
   .category-card__icon .app-icon[data-variant="illustrated"] > path:not(.app-icon__fill),

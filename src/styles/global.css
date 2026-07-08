@@ -63,7 +63,7 @@ img {
   filter: none;
 }
 
-.app-icon[data-variant="illustrated"] > path:not(.app-icon__fill) {
+.app-icon[data-variant="illustrated"] > path:not(.app-icon__fill):not(.app-icon__blob):not(.app-icon__sparkle) {
   stroke: var(--color-ink);
 }
 
@@ -6294,4 +6294,175 @@ tbody tr:hover {
     width: 6.25rem;
     height: 5.6rem;
   }
+}
+
+/* Shared illustrated icon system.
+   Keep new app icons on AppIcon so navigation, cards, tables, forms, and future screens stay aligned. */
+.app-icon[data-variant="illustrated"] {
+  color: #2b2445;
+  overflow: visible;
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.80));
+}
+
+.app-icon[data-variant="illustrated"] > path:not(.app-icon__fill):not(.app-icon__blob):not(.app-icon__sparkle) {
+  stroke: #2b2445 !important;
+  stroke-width: 1.95;
+}
+
+.app-icon__blob {
+  fill: #e7e7ea;
+  stroke: none !important;
+  opacity: 0.98;
+}
+
+.app-icon__blob--blue {
+  fill: #e9eef9;
+}
+
+.app-icon__blob--green {
+  fill: #e8f3ec;
+}
+
+.app-icon__blob--orange,
+.app-icon__blob--yellow {
+  fill: #eeeeef;
+}
+
+.app-icon__blob--pink {
+  fill: #ece8f4;
+}
+
+.app-icon__blob--soft {
+  fill: #e8e8ea;
+}
+
+.app-icon__fill {
+  stroke: #2b2445 !important;
+  stroke-width: 1.45;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 1;
+}
+
+.app-icon__fill--blue {
+  fill: #18bcea !important;
+}
+
+.app-icon__fill--green {
+  fill: #23c7a4 !important;
+}
+
+.app-icon__fill--orange {
+  fill: #ffad32 !important;
+}
+
+.app-icon__fill--pink {
+  fill: #ff5370 !important;
+}
+
+.app-icon__fill--soft {
+  fill: #ffffff !important;
+}
+
+.app-icon__fill--yellow {
+  fill: #ffd34d !important;
+}
+
+.app-icon__sparkle {
+  fill: none;
+  stroke: #ff981f !important;
+  stroke-width: 1.55;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.app-icon__sparkle--secondary {
+  stroke: #8f9aad !important;
+  opacity: 0.82;
+}
+
+.main-nav__icon,
+.sidebar-support__icon,
+.topbar-search > span,
+.search-page-feature__icon,
+.search-helper-card__icon,
+.submit-benefit__icon,
+.form-section-title__icon,
+.categories-visual__tile,
+.work-summary-card__icon,
+.hero-stats__icon {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.main-nav__icon .app-icon,
+.sidebar-support__icon .app-icon,
+.topbar-search .app-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.main-nav a[aria-current="page"] .main-nav__icon {
+  background: rgba(255, 255, 255, 0.14) !important;
+  border-color: rgba(255, 159, 47, 0.42) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
+}
+
+.site-sidebar .main-nav__icon .app-icon[data-variant="illustrated"] > path:not(.app-icon__fill):not(.app-icon__blob):not(.app-icon__sparkle),
+.main-nav a[aria-current="page"] .main-nav__icon .app-icon[data-variant="illustrated"] > path:not(.app-icon__fill):not(.app-icon__blob):not(.app-icon__sparkle),
+.sidebar-support__icon .app-icon[data-variant="illustrated"] > path:not(.app-icon__fill):not(.app-icon__blob):not(.app-icon__sparkle) {
+  stroke: #10225b !important;
+}
+
+.site-sidebar .main-nav__icon .app-icon__fill,
+.main-nav a[aria-current="page"] .main-nav__icon .app-icon__fill,
+.sidebar-support__icon .app-icon__fill {
+  stroke: #10225b !important;
+}
+
+.category-card__icon::before,
+.category-card__icon::after {
+  display: none !important;
+}
+
+.category-card__icon {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.category-card__icon {
+  width: 9.2rem !important;
+  height: 6.35rem !important;
+  justify-content: start;
+}
+
+.category-card__icon .app-icon {
+  width: 4rem !important;
+  height: 4rem !important;
+}
+
+.category-card__icon .hero-art-icon {
+  width: 7.15rem !important;
+  height: 5.9rem !important;
+}
+
+.category-pill .app-icon,
+.category-card__count .app-icon,
+.search-query-row > span .app-icon,
+.select-with-icon > span .app-icon,
+.popular-searches .app-icon {
+  overflow: visible;
+}
+
+.category-card__count .app-icon .app-icon__blob,
+.category-card__count .app-icon .app-icon__sparkle,
+.search-query-row > span .app-icon .app-icon__blob,
+.search-query-row > span .app-icon .app-icon__sparkle,
+.select-with-icon > span .app-icon .app-icon__blob,
+.select-with-icon > span .app-icon .app-icon__sparkle,
+.popular-searches .app-icon .app-icon__blob,
+.popular-searches .app-icon .app-icon__sparkle {
+  display: none;
 }
