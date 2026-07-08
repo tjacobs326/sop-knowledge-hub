@@ -1,0 +1,203 @@
+---
+import Layout from "../../components/Layout.astro";
+---
+
+<Layout title="SOP Detail" wide>
+  <article class="sop-document" id="d1-sop-detail" data-pagefind-body>
+    <div class="sop-document__header">
+      <p class="eyebrow" id="d1-sop-category">SOP</p>
+      <div class="sop-title-row">
+        <h1 id="d1-sop-title">Loading SOP...</h1>
+        <span id="d1-sop-status" class="status-badge status-badge--published">Published</span>
+      </div>
+      <p class="lede" id="d1-sop-lede">Loading SOP details from the knowledge hub.</p>
+      <dl class="sop-hero-meta">
+        <div>
+          <dt>Owner</dt>
+          <dd id="d1-sop-owner">Loading</dd>
+        </div>
+        <div>
+          <dt>Last updated</dt>
+          <dd id="d1-sop-updated">Loading</dd>
+        </div>
+        <div>
+          <dt>Next review</dt>
+          <dd id="d1-sop-review">Loading</dd>
+        </div>
+        <div>
+          <dt>Estimated time</dt>
+          <dd id="d1-sop-time">Not set</dd>
+        </div>
+      </dl>
+      <div class="form-actions no-print">
+        <a class="button button--ghost" href="/search/">Back to Search</a>
+        <a class="button button--secondary" id="d1-sop-source-link" href="/search/" hidden>View source</a>
+      </div>
+    </div>
+
+    <div class="sop-layout">
+      <aside class="metadata-panel" aria-label="SOP metadata">
+        <dl id="d1-sop-meta"></dl>
+      </aside>
+      <div class="sop-content">
+        <section class="sop-section">
+          <h2>Purpose</h2>
+          <p id="d1-sop-purpose"></p>
+        </section>
+        <section class="sop-section sop-callout">
+          <h2>Before You Begin</h2>
+          <p id="d1-sop-before">Review the SOP metadata, required tools, and audience before starting.</p>
+        </section>
+        <section class="sop-section">
+          <h2>Step-by-Step Procedure</h2>
+          <div class="sop-rich-content" id="d1-sop-content"></div>
+        </section>
+        <section class="sop-section" id="d1-sop-empty" hidden>
+          <h2>SOP Not Found</h2>
+          <p>This SOP could not be loaded from the knowledge hub.</p>
+        </section>
+      </div>
+    </div>
+  </article>
+</Layout>
+
+<script is:inline>
+  const escapeHtml = (value) =>
+    String(value ?? "").replace(/[&<>"']/g, (character) => {
+      const replacements = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      };
+      return replacements[character];
+    });
+
+  function formatDate(value) {
+    if (!value) return "Not set";
+    const date = new Date(String(value).includes("T") ? value : `${value}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }).format(date);
+  }
+
+  function statusBadgeHtml(status) {
+    const value = status || "Published";
+    const className = String(value).toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    return `<span class="status-badge status-badge--${escapeHtml(className)}">${escapeHtml(value)}</span>`;
+  }
+
+  function sanitizeHtml(html) {
+    const parser = new DOMParser();
+    const documentFragment = parser.parseFromString(String(html || ""), "text/html");
+    documentFragment.querySelectorAll("script, style, iframe, object, embed").forEach((node) => node.remove());
+    documentFragment.querySelectorAll("*").forEach((node) => {
+      Array.from(node.attributes).forEach((attribute) => {
+        const name = attribute.name.toLowerCase();
+        const value = attribute.value.trim().toLowerCase();
+        if (name.startsWith("on") || value.startsWith("javascript:")) {
+          node.removeAttribute(attribute.name);
+        }
+      });
+    });
+    return documentFragment.body.innerHTML;
+  }
+
+  function textFromHtml(html) {
+    const container = document.createElement("div");
+    container.innerHTML = sanitizeHtml(html);
+    return container.textContent?.trim() || "";
+  }
+
+  function setText(id, value) {
+    const element = document.getElementById(id);
+    if (element) element.textContent = value || "";
+  }
+
+  async function loadSop() {
+    const params = new URLSearchParams(window.location.search);
+    const slug = params.get("slug") || "";
+    const id = params.get("id") || "";
+    const empty = document.getElementById("d1-sop-empty");
+
+    if (!slug && !id) {
+      if (empty instanceof HTMLElement) empty.hidden = false;
+      setText("d1-sop-title", "SOP Not Found");
+      return;
+    }
+
+    const endpoint = slug
+      ? `/api/sops/slug/${encodeURIComponent(slug)}`
+      : `/api/sops/${encodeURIComponent(id)}`;
+    const response = await fetch(endpoint);
+    if (!response.ok) {
+      if (empty instanceof HTMLElement) empty.hidden = false;
+      setText("d1-sop-title", "SOP Not Found");
+      setText("d1-sop-lede", "This SOP could not be loaded from the knowledge hub.");
+      return;
+    }
+
+    const payload = await response.json();
+    const sop = payload.sop || payload.data?.sop;
+    if (!sop) return;
+
+    const content = sop.version?.content || sop.bodyMarkdown || sop.purpose || "";
+    const sourceUrl = sop.metadata?.sourceUrl || sop.metadata?.helpdocs?.url || "";
+    const updated = sop.updatedAt || sop.lastUpdated;
+    const reviewDate = sop.reviewDate || sop.reviewDueAt;
+    const tools = Array.isArray(sop.tools) ? sop.tools : [];
+    const audience = Array.isArray(sop.audience) ? sop.audience : [];
+    const tags = Array.isArray(sop.tags) ? sop.tags : [];
+
+    document.title = `${sop.title} | SOP Knowledge Hub`;
+    setText("d1-sop-category", sop.category || "Uncategorized");
+    setText("d1-sop-title", sop.title || "Untitled SOP");
+    setText("d1-sop-lede", sop.purpose || sop.summary || "");
+    setText("d1-sop-purpose", sop.purpose || sop.summary || "");
+    setText("d1-sop-owner", sop.owner || "Unassigned");
+    setText("d1-sop-updated", formatDate(updated));
+    setText("d1-sop-review", formatDate(reviewDate));
+    setText("d1-sop-time", sop.estimatedCompletionTime || "Not set");
+
+    const status = document.getElementById("d1-sop-status");
+    if (status) status.outerHTML = statusBadgeHtml(sop.status);
+
+    const sourceLink = document.getElementById("d1-sop-source-link");
+    if (sourceLink instanceof HTMLAnchorElement && sourceUrl) {
+      sourceLink.href = sourceUrl;
+      sourceLink.hidden = false;
+    }
+
+    const meta = document.getElementById("d1-sop-meta");
+    if (meta) {
+      meta.innerHTML = `
+        <div><dt>Owner</dt><dd>${escapeHtml(sop.owner || "Unassigned")}</dd></div>
+        <div><dt>Last updated</dt><dd>${escapeHtml(formatDate(updated))}</dd></div>
+        <div><dt>Review date</dt><dd>${escapeHtml(formatDate(reviewDate))}</dd></div>
+        <div><dt>Category</dt><dd>${escapeHtml(sop.category || "Uncategorized")}</dd></div>
+        <div><dt>Tools used</dt><dd>${escapeHtml(tools.join(", ") || "Not listed")}</dd></div>
+        <div><dt>Audience</dt><dd>${escapeHtml(audience.join(", ") || "Internal SOP users")}</dd></div>
+        <div><dt>Status</dt><dd>${statusBadgeHtml(sop.status)}</dd></div>
+        <div><dt>Version</dt><dd>${escapeHtml(sop.version?.number || sop.versionNumber || "")}</dd></div>
+        <div><dt>Source</dt><dd>${escapeHtml(sop.sourceType || "Database")}</dd></div>
+        ${tags.length ? `<div><dt>Tags</dt><dd>${escapeHtml(tags.join(", "))}</dd></div>` : ""}
+      `;
+    }
+
+    const contentElement = document.getElementById("d1-sop-content");
+    if (contentElement) {
+      const safeContent = sanitizeHtml(content);
+      contentElement.innerHTML = safeContent || `<p>${escapeHtml(textFromHtml(sop.purpose || ""))}</p>`;
+    }
+  }
+
+  loadSop().catch(() => {
+    const empty = document.getElementById("d1-sop-empty");
+    if (empty instanceof HTMLElement) empty.hidden = false;
+    setText("d1-sop-title", "SOP Not Found");
+  });
+</script>

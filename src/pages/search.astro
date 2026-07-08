@@ -379,6 +379,10 @@ const popularSearches = [
       record.beforeYouBegin,
       record.troubleshootingNotes,
       record.changeSummary,
+      record.summary,
+      record.bodyMarkdown,
+      record.version?.content,
+      record.version?.summary,
       normalizeList(record.tags).join(" "),
       normalizeList(record.tools).join(" "),
       normalizeList(record.audience).join(" "),
@@ -405,8 +409,10 @@ const popularSearches = [
     const audience = normalizeList(record.audience);
     const relatedSops = normalizeList(record.relatedSops);
     const status = record.status || "Published";
-    const lastUpdated = record.lastUpdated || record.updatedDate || record.publishedAt;
-    const url = record.url || `/published/?id=${encodeURIComponent(record.id)}`;
+    const lastUpdated = record.lastUpdated || record.updatedDate || record.publishedAt || record.updatedAt;
+    const url = record.slug
+      ? `/sops/detail/?slug=${encodeURIComponent(record.slug)}`
+      : record.url || `/published/?id=${encodeURIComponent(record.id)}`;
     const card = document.createElement("div");
     card.dataset.searchCard = "";
     card.dataset.sopId = record.sourceId || record.id;
@@ -493,6 +499,66 @@ const popularSearches = [
       .includes(filterValue);
   }
 
+  async function fetchAllApiSops() {
+    const all = [];
+    let offset = 0;
+    const limit = 100;
+    let total = Infinity;
+
+    while (all.length < total) {
+      const response = await fetch(`/api/sops?limit=${limit}&offset=${offset}`);
+      if (!response.ok) throw new Error("Unable to load SOPs from D1.");
+      const payload = await response.json();
+      const records = payload.sops || payload.data?.sops || [];
+      total = Number(payload.total || payload.data?.total || records.length);
+      all.push(...records);
+      if (records.length === 0) break;
+      offset += records.length;
+    }
+
+    return all;
+  }
+
+  function resetFilterOptions() {
+    [
+      [categoryFilter, "All categories"],
+      [toolFilter, "All tools"],
+      [ownerFilter, "All owners"],
+      [statusFilter, "All statuses"],
+      [tagFilter, "All tags"],
+    ].forEach(([select, label]) => {
+      if (!(select instanceof HTMLSelectElement)) return;
+      select.innerHTML = `<option value="">${escapeHtml(label)}</option>`;
+    });
+  }
+
+  async function hydrateApiSops() {
+    if (!results) return;
+
+    try {
+      const apiSops = await fetchAllApiSops();
+      if (!apiSops.length) return;
+
+      results.innerHTML = "";
+      resetFilterOptions();
+
+      apiSops.forEach((record) => {
+        const card = renderPublishedCard(record);
+        results.append(card);
+        addFilterOption(categoryFilter, card.dataset.category);
+        addFilterOption(ownerFilter, card.dataset.owner);
+        addFilterOption(statusFilter, card.dataset.status);
+        normalizeList(card.dataset.tools).forEach((tool) => addFilterOption(toolFilter, tool));
+        normalizeList(card.dataset.tags).forEach((tag) => addFilterOption(tagFilter, tag));
+      });
+
+      cards = Array.from(document.querySelectorAll("[data-search-card]"));
+      applySearch();
+    } catch {
+      // Keep the static Markdown and browser-published fallback results available.
+    }
+  }
+
   function matchesUpdated(dateValue, daysBack) {
     if (!daysBack) return true;
     if (!dateValue) return false;
@@ -554,4 +620,5 @@ const popularSearches = [
 
   hydratePublishedSops();
   applySearch();
+  hydrateApiSops();
 </script>

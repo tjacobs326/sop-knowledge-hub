@@ -44,7 +44,7 @@ const categoryCounts = getCategoryCounts(sops);
         </div>
       </div>
     </div>
-    <div class="category-grid category-grid--directory">
+    <div class="category-grid category-grid--directory" id="category-directory-grid">
       {
         categoryCounts.map((category) => (
           <CategoryCard
@@ -73,3 +73,69 @@ const categoryCounts = getCategoryCounts(sops);
     </aside>
   </section>
 </Layout>
+
+<script is:inline>
+  const grid = document.getElementById("category-directory-grid");
+
+  const escapeHtml = (value) =>
+    String(value ?? "").replace(/[&<>"']/g, (character) => {
+      const replacements = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      };
+      return replacements[character];
+    });
+
+  function initials(value) {
+    return String(value || "Category")
+      .split(/[\s/]+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase();
+  }
+
+  function categoryUrl(category) {
+    return `/categories/detail/?slug=${encodeURIComponent(category.slug || "")}`;
+  }
+
+  function renderCategory(category) {
+    const count = Number(category.sopCount || category.count || 0);
+    return `
+      <a class="category-card" href="${escapeHtml(categoryUrl(category))}" style="--card-accent: ${escapeHtml(
+        category.color || "#f8fafc",
+      )}">
+        <div class="category-card__header">
+          <span class="category-card__icon" aria-hidden="true">
+            <span class="category-card__initials">${escapeHtml(initials(category.name))}</span>
+          </span>
+          <h2 class="category-card__title">${escapeHtml(category.name || "Uncategorized")}</h2>
+        </div>
+        <p>${escapeHtml(category.description || "Browse SOPs in this category.")}</p>
+        <div class="category-card__footer">
+          <span class="category-card__count">${count} ${count === 1 ? "SOP" : "SOPs"}</span>
+        </div>
+      </a>
+    `;
+  }
+
+  async function hydrateCategories() {
+    if (!grid) return;
+    try {
+      const response = await fetch("/api/categories");
+      if (!response.ok) return;
+      const payload = await response.json();
+      const categories = payload.categories || payload.data?.categories || [];
+      if (!categories.length) return;
+      grid.innerHTML = categories.map(renderCategory).join("");
+    } catch {
+      // Keep the static Markdown category list if D1 is unavailable.
+    }
+  }
+
+  hydrateCategories();
+</script>

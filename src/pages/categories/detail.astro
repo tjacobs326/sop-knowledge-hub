@@ -1,0 +1,154 @@
+---
+import Layout from "../../components/Layout.astro";
+---
+
+<Layout title="Category" wide>
+  <section class="page-section" id="d1-category-detail">
+    <div class="section-heading">
+      <p class="eyebrow">Category</p>
+      <h1 id="d1-category-title">Loading category...</h1>
+      <p id="d1-category-description">Loading SOPs from the knowledge hub.</p>
+      <p><strong id="d1-category-count">0</strong> <span id="d1-category-count-label">SOPs</span></p>
+    </div>
+    <div class="filter-row no-print">
+      <label for="category-filter">Filter this category</label>
+      <input id="category-filter" type="search" placeholder="Filter by title, tag, tool, or owner" />
+    </div>
+    <div class="empty-state empty-state--search" id="d1-category-empty" hidden>
+      <strong>No SOPs found</strong>
+      <p>Try another category or clear the filter.</p>
+    </div>
+    <div class="sop-grid" id="d1-category-sop-list"></div>
+  </section>
+</Layout>
+
+<script is:inline>
+  const escapeHtml = (value) =>
+    String(value ?? "").replace(/[&<>"']/g, (character) => {
+      const replacements = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      };
+      return replacements[character];
+    });
+
+  function formatDate(value) {
+    if (!value) return "Not set";
+    const date = new Date(String(value).includes("T") ? value : `${value}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }).format(date);
+  }
+
+  function normalizeList(value) {
+    return Array.isArray(value) ? value.map(String).filter(Boolean) : [];
+  }
+
+  function statusBadgeHtml(status) {
+    const value = status || "Published";
+    const className = String(value).toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    return `<span class="status-badge status-badge--${escapeHtml(className)}">${escapeHtml(value)}</span>`;
+  }
+
+  function detailUrl(sop) {
+    return `/sops/detail/?slug=${encodeURIComponent(sop.slug || "")}`;
+  }
+
+  function renderSopCard(sop) {
+    const tags = normalizeList(sop.tags);
+    const tools = normalizeList(sop.tools);
+    const updated = sop.updatedAt || sop.lastUpdated;
+    const reviewDate = sop.reviewDate || sop.reviewDueAt;
+    const searchText = [
+      sop.title,
+      sop.purpose,
+      sop.summary,
+      sop.category,
+      sop.owner,
+      tags.join(" "),
+      tools.join(" "),
+      normalizeList(sop.audience).join(" "),
+      sop.version?.content,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return `
+      <div data-category-sop data-search="${escapeHtml(searchText)}">
+        <article class="sop-card">
+          <div class="sop-card__topline">
+            <span class="sop-card__category">${escapeHtml(sop.category || "Uncategorized")}</span>
+            ${statusBadgeHtml(sop.status)}
+          </div>
+          <h2><a href="${escapeHtml(detailUrl(sop))}">${escapeHtml(sop.title || "Untitled SOP")}</a></h2>
+          <p class="sop-card__purpose">${escapeHtml(sop.purpose || sop.summary || "No purpose provided.")}</p>
+          <dl class="compact-meta">
+            <div><dt>Owner</dt><dd>${escapeHtml(sop.owner || "Unassigned")}</dd></div>
+            <div><dt>Updated</dt><dd>${escapeHtml(formatDate(updated))}</dd></div>
+            <div><dt>Review</dt><dd>${escapeHtml(formatDate(reviewDate))}</dd></div>
+          </dl>
+          ${tools.length ? `<p class="sop-card__tools"><strong>Tools:</strong> ${escapeHtml(tools.join(", "))}</p>` : ""}
+          ${tags.length ? `<ul class="tag-list" aria-label="Tags">${tags.map((tag) => `<li>${escapeHtml(tag)}</li>`).join("")}</ul>` : ""}
+        </article>
+      </div>
+    `;
+  }
+
+  async function fetchAllSops(categorySlug) {
+    const all = [];
+    let offset = 0;
+    const limit = 100;
+    let total = Infinity;
+
+    while (all.length < total) {
+      const response = await fetch(`/api/sops?category=${encodeURIComponent(categorySlug)}&limit=${limit}&offset=${offset}`);
+      if (!response.ok) break;
+      const payload = await response.json();
+      const records = payload.sops || payload.data?.sops || [];
+      total = Number(payload.total || payload.data?.total || records.length);
+      all.push(...records);
+      if (records.length === 0) break;
+      offset += records.length;
+    }
+
+    return all;
+  }
+
+  async function loadCategory() {
+    const slug = new URLSearchParams(window.location.search).get("slug") || "";
+    const categoryResponse = await fetch("/api/categories");
+    const categoriesPayload = await categoryResponse.json();
+    const categories = categoriesPayload.categories || categoriesPayload.data?.categories || [];
+    const category = categories.find((item) => item.slug === slug);
+    const sops = slug ? await fetchAllSops(slug) : [];
+
+    document.title = `${category?.name || "Category"} | SOP Knowledge Hub`;
+    document.getElementById("d1-category-title").textContent = category?.name || "Category Not Found";
+    document.getElementById("d1-category-description").textContent =
+      category?.description || "Browse SOPs imported into the knowledge hub.";
+    document.getElementById("d1-category-count").textContent = String(sops.length);
+    document.getElementById("d1-category-count-label").textContent = `SOP${sops.length === 1 ? "" : "s"}`;
+
+    const list = document.getElementById("d1-category-sop-list");
+    const empty = document.getElementById("d1-category-empty");
+    if (list) list.innerHTML = sops.map(renderSopCard).join("");
+    if (empty instanceof HTMLElement) empty.hidden = sops.length !== 0;
+  }
+
+  const filter = document.getElementById("category-filter");
+  filter?.addEventListener("input", () => {
+    const query = filter.value.trim().toLowerCase();
+    document.querySelectorAll("[data-category-sop]").forEach((card) => {
+      card.hidden = query.length > 0 && !card.dataset.search.includes(query);
+    });
+  });
+
+  loadCategory();
+</script>

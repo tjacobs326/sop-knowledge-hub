@@ -2022,6 +2022,46 @@ textarea {
   margin-top: auto;
 }
 
+.category-card__initials {
+  display: inline-grid;
+  width: 3.75rem;
+  height: 3.75rem;
+  place-items: center;
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--card-accent, var(--color-sky)) 42%, #ffffff);
+  border: 2px solid color-mix(in srgb, var(--card-accent, var(--color-sky)) 55%, var(--color-ink));
+  border-radius: 1.1rem;
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.sop-rich-content {
+  display: grid;
+  gap: 1rem;
+}
+
+.sop-rich-content :is(p, ul, ol, figure, h3, h4) {
+  margin: 0;
+}
+
+.sop-rich-content :is(ul, ol) {
+  padding-left: 1.25rem;
+}
+
+.sop-rich-content img {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow-soft);
+}
+
+.sop-rich-content figure {
+  display: grid;
+  gap: 0.5rem;
+}
+
 .compact-meta,
 .metadata-panel dl,
 .review-meta {
