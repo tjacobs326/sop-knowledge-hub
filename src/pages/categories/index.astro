@@ -74,7 +74,9 @@ const categoryCounts = getCategoryCounts(sops);
   </section>
 </Layout>
 
-<script is:inline>
+<script>
+  import { renderCategoryIconSvg } from "../../lib/category-icons";
+
   const grid = document.getElementById("category-directory-grid");
 
   const escapeHtml = (value) =>
@@ -89,16 +91,6 @@ const categoryCounts = getCategoryCounts(sops);
       return replacements[character];
     });
 
-  function initials(value) {
-    return String(value || "Category")
-      .split(/[\s/]+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0])
-      .join("")
-      .toUpperCase();
-  }
-
   function categoryUrl(category) {
     return `/categories/detail/?slug=${encodeURIComponent(category.slug || "")}`;
   }
@@ -110,9 +102,7 @@ const categoryCounts = getCategoryCounts(sops);
         category.color || "#f8fafc",
       )}">
         <div class="category-card__header">
-          <span class="category-card__icon" aria-hidden="true">
-            <span class="category-card__initials">${escapeHtml(initials(category.name))}</span>
-          </span>
+          <span class="category-card__icon" aria-hidden="true">${renderCategoryIconSvg(category)}</span>
           <h2 class="category-card__title">${escapeHtml(category.name || "Uncategorized")}</h2>
         </div>
         <p>${escapeHtml(category.description || "Browse SOPs in this category.")}</p>

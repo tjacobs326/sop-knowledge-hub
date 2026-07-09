@@ -7224,7 +7224,8 @@ tbody tr:hover {
   height: 4rem !important;
 }
 
-.category-card__icon .hero-art-icon {
+.category-card__icon .hero-art-icon,
+.category-card__icon .category-art-icon {
   width: 7.15rem !important;
   height: 5.9rem !important;
 }

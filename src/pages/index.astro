@@ -503,6 +503,7 @@ const categoryIconByName: Record<string, string> = {
 
 <script>
   // @ts-nocheck
+  import { renderCategoryIconSvg } from "../lib/category-icons";
   import { fetchAllD1Sops, fetchD1Categories, fetchRecentD1Sops } from "../lib/sop-api";
 
   const categoryIconByName = {
@@ -544,13 +545,7 @@ const categoryIconByName: Record<string, string> = {
   }
 
   function renderCategoryIcon(category) {
-    const initials = String(category.name || "SOP")
-      .split(/\s+/)
-      .map((word) => word[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
-    return `<span class="category-card__initials" aria-hidden="true">${escapeHtml(initials)}</span>`;
+    return renderCategoryIconSvg(category);
   }
 
   function renderCategoryCard(category) {

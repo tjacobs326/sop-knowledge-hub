@@ -1,7 +1,7 @@
 ---
 import { getCategoryUrl } from "../lib/sops";
+import { renderCategoryIconSvg } from "../lib/category-icons";
 import AppIcon from "./AppIcon.astro";
-import HeroIllustrationIcon from "./HeroIllustrationIcon.astro";
 
 interface Props {
   name: string;
@@ -12,40 +12,14 @@ interface Props {
   count?: number;
 }
 
-const { name, slug, description, color = "#f8fafc", count } = Astro.props;
+const { name, slug, description, icon, color = "#f8fafc", count } = Astro.props;
 const href = getCategoryUrl(slug);
-
-const iconBySlug: Record<string, string> = {
-  "qa-processes": "qa",
-  "brightspace-d2l": "d2l",
-  templates: "template",
-  "course-builds": "course",
-  "ivanti-ticketing-system": "ticket",
-  operations: "operations",
-  finance: "finance",
-  marketing: "marketing",
-  troubleshooting: "troubleshooting",
-  "ai-tools": "ai",
-};
-
-const iconName = iconBySlug[slug] ?? "document";
-
-const illustrationBySlug: Record<string, "ticket" | "book" | "courseStack" | "shield" | "aiSpark"> = {
-  "ivanti-ticketing-system": "ticket",
-  "brightspace-d2l": "book",
-  "course-builds": "courseStack",
-  "qa-processes": "shield",
-  "ai-tools": "aiSpark",
-};
-
-const illustrationName = illustrationBySlug[slug];
+const categoryIcon = renderCategoryIconSvg({ name, slug, icon });
 ---
 
 <a class="category-card" href={href} style={`--card-accent: ${color}`}>
   <div class="category-card__header">
-    <span class="category-card__icon" aria-hidden="true">
-      {illustrationName ? <HeroIllustrationIcon name={illustrationName} /> : <AppIcon name={iconName} variant="illustrated" />}
-    </span>
+    <span class="category-card__icon" aria-hidden="true" set:html={categoryIcon} />
     <h2 class="category-card__title">{name}</h2>
   </div>
   <p>{description}</p>
@@ -115,7 +89,8 @@ const illustrationName = illustrationBySlug[slug];
     height: 3.25rem;
   }
 
-  .category-card__icon .hero-art-icon {
+  .category-card__icon .hero-art-icon,
+  .category-card__icon .category-art-icon {
     width: 7.15rem;
     height: 5.9rem;
     overflow: visible;
