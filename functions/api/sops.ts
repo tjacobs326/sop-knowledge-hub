@@ -2,7 +2,7 @@ import { failure, roleFromRequest, cacheHeaders, readBody, optionalText, success
 import { requireDb, slugify } from "../_shared/admin";
 import { getAuthUser, requirePermission } from "../_shared/auth";
 import { newId, type PagesFunctionContext } from "../_shared/cloudflare";
-import { requireCreatorSubRoleSelection } from "../_shared/ownership";
+import { requireCreatorSubRoleSelection, resolveRequestedCreatorSubRole } from "../_shared/ownership";
 import { countSops, listSops, type SopFilters } from "../_shared/sop-data";
 
 function readFilters(request: Request, role: ApiRole): SopFilters {
@@ -34,6 +34,10 @@ export const onRequestGet = async ({ request, env }: PagesFunctionContext) => {
     const user = await getAuthUser({ request, env });
     const role = url.searchParams.has("status") && user ? user.role : roleFromRequest(request);
     const filters = readFilters(request, role);
+    const selectedSubRole = await resolveRequestedCreatorSubRole(env.DB!, request);
+    if (selectedSubRole) {
+      filters.ownerSubRoleId = selectedSubRole.id;
+    }
     const [sops, total] = await Promise.all([
       listSops(env.DB!, filters),
       countSops(env.DB!, filters),

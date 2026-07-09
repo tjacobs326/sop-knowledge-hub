@@ -10,7 +10,7 @@ import {
 import { requireDb } from "../../_shared/admin";
 import { getAuthUser, requirePermission } from "../../_shared/auth";
 import { newId, type PagesFunctionContext } from "../../_shared/cloudflare";
-import { requireSopOwnership } from "../../_shared/ownership";
+import { requireSopOwnership, resolveRequestedCreatorSubRole } from "../../_shared/ownership";
 import { getSopById } from "../../_shared/sop-data";
 
 export const onRequestGet = async (context: PagesFunctionContext) => {
@@ -22,6 +22,14 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
   const publicOnly = !user || user.role === "normal";
   const sop = await getSopById(context.env.DB!, id, publicOnly);
   if (!sop) return failure("NOT_FOUND", "SOP not found.", 404);
+  const selectedSubRole = await resolveRequestedCreatorSubRole(context.env.DB!, context.request);
+  if (selectedSubRole && sop.ownerSubRoleId !== selectedSubRole.id) {
+    return failure(
+      "SOP_OWNERSHIP_REQUIRED",
+      "This SOP belongs to another department. Switch back to Normal User mode to view it without creator/reviewer controls.",
+      403,
+    );
+  }
 
   return new Response(JSON.stringify({ success: true, data: { sop }, sop }), {
     status: 200,

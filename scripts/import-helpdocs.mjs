@@ -92,6 +92,27 @@ const projectManagerSignals = [
   "milestone",
 ];
 
+const instructionalTechnologySignals = [
+  "instructional technology",
+  "instructional technologist",
+  "its",
+  "ivanti",
+  "ticketing",
+  "ticket routing",
+  "course support",
+  "student support",
+  "brightspace",
+  "d2l",
+  "cengage",
+  "lms",
+  "access issue",
+  "enrollment issue",
+];
+
+const instructionalTechnologySubRoleId = "subrole-instructional-technology-specialist";
+const instructionalDesignerSubRoleId = "subrole-instructional-designer";
+const projectManagerSubRoleId = "subrole-project-manager";
+
 function readEnvFile() {
   const envPath = path.join(root, ".env.local");
   if (!existsSync(envPath)) return;
@@ -196,9 +217,34 @@ function normalizeTags(tags) {
     .filter(Boolean);
 }
 
-function inferCreatorSubRole(article, tagNames = []) {
+function hasAnySignal(value, signals) {
+  return signals.some((signal) => {
+    const escaped = signal.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, "i").test(value);
+  });
+}
+
+function inferCreatorSubRole(article, tagNames = [], category = null) {
   const authorName = String(article.author?.name || "").trim();
   const normalizedAuthor = authorName.toLowerCase();
+  const categoryText = [category?.name, category?.slug, category?.description].filter(Boolean).join(" ").toLowerCase();
+  const metadataText = [
+    article.title,
+    article.slug,
+    article.description,
+    article.short_version,
+    article.relative_url,
+    article.url,
+    categoryText,
+    ...tagNames,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  if (hasAnySignal(metadataText, instructionalTechnologySignals)) {
+    return creatorSubRoles.find((subRole) => subRole.id === instructionalTechnologySubRoleId) || null;
+  }
 
   if (normalizedAuthor === "craig cuatt" || normalizedAuthor === "criag cuatt") {
     const haystack = [
@@ -212,9 +258,9 @@ function inferCreatorSubRole(article, tagNames = []) {
       .join(" ")
       .toLowerCase();
     if (projectManagerSignals.some((signal) => haystack.includes(signal))) {
-      return creatorSubRoles.find((subRole) => subRole.id === "subrole-project-manager") || null;
+      return creatorSubRoles.find((subRole) => subRole.id === projectManagerSubRoleId) || null;
     }
-    return creatorSubRoles.find((subRole) => subRole.id === "subrole-instructional-designer") || null;
+    return creatorSubRoles.find((subRole) => subRole.id === instructionalDesignerSubRoleId) || null;
   }
 
   return creatorSubRoleByAuthor.get(normalizedAuthor) || null;
@@ -303,7 +349,7 @@ function mapArticle(article, categoryByExternalId, tagByName, userByEmail) {
   const tagIds = tagNames.map((tag) => tagByName.get(tag.toLowerCase())?.id).filter(Boolean);
   const authorEmail = String(article.author?.email || "").toLowerCase();
   const owner = userByEmail.get(authorEmail) || null;
-  const ownerSubRole = inferCreatorSubRole(article, tagNames);
+  const ownerSubRole = inferCreatorSubRole(article, tagNames, category);
   const publishedAt = status === "Published" ? updatedAt : undefined;
   const bodyHtml = article.body || `<p>${purpose || title}</p>`;
   const plainText = stripHtml(bodyHtml);

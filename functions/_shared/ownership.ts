@@ -48,6 +48,14 @@ export async function listCreatorSubRoles(db: D1DatabaseBinding) {
   }
 }
 
+export async function resolveRequestedCreatorSubRole(db: D1DatabaseBinding, request: Request) {
+  const requested = selectedSubRoleFromRequest(request);
+  if (!requested) return null;
+
+  const subRoles = await listCreatorSubRoles(db);
+  return subRoles.find((subRole) => subRole.id === requested || subRole.slug === requested) || null;
+}
+
 export async function listUserSubRoles(db: D1DatabaseBinding, userId: string) {
   if (!userId) return [];
 

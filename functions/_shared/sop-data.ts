@@ -7,6 +7,7 @@ export interface SopFilters {
   tag?: string;
   tool?: string;
   owner?: string;
+  ownerSubRoleId?: string;
   status?: string;
   sort?: string;
   limit?: number;
@@ -166,6 +167,11 @@ function addFilters(filters: SopFilters) {
   if (filters.owner) {
     where.push("(owner.id = ? OR owner.name = ?)");
     values.push(filters.owner, filters.owner);
+  }
+
+  if (filters.ownerSubRoleId) {
+    where.push("sops.owner_sub_role_id = ?");
+    values.push(filters.ownerSubRoleId);
   }
 
   if (filters.tag) {
