@@ -1536,8 +1536,8 @@ body.role-blocked .site-main {
 
 .work-summary-card__icon {
   display: grid;
-  width: 3rem;
-  height: 3rem;
+  width: clamp(3.05rem, 5vw, 3.75rem);
+  height: clamp(2.7rem, 4.6vw, 3.25rem);
   place-items: center;
   color: var(--color-ink);
   background:
@@ -1566,6 +1566,21 @@ body.role-blocked .site-main {
 .work-summary-card__icon .app-icon {
   width: 1.85rem;
   height: 1.85rem;
+}
+
+.work-summary-card__art {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+}
+
+.work-summary-card__art .category-art-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.72));
 }
 
 .work-summary-card__body {
@@ -1726,16 +1741,33 @@ body.role-blocked .site-main {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
+  max-width: 100%;
   min-height: 1.6rem;
   padding: 0;
   color: var(--color-ink);
   font-size: 0.84rem;
   font-weight: 900;
   line-height: 1.15;
+  overflow-wrap: anywhere;
   background: transparent;
   border: 0;
   border-radius: 0;
   box-shadow: none;
+}
+
+.category-pill__icon {
+  display: inline-grid;
+  width: clamp(2.45rem, 5vw, 3.3rem);
+  height: clamp(2.1rem, 4.2vw, 2.75rem);
+  flex: 0 0 auto;
+  place-items: center;
+}
+
+.category-pill__icon .category-art-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
 }
 
 .category-pill .app-icon {
@@ -5772,7 +5804,7 @@ tbody tr:hover {
 
   .main-nav__links {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 132px), 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
     gap: 0.45rem;
     overflow: visible;
     padding-bottom: 0.25rem;
@@ -6325,6 +6357,16 @@ tbody tr:hover {
     align-items: center;
     justify-content: space-between;
     gap: 0.8rem;
+  }
+
+  .dashboard-table .category-pill {
+    justify-content: flex-end;
+    text-align: right;
+  }
+
+  .dashboard-table .category-pill__icon {
+    width: 2.5rem;
+    height: 2.1rem;
   }
 
   .dashboard-table td::before {
@@ -7214,8 +7256,8 @@ tbody tr:hover {
 }
 
 .category-card__icon {
-  width: 9.2rem !important;
-  height: 6.35rem !important;
+  width: 6.75rem !important;
+  height: 5rem !important;
   justify-content: start;
 }
 
@@ -7226,8 +7268,15 @@ tbody tr:hover {
 
 .category-card__icon .hero-art-icon,
 .category-card__icon .category-art-icon {
-  width: 7.15rem !important;
-  height: 5.9rem !important;
+  display: block;
+  width: 6.4rem !important;
+  height: 5rem !important;
+}
+
+.category-card__header {
+  gap: 0.55rem;
+  padding-bottom: 0.65rem;
+  margin-bottom: 0.45rem;
 }
 
 .category-pill .app-icon,
@@ -7305,4 +7354,163 @@ tbody tr:hover {
 .select-with-icon > span .app-icon__fill,
 .popular-searches .app-icon__fill {
   stroke-width: 3.4;
+}
+
+.site-sidebar .main-nav__icon {
+  width: clamp(3.55rem, 7vw, 4.15rem);
+  height: clamp(3rem, 6vw, 3.35rem);
+  flex: 0 0 clamp(3.55rem, 7vw, 4.15rem);
+  color: #1a3263;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0;
+  box-shadow: none !important;
+}
+
+.site-sidebar .main-nav__icon .category-art-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.site-sidebar .main-nav__icon .category-art-icon > * {
+  transform-box: view-box;
+  transform-origin: 56px 46px;
+}
+
+.site-sidebar .main-nav__icon .category-art-icon--home > :nth-child(2),
+.site-sidebar .main-nav__icon .category-art-icon--home > :nth-child(3),
+.site-sidebar .main-nav__icon .category-art-icon--home > :nth-child(4) {
+  transform: translateY(3px);
+}
+
+.site-sidebar .main-nav__icon .category-art-icon--search > :nth-child(2),
+.site-sidebar .main-nav__icon .category-art-icon--search > :nth-child(3),
+.site-sidebar .main-nav__icon .category-art-icon--search > :nth-child(4),
+.site-sidebar .main-nav__icon .category-art-icon--search > :nth-child(5) {
+  transform: translate(-3px, 2px);
+}
+
+.site-sidebar .main-nav__icon .category-art-icon--finder > :nth-child(2),
+.site-sidebar .main-nav__icon .category-art-icon--finder > :nth-child(3),
+.site-sidebar .main-nav__icon .category-art-icon--finder > :nth-child(4) {
+  transform: translateY(2px);
+}
+
+.site-sidebar .main-nav__icon .category-art-icon--categories > :nth-child(2),
+.site-sidebar .main-nav__icon .category-art-icon--categories > :nth-child(3),
+.site-sidebar .main-nav__icon .category-art-icon--categories > :nth-child(4),
+.site-sidebar .main-nav__icon .category-art-icon--categories > :nth-child(5),
+.site-sidebar .main-nav__icon .category-art-icon--categories > :nth-child(6) {
+  transform: translate(1px, 1px);
+}
+
+.site-sidebar .main-nav__icon .category-art-icon--request > :nth-child(2),
+.site-sidebar .main-nav__icon .category-art-icon--request > :nth-child(3),
+.site-sidebar .main-nav__icon .category-art-icon--request > :nth-child(4),
+.site-sidebar .main-nav__icon .category-art-icon--request > :nth-child(5) {
+  transform: translateY(-1px);
+}
+
+.site-sidebar .main-nav__icon .app-icon {
+  width: clamp(3rem, 6vw, 3.5rem);
+  height: clamp(3rem, 6vw, 3.5rem);
+}
+
+.site-sidebar .main-nav__icon .app-icon[data-variant="illustrated"] > path:not(.app-icon__fill):not(.app-icon__blob):not(.app-icon__sparkle),
+.site-sidebar .main-nav__icon .app-icon__glyph-line {
+  stroke: #1a3263 !important;
+}
+
+.site-sidebar .main-nav__icon .app-icon__fill {
+  stroke: #1a3263 !important;
+}
+
+.site-sidebar .main-nav__icon .app-icon__fill--blue,
+.site-sidebar .main-nav__icon .app-icon__fill--soft {
+  fill: #fef9f4 !important;
+}
+
+.site-sidebar .main-nav__icon .app-icon__fill--green {
+  fill: #ebe0d7 !important;
+}
+
+.site-sidebar .main-nav__icon .app-icon__fill--orange,
+.site-sidebar .main-nav__icon .app-icon__fill--yellow {
+  fill: #fab95b !important;
+}
+
+.site-sidebar .main-nav__icon .app-icon__fill--pink {
+  fill: #f16821 !important;
+}
+
+.site-sidebar .main-nav a[aria-current="page"] .main-nav__icon {
+  color: #1a3263;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.site-sidebar .main-nav a[aria-current="page"] .main-nav__icon .app-icon[data-variant="illustrated"] > path:not(.app-icon__fill):not(.app-icon__blob):not(.app-icon__sparkle),
+.site-sidebar .main-nav a[aria-current="page"] .main-nav__icon .app-icon__glyph-line,
+.site-sidebar .main-nav a[aria-current="page"] .main-nav__icon .app-icon__fill {
+  stroke: #1a3263 !important;
+}
+
+.site-sidebar .main-nav a[aria-current="page"] .main-nav__icon .app-icon__fill--blue,
+.site-sidebar .main-nav a[aria-current="page"] .main-nav__icon .app-icon__fill--soft {
+  fill: #ffffff !important;
+}
+
+.site-sidebar .main-nav a[aria-current="page"] .main-nav__icon .app-icon__fill--green {
+  fill: #ebe0d7 !important;
+}
+
+.site-sidebar .main-nav a[aria-current="page"] .main-nav__icon .app-icon__fill--orange,
+.site-sidebar .main-nav a[aria-current="page"] .main-nav__icon .app-icon__fill--yellow {
+  fill: #fab95b !important;
+}
+
+.site-sidebar .main-nav a[aria-current="page"] .main-nav__icon .app-icon__fill--pink {
+  fill: #f16821 !important;
+}
+
+.site-sidebar .main-nav__icon .app-icon__scene-blob,
+.site-sidebar .main-nav__icon .app-icon__sparkle {
+  display: block;
+}
+
+.site-sidebar .main-nav__icon .app-icon__scene-cloud,
+.site-sidebar .main-nav__icon .app-icon__scene-detail,
+.site-sidebar .main-nav__icon .app-icon__scene-baseline {
+  display: none;
+}
+
+.site-sidebar .main-nav__icon .app-icon__scene-blob {
+  fill: #fef9f4;
+  opacity: 1;
+}
+
+.site-sidebar .main-nav__icon .app-icon__scene-blob--orange,
+.site-sidebar .main-nav__icon .app-icon__scene-blob--yellow {
+  fill: #fff4df;
+}
+
+.site-sidebar .main-nav__icon .app-icon__scene-blob--blue,
+.site-sidebar .main-nav__icon .app-icon__scene-blob--soft {
+  fill: #fef9f4;
+}
+
+.site-sidebar .main-nav__icon .app-icon__scene-blob--green {
+  fill: #f3eee9;
+}
+
+.site-sidebar .main-nav__icon .app-icon__scene-blob--pink {
+  fill: #f5e8e0;
+}
+
+.site-sidebar .main-nav__icon .app-icon__sparkle {
+  stroke: #f16821 !important;
+  stroke-width: 3.2;
 }

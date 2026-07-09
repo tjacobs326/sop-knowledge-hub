@@ -5,6 +5,9 @@ type CategoryIconInput = {
 };
 
 type CategoryIconKey =
+  | "home"
+  | "search"
+  | "finder"
   | "archive"
   | "ivanti"
   | "routing"
@@ -14,6 +17,9 @@ type CategoryIconKey =
   | "ai"
   | "template"
   | "troubleshooting"
+  | "saved"
+  | "categories"
+  | "request"
   | "default";
 
 const palette = {
@@ -39,6 +45,9 @@ export function getCategoryIconKey(category: CategoryIconInput): CategoryIconKey
   const icon = normalize(category.icon);
   const value = `${slug} ${name} ${icon}`;
 
+  if (value.includes("home")) return "home";
+  if (value.includes("search")) return "search";
+  if (value.includes("finder") || value.includes("guide")) return "finder";
   if (value.includes("archive")) return "archive";
   if (value.includes("routing")) return "routing";
   if (value.includes("ivanti") || value.includes("ticketing")) return "ivanti";
@@ -48,6 +57,9 @@ export function getCategoryIconKey(category: CategoryIconInput): CategoryIconKey
   if (value.includes("ai")) return "ai";
   if (value.includes("template")) return "template";
   if (value.includes("troubleshoot")) return "troubleshooting";
+  if (value.includes("saved") || value.includes("bookmark")) return "saved";
+  if (value.includes("categories") || value.includes("taxonomy")) return "categories";
+  if (value.includes("request") || value.includes("submit")) return "request";
 
   return "default";
 }
@@ -65,6 +77,43 @@ export function renderCategoryIconSvg(category: CategoryIconInput) {
   const key = getCategoryIconKey(category);
 
   switch (key) {
+    case "home":
+      return svg(
+        key,
+        `
+          <path d="M24 63c-10-16-1-39 18-48 19-9 43-1 51 18 7 18-5 39-27 45-17 5-34-1-42-15Z" fill="${palette.softOrange}" />
+          <path d="M56 22 28 44h8v28h40V44h8L56 22Z" fill="${palette.white}" stroke="${palette.ink}" stroke-width="4.4" stroke-linejoin="round" />
+          <path d="M47 72V54h18v18" fill="${palette.blue}" stroke="${palette.ink}" stroke-width="4.2" stroke-linejoin="round" />
+          <path d="M43 45h26" fill="none" stroke="${palette.orange}" stroke-width="4" stroke-linecap="round" />
+          ${sharedSpark}
+        `,
+      );
+
+    case "search":
+      return svg(
+        key,
+        `
+          <path d="M23 63c-10-16-1-39 18-48 19-9 43-1 51 18 8 19-5 40-27 45-17 4-34-2-42-15Z" fill="${palette.softBlue}" />
+          <circle cx="49" cy="43" r="21" fill="${palette.white}" stroke="${palette.ink}" stroke-width="4.4" />
+          <circle cx="49" cy="43" r="11" fill="#f7fbff" stroke="#9aa7bd" stroke-width="3.2" />
+          <path d="m64 58 19 19" fill="none" stroke="${palette.ink}" stroke-width="8" stroke-linecap="round" />
+          <path d="m64 58 19 19" fill="none" stroke="${palette.blue}" stroke-width="4.8" stroke-linecap="round" />
+          ${sharedSpark}
+        `,
+      );
+
+    case "finder":
+      return svg(
+        key,
+        `
+          <path d="M23 63c-10-16-1-39 18-48 19-9 43-1 51 18 8 19-5 40-27 45-17 4-34-2-42-15Z" fill="${palette.softPurple}" />
+          <path d="M56 18 82 30 72 66 48 78 30 52 56 18Z" fill="${palette.white}" stroke="${palette.ink}" stroke-width="4.4" stroke-linejoin="round" />
+          <path d="M56 29 66 34 61 53 49 61 42 51 56 29Z" fill="${palette.blue}" stroke="${palette.ink}" stroke-width="3.8" stroke-linejoin="round" />
+          <path d="M56 38v12l7 4" fill="none" stroke="${palette.white}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+          ${sharedSpark}
+        `,
+      );
+
     case "archive":
       return svg(
         key,
@@ -173,6 +222,45 @@ export function renderCategoryIconSvg(category: CategoryIconInput) {
           <path d="M22 62c-10-16-1-38 18-47 19-8 42 0 50 18 8 19-5 39-26 45-17 4-34-2-42-16Z" fill="${palette.softGreen}" />
           <path d="M70 23c-6-2-13 0-17 5-4 5-4 11-1 16L31 65l10 10 21-21c5 2 12 1 16-3 5-5 7-12 4-18l-9 9-10-10 7-9Z" fill="${palette.white}" stroke="${palette.ink}" stroke-width="4.2" stroke-linejoin="round" />
           <path d="M35 65 25 75" fill="none" stroke="${palette.orange}" stroke-width="5" stroke-linecap="round" />
+          ${sharedSpark}
+        `,
+      );
+
+    case "saved":
+      return svg(
+        key,
+        `
+          <path d="M23 63c-10-16-1-39 18-48 19-9 43-1 51 18 8 19-5 40-27 45-17 4-34-2-42-15Z" fill="${palette.softPurple}" />
+          <path d="M36 22h40v50L56 60 36 72V22Z" fill="${palette.white}" stroke="${palette.ink}" stroke-width="4.4" stroke-linejoin="round" />
+          <path d="M44 35h24M44 46h17" fill="none" stroke="${palette.ink}" stroke-width="4" stroke-linecap="round" />
+          <path d="m72 19 6 6-20 20-9 3 3-9 20-20Z" fill="${palette.orange}" stroke="${palette.ink}" stroke-width="3.6" stroke-linejoin="round" />
+          ${sharedSpark}
+        `,
+      );
+
+    case "categories":
+      return svg(
+        key,
+        `
+          <path d="M22 63c-10-16-1-39 18-48 19-9 43-1 51 18 8 19-5 40-27 45-17 4-34-2-42-15Z" fill="${palette.softBlue}" />
+          <path d="M29 29h20v17H29V29Z" fill="${palette.orange}" stroke="${palette.ink}" stroke-width="4" stroke-linejoin="round" />
+          <path d="M63 29h20v17H63V29Z" fill="${palette.blue}" stroke="${palette.ink}" stroke-width="4" stroke-linejoin="round" />
+          <path d="M29 58h20v17H29V58Z" fill="${palette.purple}" stroke="${palette.ink}" stroke-width="4" stroke-linejoin="round" />
+          <path d="M63 58h20v17H63V58Z" fill="${palette.white}" stroke="${palette.ink}" stroke-width="4" stroke-linejoin="round" />
+          <path d="M35 37h8M69 37h8M35 66h8M69 66h8" fill="none" stroke="${palette.ink}" stroke-width="3.2" stroke-linecap="round" />
+          ${sharedSpark}
+        `,
+      );
+
+    case "request":
+      return svg(
+        key,
+        `
+          <path d="M22 62c-10-16-1-38 18-47 19-8 42 0 50 18 8 19-5 39-26 45-17 4-34-2-42-16Z" fill="${palette.softOrange}" />
+          <path d="M56 18 82 66H30L56 18Z" fill="${palette.white}" stroke="${palette.ink}" stroke-width="4.6" stroke-linejoin="round" />
+          <path d="M56 36v15" fill="none" stroke="${palette.orange}" stroke-width="5" stroke-linecap="round" />
+          <circle cx="56" cy="61" r="3.6" fill="${palette.orange}" stroke="${palette.ink}" stroke-width="2.6" />
+          <path d="M33 72h46" fill="none" stroke="${palette.ink}" stroke-width="4.2" stroke-linecap="round" />
           ${sharedSpark}
         `,
       );

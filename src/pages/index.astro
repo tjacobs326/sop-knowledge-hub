@@ -5,6 +5,7 @@ import HeroIllustrationIcon from "../components/HeroIllustrationIcon.astro";
 import CategoryCard from "../components/CategoryCard.astro";
 import { auditLogs, reviews, searchLogs, sopRequests, userAccounts } from "../data/mock-platform";
 import { formatDate } from "../lib/dates";
+import { renderCategoryIconSvg } from "../lib/category-icons";
 import { getAllSops, getCategoryCounts, getSopUrl } from "../lib/sops";
 
 const sops = await getAllSops();
@@ -24,6 +25,7 @@ type DashboardCard = {
   value: string;
   description: string;
   icon: string;
+  iconSvg?: string;
   tone: DashboardTone;
   status?: string;
 };
@@ -59,6 +61,7 @@ const dashboardConfigs: Record<DashboardRole, { title: string; cards: DashboardC
         value: recentlyViewedSop?.data.title ?? "No recent SOP",
         description: recentlyViewedLog ? `Last viewed ${formatDate(recentlyViewedLog.createdAt)}` : "Open an SOP to start your history.",
         icon: "document",
+        iconSvg: renderCategoryIconSvg({ name: recentlyViewedSop?.data.category ?? "document" }),
         tone: "standard",
       },
       {
@@ -67,6 +70,7 @@ const dashboardConfigs: Record<DashboardRole, { title: string; cards: DashboardC
         value: "4",
         description: `${normalUser.name} has saved SOPs for quick reference.`,
         icon: "tags",
+        iconSvg: renderCategoryIconSvg({ icon: "saved" }),
         tone: "standard",
       },
       {
@@ -75,6 +79,7 @@ const dashboardConfigs: Record<DashboardRole, { title: string; cards: DashboardC
         value: popularSop?.data.title ?? "Browse SOPs",
         description: "Most viewed published SOP in current sample data.",
         icon: "analytics",
+        iconSvg: renderCategoryIconSvg({ name: popularSop?.data.category ?? "analytics" }),
         tone: "success",
       },
       {
@@ -83,6 +88,7 @@ const dashboardConfigs: Record<DashboardRole, { title: string; cards: DashboardC
         value: recentlyUpdatedSop?.data.title ?? "No updates",
         description: recentlyUpdatedSop ? `Updated ${formatDate(recentlyUpdatedSop.data.lastUpdated)}` : "Published SOP updates will appear here.",
         icon: "review",
+        iconSvg: renderCategoryIconSvg({ name: recentlyUpdatedSop?.data.category ?? "review" }),
         tone: "standard",
       },
       {
@@ -91,6 +97,7 @@ const dashboardConfigs: Record<DashboardRole, { title: string; cards: DashboardC
         value: String(categoryCounts.length),
         description: "Browse available SOP categories.",
         icon: "categories",
+        iconSvg: renderCategoryIconSvg({ icon: "categories" }),
         tone: "standard",
       },
       {
@@ -99,6 +106,7 @@ const dashboardConfigs: Record<DashboardRole, { title: string; cards: DashboardC
         value: "Request SOP",
         description: "Submit a request when the process you need is missing.",
         icon: "submit",
+        iconSvg: renderCategoryIconSvg({ icon: "request" }),
         tone: "warning",
         status: "Request help",
       },
@@ -421,7 +429,7 @@ const categoryIconByName: Record<string, string> = {
                     </td>
                     <td data-label="Category">
                       <span class="category-pill">
-                        <AppIcon name={categoryIconByName[sop.data.category] ?? "document"} variant="illustrated" />
+                        <span class="category-pill__icon" aria-hidden="true" set:html={renderCategoryIconSvg({ name: sop.data.category })} />
                         {sop.data.category}
                       </span>
                     </td>
@@ -448,7 +456,9 @@ const categoryIconByName: Record<string, string> = {
                     href={item.href}
                     aria-label={`${item.label}: ${item.value}. ${item.description}`}
                   >
-                    <span class="work-summary-card__icon" aria-hidden="true"><AppIcon name={item.icon} /></span>
+                    <span class="work-summary-card__icon" aria-hidden="true">
+                      {item.iconSvg ? <span class="work-summary-card__art" set:html={item.iconSvg} /> : <AppIcon name={item.icon} />}
+                    </span>
                     <span class="work-summary-card__body">
                       <span class="work-summary-card__label">{item.label}</span>
                       <strong>{item.value}</strong>
@@ -564,6 +574,8 @@ const categoryIconByName: Record<string, string> = {
   }
 
   function renderRecentRow(sop) {
+    const categoryIcon = renderCategoryIconSvg({ name: sop.category, slug: sop.category, icon: categoryIconByName[sop.category] });
+
     return `
       <tr>
         <td data-label="SOP">
@@ -574,9 +586,7 @@ const categoryIconByName: Record<string, string> = {
         </td>
         <td data-label="Category">
           <span class="category-pill">
-            <span class="category-card__initials category-card__initials--small" aria-hidden="true">${escapeHtml(
-              categoryIconByName[sop.category] ? sop.category.slice(0, 2).toUpperCase() : sop.category.slice(0, 2).toUpperCase(),
-            )}</span>
+            <span class="category-pill__icon" aria-hidden="true">${categoryIcon}</span>
             ${escapeHtml(sop.category)}
           </span>
         </td>
