@@ -28,8 +28,8 @@ export const roleAccessViews = [
 export const creatorSubRoleViews = [
   {
     id: "subrole-instructional-technology-specialist",
-    slug: "instructional-technology-specialist",
-    title: "Instructional Technology Specialist",
+    slug: "instructional-technologist",
+    title: "Instructional Technologist",
     department: "Instructional Technology",
     author: "Kevan Van Cleave",
   },

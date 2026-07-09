@@ -23,11 +23,11 @@ const applyTarget = args.get("apply");
 const creatorSubRoles = [
   {
     id: "subrole-instructional-technology-specialist",
-    label: "Instructional Technology Specialist",
-    slug: "instructional-technology-specialist",
+    label: "Instructional Technologist",
+    slug: "instructional-technologist",
     department: "Instructional Technology",
     teamId: "team-instructional-technology-specialists",
-    teamName: "Instructional Technology Specialists",
+    teamName: "Instructional Technologists",
     authorNames: ["Kevan Van Cleave"],
     sortOrder: 10,
   },

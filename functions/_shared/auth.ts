@@ -126,8 +126,8 @@ function localDevUser(request: Request): AuthUser | null {
   const devSubRoles: CreatorSubRole[] = [
     {
       id: "subrole-instructional-technology-specialist",
-      label: "Instructional Technology Specialist",
-      slug: "instructional-technology-specialist",
+      label: "Instructional Technologist",
+      slug: "instructional-technologist",
       department: "Instructional Technology",
       teamId: "team-instructional-technology-specialists",
     },
