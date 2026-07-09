@@ -142,9 +142,10 @@ import { creatorSubRoleViews, roleAccessViews, roleRouteRules } from "../data/pl
   function applyRole(role) {
     const selectedRole = normalizeRole(role);
     const selectedSubRole = normalizeSubRole(localStorage.getItem(SUB_ROLE_KEY));
+    const roleReady = selectedRole && (selectedRole !== "creator" || selectedSubRole);
     body.dataset.sopRole = selectedRole;
     body.dataset.sopSubRole = selectedRole === "creator" ? selectedSubRole : "";
-    body.classList.toggle("role-unselected", !selectedRole);
+    body.classList.toggle("role-unselected", !roleReady);
 
     const subRoleLabel = selectedRole === "creator" ? selectedSubRoleLabel() : "";
     const label = subRoleLabel || ROLE_LABELS[selectedRole] || "Select Role";
@@ -165,7 +166,6 @@ import { creatorSubRoleViews, roleAccessViews, roleRouteRules } from "../data/pl
       subRolePanel.hidden = selectedRole !== "creator" || Boolean(selectedSubRole);
     }
 
-    const roleReady = selectedRole && (selectedRole !== "creator" || selectedSubRole);
     const allowed = !selectedRole || roleCanAccessPath(selectedRole, window.location.pathname);
     if (accessDenied instanceof HTMLElement) {
       accessDenied.hidden = !roleReady || allowed;

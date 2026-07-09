@@ -409,6 +409,7 @@ body[data-sop-role="admin"] [data-dashboard-role="admin"] {
 
 body.role-unselected {
   overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body.role-unselected .site-header,
@@ -1350,6 +1351,8 @@ body.role-blocked .site-main {
   display: grid;
   place-items: center;
   padding: 1rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background:
     radial-gradient(circle at 20% 10%, rgba(250, 185, 91, 0.20), transparent 28%),
     rgba(4, 18, 48, 0.78);
@@ -1364,6 +1367,9 @@ body.role-blocked .site-main {
 .role-gate__panel,
 .access-denied__panel {
   width: min(100%, 980px);
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 1.5rem;
   color: var(--color-ink);
   background: var(--color-white);
@@ -1419,7 +1425,7 @@ body.role-blocked .site-main {
 }
 
 .role-gate__grid--subroles {
-  grid-template-columns: repeat(5, minmax(8.5rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
   gap: 0.75rem;
   margin-top: 0.85rem;
 }
@@ -6424,6 +6430,7 @@ tbody tr:hover {
 
   .role-gate__panel,
   .access-denied__panel {
+    max-height: calc(100dvh - 1rem);
     padding: 1rem;
   }
 
