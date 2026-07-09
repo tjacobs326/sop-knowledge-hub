@@ -516,6 +516,10 @@ const categoryIconByName: Record<string, string> = {
   import { renderCategoryIconSvg } from "../lib/category-icons";
   import { fetchAllD1Sops, fetchD1Categories, fetchRecentD1Sops } from "../lib/sop-api";
 
+  const SUB_ROLE_KEY = "sopHubSelectedCreatorSubRole";
+  const ROLE_CONTEXT_EVENT = "sop-role-context-change";
+  let homeHydrationRequestId = 0;
+
   const categoryIconByName = {
     "QA Processes": "qa",
     "Brightspace D2L": "d2l",
@@ -552,6 +556,10 @@ const categoryIconByName: Record<string, string> = {
   function setText(id, value) {
     const element = document.getElementById(id);
     if (element) element.textContent = String(value);
+  }
+
+  function selectedCreatorSubRole() {
+    return localStorage.getItem(SUB_ROLE_KEY) || "";
   }
 
   function renderCategoryIcon(category) {
@@ -595,14 +603,22 @@ const categoryIconByName: Record<string, string> = {
     `;
   }
 
-  async function hydrateHomeFromD1() {
+  async function hydrateHomeFromD1({ clearPrevious = false } = {}) {
+    const requestId = ++homeHydrationRequestId;
+    const requestedSubRole = selectedCreatorSubRole();
+
+    if (clearPrevious) {
+      setText("home-published-count", "...");
+    }
+
     try {
       const [allSops, categories, recentSops] = await Promise.all([
         fetchAllD1Sops({ limit: 100, sort: "recent" }),
         fetchD1Categories(),
         fetchRecentD1Sops(5),
       ]);
-      if (!allSops.length) return;
+      if (requestId !== homeHydrationRequestId || requestedSubRole !== selectedCreatorSubRole()) return;
+      if (!allSops.length && !requestedSubRole) return;
 
       const tagCount = new Set(allSops.flatMap((sop) => sop.tags)).size;
       const latest = recentSops[0] || allSops[0];
@@ -621,9 +637,19 @@ const categoryIconByName: Record<string, string> = {
         recentTable.innerHTML = recentSops.map(renderRecentRow).join("");
       }
     } catch {
+      if (requestedSubRole) {
+        setText("home-published-count", "0");
+      }
       // Keep the static dashboard snapshot as the fallback when D1 is unavailable.
     }
   }
 
   hydrateHomeFromD1();
+
+  window.addEventListener(ROLE_CONTEXT_EVENT, (event) => {
+    const detail = event instanceof CustomEvent ? event.detail || {} : {};
+    if (detail.previousSubRole !== detail.subRole || detail.previousRole !== detail.role) {
+      hydrateHomeFromD1({ clearPrevious: true });
+    }
+  });
 </script>
