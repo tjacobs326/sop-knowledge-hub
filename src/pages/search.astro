@@ -307,7 +307,10 @@ const popularSearches = [
   const resultCount = document.getElementById("result-count");
   const emptyState = document.getElementById("search-empty");
   const results = document.getElementById("search-results");
+  const SUB_ROLE_KEY = "sopHubSelectedCreatorSubRole";
+  const ROLE_CONTEXT_EVENT = "sop-role-context-change";
   let cards = Array.from(document.querySelectorAll("[data-search-card]"));
+  let searchHydrationRequestId = 0;
 
   const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (character) => {
@@ -499,6 +502,10 @@ const popularSearches = [
       .includes(filterValue);
   }
 
+  function selectedCreatorSubRole() {
+    return localStorage.getItem(SUB_ROLE_KEY) || "";
+  }
+
   async function fetchAllApiSops() {
     const all = [];
     let offset = 0;
@@ -532,29 +539,54 @@ const popularSearches = [
     });
   }
 
-  async function hydrateApiSops() {
+  function resetSearchControls() {
+    [queryInput, categoryFilter, toolFilter, ownerFilter, statusFilter, tagFilter, updatedFilter].forEach((element) => {
+      if (element instanceof HTMLInputElement || element instanceof HTMLSelectElement) {
+        element.value = "";
+      }
+    });
+  }
+
+  function renderApiSops(apiSops) {
     if (!results) return;
+
+    results.innerHTML = "";
+    resetFilterOptions();
+
+    apiSops.forEach((record) => {
+      const card = renderPublishedCard(record);
+      results.append(card);
+      addFilterOption(categoryFilter, card.dataset.category);
+      addFilterOption(ownerFilter, card.dataset.owner);
+      addFilterOption(statusFilter, card.dataset.status);
+      normalizeList(card.dataset.tools).forEach((tool) => addFilterOption(toolFilter, tool));
+      normalizeList(card.dataset.tags).forEach((tag) => addFilterOption(tagFilter, tag));
+    });
+
+    cards = Array.from(document.querySelectorAll("[data-search-card]"));
+    applySearch();
+  }
+
+  async function hydrateApiSops({ resetControls = false } = {}) {
+    if (!results) return;
+
+    const requestId = ++searchHydrationRequestId;
+    const requestedSubRole = selectedCreatorSubRole();
+
+    if (requestedSubRole) {
+      if (resetControls) resetSearchControls();
+      renderApiSops([]);
+    }
 
     try {
       const apiSops = await fetchAllApiSops();
-      if (!apiSops.length) return;
-
-      results.innerHTML = "";
-      resetFilterOptions();
-
-      apiSops.forEach((record) => {
-        const card = renderPublishedCard(record);
-        results.append(card);
-        addFilterOption(categoryFilter, card.dataset.category);
-        addFilterOption(ownerFilter, card.dataset.owner);
-        addFilterOption(statusFilter, card.dataset.status);
-        normalizeList(card.dataset.tools).forEach((tool) => addFilterOption(toolFilter, tool));
-        normalizeList(card.dataset.tags).forEach((tag) => addFilterOption(tagFilter, tag));
-      });
-
-      cards = Array.from(document.querySelectorAll("[data-search-card]"));
-      applySearch();
+      if (requestId !== searchHydrationRequestId || requestedSubRole !== selectedCreatorSubRole()) return;
+      if (!apiSops.length && !requestedSubRole) return;
+      renderApiSops(apiSops);
     } catch {
+      if (requestedSubRole) {
+        renderApiSops([]);
+      }
       // Keep the static Markdown and browser-published fallback results available.
     }
   }
@@ -621,4 +653,11 @@ const popularSearches = [
   hydratePublishedSops();
   applySearch();
   hydrateApiSops();
+
+  window.addEventListener(ROLE_CONTEXT_EVENT, (event) => {
+    const detail = event instanceof CustomEvent ? event.detail || {} : {};
+    if (detail.previousSubRole !== detail.subRole || detail.previousRole !== detail.role) {
+      hydrateApiSops({ resetControls: true });
+    }
+  });
 </script>
