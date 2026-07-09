@@ -90,6 +90,12 @@ const projectManagerSignals = [
   "stakeholder",
   "timeline",
   "milestone",
+  "workforce transformation",
+  "anthology",
+  "registration",
+  "license",
+  "identogo",
+  "adobe sign",
 ];
 
 const instructionalTechnologySignals = [
@@ -105,13 +111,49 @@ const instructionalTechnologySignals = [
   "d2l",
   "cengage",
   "lms",
+  "nasium",
+  "password",
+  "grade report",
   "access issue",
   "enrollment issue",
+];
+
+const qualityAssuranceSignals = [
+  "qa",
+  "quality assurance",
+  "clw",
+  "test",
+  "quiz",
+  "question",
+  "respondus",
+  "assessment",
+];
+
+const multimediaSignals = [
+  "multimedia",
+  "media",
+  "video",
+  "audio",
+  "caption",
+  "transcript",
+];
+
+const instructionalDesignerSignals = [
+  "instructional design",
+  "course build",
+  "course design",
+  "course content",
+  "template",
+  "objectives",
+  "lesson",
+  "ai tools",
 ];
 
 const instructionalTechnologySubRoleId = "subrole-instructional-technology-specialist";
 const instructionalDesignerSubRoleId = "subrole-instructional-designer";
 const projectManagerSubRoleId = "subrole-project-manager";
+const qualityAssuranceSubRoleId = "subrole-quality-assurance-specialist";
+const multimediaSubRoleId = "subrole-multimedia";
 
 function readEnvFile() {
   const envPath = path.join(root, ".env.local");
@@ -242,8 +284,24 @@ function inferCreatorSubRole(article, tagNames = [], category = null) {
     .join(" ")
     .toLowerCase();
 
+  if (hasAnySignal(metadataText, qualityAssuranceSignals)) {
+    return creatorSubRoles.find((subRole) => subRole.id === qualityAssuranceSubRoleId) || null;
+  }
+
   if (hasAnySignal(metadataText, instructionalTechnologySignals)) {
     return creatorSubRoles.find((subRole) => subRole.id === instructionalTechnologySubRoleId) || null;
+  }
+
+  if (hasAnySignal(metadataText, multimediaSignals)) {
+    return creatorSubRoles.find((subRole) => subRole.id === multimediaSubRoleId) || null;
+  }
+
+  if (hasAnySignal(metadataText, projectManagerSignals)) {
+    return creatorSubRoles.find((subRole) => subRole.id === projectManagerSubRoleId) || null;
+  }
+
+  if (hasAnySignal(metadataText, instructionalDesignerSignals)) {
+    return creatorSubRoles.find((subRole) => subRole.id === instructionalDesignerSubRoleId) || null;
   }
 
   if (normalizedAuthor === "craig cuatt" || normalizedAuthor === "criag cuatt") {
@@ -263,7 +321,7 @@ function inferCreatorSubRole(article, tagNames = [], category = null) {
     return creatorSubRoles.find((subRole) => subRole.id === instructionalDesignerSubRoleId) || null;
   }
 
-  return creatorSubRoleByAuthor.get(normalizedAuthor) || null;
+  return creatorSubRoleByAuthor.get(normalizedAuthor) || creatorSubRoles.find((subRole) => subRole.id === instructionalDesignerSubRoleId) || null;
 }
 
 function inferSopType(article) {
