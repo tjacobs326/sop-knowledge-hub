@@ -2,6 +2,7 @@ import { failure, getRouteParam, readBody, success } from "../../../_shared/api"
 import { requireDb } from "../../../_shared/admin";
 import { requirePermission } from "../../../_shared/auth";
 import { type PagesFunctionContext } from "../../../_shared/cloudflare";
+import { requireSopOwnership } from "../../../_shared/ownership";
 import { transitionSop } from "../../../_shared/sop-workflow";
 
 interface WorkflowPayload {
@@ -15,6 +16,8 @@ export const onRequestPost = async (context: PagesFunctionContext) => {
   if (missingDb) return missingDb;
   const auth = await requirePermission(context, "Publish SOPs");
   if (auth.response) return auth.response;
+  const ownership = await requireSopOwnership(context, auth.user!, getRouteParam(context, "id"));
+  if (ownership.response) return ownership.response;
 
   const [payload, parseError] = await readBody<WorkflowPayload>(context.request);
   if (parseError) return parseError;

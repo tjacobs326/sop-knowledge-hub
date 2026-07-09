@@ -9,6 +9,7 @@ import {
 import { requireDb } from "../../../_shared/admin";
 import { requirePermission } from "../../../_shared/auth";
 import { newId, type PagesFunctionContext } from "../../../_shared/cloudflare";
+import { requireSopOwnership } from "../../../_shared/ownership";
 
 interface SopVersionPayload {
   title?: string;
@@ -76,6 +77,8 @@ export const onRequestPost = async (context: PagesFunctionContext) => {
   if (auth.response) return auth.response;
 
   const sopId = getRouteParam(context, "id");
+  const ownership = await requireSopOwnership(context, auth.user!, sopId);
+  if (ownership.response) return ownership.response;
   const [payload, parseError] = await readBody<SopVersionPayload>(context.request);
   if (parseError) return parseError;
 

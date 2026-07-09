@@ -25,6 +25,44 @@ export const roleAccessViews = [
   },
 ];
 
+export const creatorSubRoleViews = [
+  {
+    id: "subrole-instructional-technology-specialist",
+    slug: "instructional-technology-specialist",
+    title: "Instructional Technology Specialist",
+    department: "Instructional Technology",
+    author: "Kevan Van Cleave",
+  },
+  {
+    id: "subrole-instructional-designer",
+    slug: "instructional-designer",
+    title: "Instructional Designer",
+    department: "Instructional Design",
+    author: "Craig Cuatt",
+  },
+  {
+    id: "subrole-project-manager",
+    slug: "project-manager",
+    title: "Project Manager",
+    department: "Project Management",
+    author: "Craig Cuatt",
+  },
+  {
+    id: "subrole-quality-assurance-specialist",
+    slug: "quality-assurance-specialist",
+    title: "Quality Assurance Specialist",
+    department: "Quality Assurance",
+    author: "Amy Lakin",
+  },
+  {
+    id: "subrole-multimedia",
+    slug: "multimedia",
+    title: "Multimedia",
+    department: "Multimedia",
+    author: "John Winchester",
+  },
+];
+
 export const roleRouteRules = [
   { pattern: "^/admin/users/", roles: ["admin"] },
   { pattern: "^/admin/categories/", roles: ["admin"] },

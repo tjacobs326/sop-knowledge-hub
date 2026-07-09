@@ -2,6 +2,7 @@ import { failure, roleFromRequest, cacheHeaders, readBody, optionalText, success
 import { requireDb, slugify } from "../_shared/admin";
 import { getAuthUser, requirePermission } from "../_shared/auth";
 import { newId, type PagesFunctionContext } from "../_shared/cloudflare";
+import { requireCreatorSubRoleSelection } from "../_shared/ownership";
 import { countSops, listSops, type SopFilters } from "../_shared/sop-data";
 
 function readFilters(request: Request, role: ApiRole): SopFilters {
@@ -100,6 +101,8 @@ export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
   if (missingDb) return missingDb;
   const auth = await requirePermission({ request, env }, "Create SOPs");
   if (auth.response) return auth.response;
+  const ownership = await requireCreatorSubRoleSelection({ request, env }, auth.user!);
+  if (ownership.response) return ownership.response;
 
   const [payload, parseError] = await readBody<CreateSopPayload>(request);
   if (parseError) return parseError;
@@ -126,9 +129,9 @@ export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
   await env.DB!.prepare(
     `INSERT INTO sops (
       id, title, slug, summary, purpose, category_id, owner_id, owner_user_id, owner_team_id,
-      status, type, current_version_id, estimated_minutes, estimated_completion_time, audience,
+      owner_sub_role_id, status, type, current_version_id, estimated_minutes, estimated_completion_time, audience,
       is_active, created_by_user_id, source_type, visibility, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)`,
   )
     .bind(
       id,
@@ -139,7 +142,8 @@ export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
       payload?.categoryId || null,
       payload?.ownerId || payload?.createdBy || null,
       payload?.ownerId || payload?.createdBy || null,
-      payload?.ownerTeamId || null,
+      payload?.ownerTeamId || ownership.subRole?.teamId || null,
+      ownership.subRole?.id || null,
       "Draft",
       "Process",
       versionId,

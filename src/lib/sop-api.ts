@@ -82,8 +82,13 @@ function unwrapArray<T>(payload: unknown, key: string): T[] {
 }
 
 async function fetchJson(path: string) {
+  const selectedSubRole =
+    typeof localStorage === "undefined" ? "" : localStorage.getItem("sopHubSelectedCreatorSubRole") || "";
   const response = await fetch(path, {
-    headers: { accept: "application/json" },
+    headers: {
+      accept: "application/json",
+      ...(selectedSubRole ? { "x-sop-sub-role": selectedSubRole } : {}),
+    },
   });
   if (!response.ok) throw new Error(`Request failed: ${response.status}`);
   return response.json();

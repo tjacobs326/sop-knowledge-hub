@@ -1,5 +1,6 @@
 import { failure, type ApiRole } from "./api";
 import { safeJsonParse, type D1DatabaseBinding, type PagesFunctionContext } from "./cloudflare";
+import { listUserSubRoles, resolveSelectedSubRole, type CreatorSubRole } from "./ownership";
 
 export type PermissionName =
   | "Search SOPs"
@@ -28,6 +29,8 @@ export interface AuthUser {
   accessLevel: "Normal User" | "Creator / Reviewer" | "Admin";
   role: ApiRole;
   permissions: string[];
+  subRoles: CreatorSubRole[];
+  selectedSubRole: CreatorSubRole | null;
   isLocalDev: boolean;
 }
 
@@ -120,16 +123,58 @@ function localDevUser(request: Request): AuthUser | null {
   const email = String(request.headers.get("x-sop-dev-email") || "tjacobs@example.org")
     .trim()
     .toLowerCase();
+  const devSubRoles: CreatorSubRole[] = [
+    {
+      id: "subrole-instructional-technology-specialist",
+      label: "Instructional Technology Specialist",
+      slug: "instructional-technology-specialist",
+      department: "Instructional Technology",
+      teamId: "team-instructional-technology-specialists",
+    },
+    {
+      id: "subrole-instructional-designer",
+      label: "Instructional Designer",
+      slug: "instructional-designer",
+      department: "Instructional Design",
+      teamId: "team-instructional-designers",
+    },
+    {
+      id: "subrole-project-manager",
+      label: "Project Manager",
+      slug: "project-manager",
+      department: "Project Management",
+      teamId: "team-project-managers",
+    },
+    {
+      id: "subrole-quality-assurance-specialist",
+      label: "Quality Assurance Specialist",
+      slug: "quality-assurance-specialist",
+      department: "Quality Assurance",
+      teamId: "team-quality-assurance-specialists",
+    },
+    {
+      id: "subrole-multimedia",
+      label: "Multimedia",
+      slug: "multimedia",
+      department: "Multimedia",
+      teamId: "team-multimedia",
+    },
+  ];
+  const subRoles = role === "creator" ? devSubRoles : [];
 
-  return {
+  const user: AuthUser = {
     id: role === "admin" ? "tarek-jacobs" : role === "creator" ? "maya-patel" : "staff-user",
     name: role === "admin" ? "Tarek Jacobs" : role === "creator" ? "Maya Patel" : "Staff User",
     email,
     accessLevel: accessLevelForRole(role),
     role,
     permissions: fallbackPermissionsByRole[role],
+    subRoles,
+    selectedSubRole: null,
     isLocalDev: true,
   };
+  user.selectedSubRole = resolveSelectedSubRole(user, request);
+  return user;
 }
 
 function normalizePermissions(row: UserPermissionRow) {
@@ -180,16 +225,21 @@ export async function getAuthUser(context: PagesFunctionContext): Promise<AuthUs
   const accessLevel = row.accessLevel || "Normal User";
   const role = roleByAccessLevel[accessLevel] || "normal";
   const permissions = normalizePermissions(row);
+  const subRoles = role === "creator" ? await listUserSubRoles(context.env.DB, row.id) : [];
 
-  return {
+  const user: AuthUser = {
     id: row.id,
     name: row.name,
     email: row.email,
     accessLevel,
     role,
     permissions: permissions.length ? permissions : fallbackPermissionsByRole[role],
+    subRoles,
+    selectedSubRole: null,
     isLocalDev: false,
   };
+  user.selectedSubRole = resolveSelectedSubRole(user, context.request);
+  return user;
 }
 
 export function hasPermission(user: AuthUser, permission: PermissionName) {

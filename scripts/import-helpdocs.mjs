@@ -20,6 +20,78 @@ const categoriesJsonPath = args.has("categories-json") ? path.resolve(root, args
 const limit = args.has("limit") ? Number(args.get("limit")) : undefined;
 const applyTarget = args.get("apply");
 
+const creatorSubRoles = [
+  {
+    id: "subrole-instructional-technology-specialist",
+    label: "Instructional Technology Specialist",
+    slug: "instructional-technology-specialist",
+    department: "Instructional Technology",
+    teamId: "team-instructional-technology-specialists",
+    teamName: "Instructional Technology Specialists",
+    authorNames: ["Kevan Van Cleave"],
+    sortOrder: 10,
+  },
+  {
+    id: "subrole-instructional-designer",
+    label: "Instructional Designer",
+    slug: "instructional-designer",
+    department: "Instructional Design",
+    teamId: "team-instructional-designers",
+    teamName: "Instructional Designers",
+    authorNames: ["Craig Cuatt", "Criag Cuatt"],
+    sortOrder: 20,
+  },
+  {
+    id: "subrole-project-manager",
+    label: "Project Manager",
+    slug: "project-manager",
+    department: "Project Management",
+    teamId: "team-project-managers",
+    teamName: "Project Managers",
+    authorNames: ["Craig Cuatt", "Criag Cuatt"],
+    sortOrder: 30,
+  },
+  {
+    id: "subrole-quality-assurance-specialist",
+    label: "Quality Assurance Specialist",
+    slug: "quality-assurance-specialist",
+    department: "Quality Assurance",
+    teamId: "team-quality-assurance-specialists",
+    teamName: "Quality Assurance Specialists",
+    authorNames: ["Amy Lakin"],
+    sortOrder: 40,
+  },
+  {
+    id: "subrole-multimedia",
+    label: "Multimedia",
+    slug: "multimedia",
+    department: "Multimedia",
+    teamId: "team-multimedia",
+    teamName: "Multimedia",
+    authorNames: ["John Winchester"],
+    sortOrder: 50,
+  },
+];
+
+const creatorSubRoleByAuthor = new Map(
+  creatorSubRoles.flatMap((subRole) =>
+    subRole.authorNames.map((authorName) => [authorName.toLowerCase(), subRole]),
+  ),
+);
+
+const projectManagerSignals = [
+  "pm",
+  "project",
+  "project manager",
+  "project management",
+  "scoping",
+  "scope",
+  "charter",
+  "stakeholder",
+  "timeline",
+  "milestone",
+];
+
 function readEnvFile() {
   const envPath = path.join(root, ".env.local");
   if (!existsSync(envPath)) return;
@@ -124,6 +196,30 @@ function normalizeTags(tags) {
     .filter(Boolean);
 }
 
+function inferCreatorSubRole(article, tagNames = []) {
+  const authorName = String(article.author?.name || "").trim();
+  const normalizedAuthor = authorName.toLowerCase();
+
+  if (normalizedAuthor === "craig cuatt" || normalizedAuthor === "criag cuatt") {
+    const haystack = [
+      article.title,
+      article.slug,
+      article.description,
+      article.short_version,
+      ...tagNames,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    if (projectManagerSignals.some((signal) => haystack.includes(signal))) {
+      return creatorSubRoles.find((subRole) => subRole.id === "subrole-project-manager") || null;
+    }
+    return creatorSubRoles.find((subRole) => subRole.id === "subrole-instructional-designer") || null;
+  }
+
+  return creatorSubRoleByAuthor.get(normalizedAuthor) || null;
+}
+
 function inferSopType(article) {
   const haystack = `${article.title || ""} ${article.slug || ""}`.toLowerCase();
   if (haystack.includes("template")) return "Template";
@@ -168,16 +264,22 @@ function mapCategory(category, index) {
 function mapUser(author, now) {
   if (!author?.email && !author?.name) return null;
   const email = String(author.email || `${slugify(author.name)}@helpdocs.local`).toLowerCase();
+  const subRole = creatorSubRoleByAuthor.get(String(author.name || "").toLowerCase()) || null;
   return {
     id: stableId("helpdocs-user", email),
     name: author.name || email,
     email,
-    department: "Imported from HelpDocs",
-    title: "HelpDocs Author",
-    teamIds: [],
-    roleIds: [],
+    department: subRole?.department || "Imported from HelpDocs",
+    title: subRole?.label || "HelpDocs Author",
+    teamIds: subRole ? [subRole.teamId] : [],
+    subRoleIds: creatorSubRoles
+      .filter((candidate) =>
+        candidate.authorNames.some((authorName) => authorName.toLowerCase() === String(author.name || "").toLowerCase()),
+      )
+      .map((candidate) => candidate.id),
+    roleIds: ["role-creator-reviewer"],
     accessLevel: "Creator / Reviewer",
-    permissions: ["Create SOPs", "Edit Drafts", "Review SOPs"],
+    permissions: ["Create SOPs", "Edit Drafts", "Review SOPs", "Request Changes", "Approve SOPs", "Publish SOPs", "Archive SOPs"],
     status: "Active",
     createdAt: now,
     updatedAt: now,
@@ -201,6 +303,7 @@ function mapArticle(article, categoryByExternalId, tagByName, userByEmail) {
   const tagIds = tagNames.map((tag) => tagByName.get(tag.toLowerCase())?.id).filter(Boolean);
   const authorEmail = String(article.author?.email || "").toLowerCase();
   const owner = userByEmail.get(authorEmail) || null;
+  const ownerSubRole = inferCreatorSubRole(article, tagNames);
   const publishedAt = status === "Published" ? updatedAt : undefined;
   const bodyHtml = article.body || `<p>${purpose || title}</p>`;
   const plainText = stripHtml(bodyHtml);
@@ -225,6 +328,14 @@ function mapArticle(article, categoryByExternalId, tagByName, userByEmail) {
       shortVersionWasAutogenerated: Boolean(article.short_version_was_autogenerated),
     },
     author: article.author || null,
+    ownerSubRole: ownerSubRole
+      ? {
+          id: ownerSubRole.id,
+          label: ownerSubRole.label,
+          department: ownerSubRole.department,
+          teamId: ownerSubRole.teamId,
+        }
+      : null,
     audience: ["Internal SOP users"],
     tools: [],
     sourceUrl: article.url || "",
@@ -238,6 +349,8 @@ function mapArticle(article, categoryByExternalId, tagByName, userByEmail) {
     categoryId: category?.id || null,
     category: category?.name || "Uncategorized",
     ownerUserId: owner?.id,
+    ownerTeamId: ownerSubRole?.teamId,
+    ownerSubRoleId: ownerSubRole?.id,
     owner: owner?.name || article.author?.name || "HelpDocs Import",
     status,
     type: inferSopType(article),
@@ -342,6 +455,30 @@ function buildImportSql(importData) {
     "PRAGMA foreign_keys = ON;",
   ];
 
+  for (const subRole of importData.creatorSubRoles) {
+    statements.push(`INSERT OR IGNORE INTO teams (id, name, description, created_at, updated_at)
+VALUES (
+  ${sqlString(subRole.teamId)}, ${sqlString(subRole.teamName)},
+  ${sqlString(`Owns SOPs for the ${subRole.label} creator/reviewer sub-role.`)},
+  ${sqlString(importData.importedAt)}, ${sqlString(importData.importedAt)}
+);`);
+
+    statements.push(`INSERT INTO creator_sub_roles (
+  id, label, slug, department, team_id, description, sort_order, status, created_at, updated_at
+) VALUES (
+  ${sqlString(subRole.id)}, ${sqlString(subRole.label)}, ${sqlString(subRole.slug)}, ${sqlString(subRole.department)},
+  ${sqlString(subRole.teamId)}, ${sqlString(`Creator / Reviewer sub-role for ${subRole.department} SOP ownership.`)},
+  ${sqlNumber(subRole.sortOrder)}, 'Active', ${sqlString(importData.importedAt)}, ${sqlString(importData.importedAt)}
+) ON CONFLICT(id) DO UPDATE SET
+  label = excluded.label,
+  department = excluded.department,
+  team_id = excluded.team_id,
+  description = excluded.description,
+  sort_order = excluded.sort_order,
+  status = 'Active',
+  updated_at = excluded.updated_at;`);
+  }
+
   for (const category of importData.categories) {
     statements.push(`INSERT INTO categories (
   id, name, slug, description, icon, color, sort_order, is_active, created_at, updated_at
@@ -376,6 +513,11 @@ function buildImportSql(importData) {
   role = excluded.role,
   is_active = 1,
   updated_at = excluded.updated_at;`);
+
+    for (const subRoleId of user.subRoleIds || []) {
+      statements.push(`INSERT OR IGNORE INTO user_sub_roles (user_id, sub_role_id)
+VALUES (${sqlString(user.id)}, ${sqlString(subRoleId)});`);
+    }
   }
 
   for (const tag of importData.tags) {
@@ -395,14 +537,14 @@ function buildImportSql(importData) {
 
   for (const sop of importData.sops) {
     statements.push(`INSERT INTO sops (
-  id, title, slug, summary, purpose, category_id, owner_id, owner_user_id, status, type,
+  id, title, slug, summary, purpose, category_id, owner_id, owner_user_id, owner_team_id, owner_sub_role_id, status, type,
   current_version_id, estimated_completion_time, estimated_minutes, audience, review_date,
   review_due_at, visibility, source_type, is_active, created_by_user_id, published_at,
   created_at, updated_at
 ) VALUES (
   ${sqlString(sop.id)}, ${sqlString(sop.title)}, ${sqlString(sop.slug)}, ${sqlString(sop.summary)}, ${sqlString(sop.purpose)},
-  ${sqlString(sop.categoryId)}, ${sqlString(sop.ownerUserId)}, ${sqlString(sop.ownerUserId)}, ${sqlString(sop.status)},
-  ${sqlString(sop.type)}, ${sqlString(sop.currentVersionId)}, ${sqlString(sop.estimatedCompletionTime)}, NULL,
+  ${sqlString(sop.categoryId)}, ${sqlString(sop.ownerUserId)}, ${sqlString(sop.ownerUserId)}, ${sqlString(sop.ownerTeamId)},
+  ${sqlString(sop.ownerSubRoleId)}, ${sqlString(sop.status)}, ${sqlString(sop.type)}, ${sqlString(sop.currentVersionId)}, ${sqlString(sop.estimatedCompletionTime)}, NULL,
   ${sqlString((sop.audience || []).join("|"))}, ${sqlString(sop.reviewDate)}, ${sqlNumber(epoch(sop.reviewDate))},
   ${sqlString(sop.visibility)}, ${sqlString(sop.sourceType)}, 1, ${sqlString(sop.ownerUserId)},
   ${sqlString(sop.publishedAt)}, ${sqlString(sop.createdAt)}, ${sqlString(sop.updatedAt)}
@@ -414,6 +556,8 @@ function buildImportSql(importData) {
   category_id = excluded.category_id,
   owner_id = excluded.owner_id,
   owner_user_id = excluded.owner_user_id,
+  owner_team_id = excluded.owner_team_id,
+  owner_sub_role_id = excluded.owner_sub_role_id,
   status = excluded.status,
   type = excluded.type,
   current_version_id = excluded.current_version_id,
@@ -590,6 +734,7 @@ function buildImportData(source) {
     },
     categories,
     users: [...usersByEmail.values()],
+    creatorSubRoles,
     tags,
     sops,
     sopVersions,

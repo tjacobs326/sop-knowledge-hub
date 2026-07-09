@@ -79,9 +79,19 @@ const categoryCounts = getCategoryCounts(sops);
 
   const grid = document.getElementById("category-directory-grid");
 
-  const escapeHtml = (value) =>
+  type ApiCategory = {
+    name?: string;
+    slug?: string;
+    description?: string;
+    icon?: string;
+    color?: string;
+    sopCount?: number;
+    count?: number;
+  };
+
+  const escapeHtml = (value: unknown) =>
     String(value ?? "").replace(/[&<>"']/g, (character) => {
-      const replacements = {
+      const replacements: Record<string, string> = {
         "&": "&amp;",
         "<": "&lt;",
         ">": "&gt;",
@@ -91,11 +101,11 @@ const categoryCounts = getCategoryCounts(sops);
       return replacements[character];
     });
 
-  function categoryUrl(category) {
+  function categoryUrl(category: ApiCategory) {
     return `/categories/detail/?slug=${encodeURIComponent(category.slug || "")}`;
   }
 
-  function renderCategory(category) {
+  function renderCategory(category: ApiCategory) {
     const count = Number(category.sopCount || category.count || 0);
     return `
       <a class="category-card" href="${escapeHtml(categoryUrl(category))}" style="--card-accent: ${escapeHtml(

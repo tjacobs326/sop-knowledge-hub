@@ -1,5 +1,5 @@
 ---
-import { roleAccessViews, roleRouteRules } from "../data/platform-config";
+import { creatorSubRoleViews, roleAccessViews, roleRouteRules } from "../data/platform-config";
 ---
 
 <section class="role-gate no-print" id="role-gate" aria-labelledby="role-gate-heading" hidden>
@@ -36,6 +36,23 @@ import { roleAccessViews, roleRouteRules } from "../data/platform-config";
         </button>
       ))}
     </div>
+
+    <div class="role-gate__subroles" id="creator-sub-role-panel" hidden>
+      <p class="eyebrow">Creator / Reviewer department</p>
+      <div class="role-gate__grid role-gate__grid--subroles">
+        {creatorSubRoleViews.map((subRole) => (
+          <button
+            class="role-gate__card"
+            type="button"
+            data-sub-role-select={subRole.id}
+          >
+            <strong>{subRole.title}</strong>
+            <span>{subRole.department}</span>
+            <small>Author: {subRole.author}</small>
+          </button>
+        ))}
+      </div>
+    </div>
   </div>
 </section>
 
@@ -53,12 +70,15 @@ import { roleAccessViews, roleRouteRules } from "../data/platform-config";
   </div>
 </section>
 
-<script is:inline define:vars={{ roleAccessViews, roleRouteRules }}>
+<script is:inline define:vars={{ creatorSubRoleViews, roleAccessViews, roleRouteRules }}>
   const ROLE_KEY = "sopHubSelectedRole";
+  const SUB_ROLE_KEY = "sopHubSelectedCreatorSubRole";
   const ROLE_LABELS = Object.fromEntries(roleAccessViews.map((role) => [role.id, role.title]));
   const ROLE_LANDING = Object.fromEntries(roleAccessViews.map((role) => [role.id, role.landingPage]));
+  const SUB_ROLE_LABELS = Object.fromEntries(creatorSubRoleViews.map((subRole) => [subRole.id, subRole.title]));
 
   const gate = document.getElementById("role-gate");
+  const subRolePanel = document.getElementById("creator-sub-role-panel");
   const accessDenied = document.getElementById("role-access-denied");
   const accessMessage = document.getElementById("role-access-message");
   const landingLink = document.getElementById("role-landing-link");
@@ -71,6 +91,15 @@ import { roleAccessViews, roleRouteRules } from "../data/platform-config";
 
   function normalizeRole(role) {
     return role === "admin" || role === "creator" || role === "normal" ? role : "";
+  }
+
+  function normalizeSubRole(subRole) {
+    return creatorSubRoleViews.some((item) => item.id === subRole) ? subRole : "";
+  }
+
+  function selectedSubRoleLabel() {
+    const subRole = normalizeSubRole(localStorage.getItem(SUB_ROLE_KEY));
+    return subRole ? SUB_ROLE_LABELS[subRole] : "";
   }
 
   function roleCanAccessPath(role, pathname) {
@@ -93,12 +122,32 @@ import { roleAccessViews, roleRouteRules } from "../data/platform-config";
     }
   }
 
+  const nativeFetch = window.fetch.bind(window);
+  window.fetch = (input, init = {}) => {
+    const subRole = normalizeSubRole(localStorage.getItem(SUB_ROLE_KEY));
+    const url = typeof input === "string" ? input : input instanceof Request ? input.url : String(input);
+    const isSameOriginApi =
+      url.startsWith("/api/") ||
+      (url.startsWith(window.location.origin) && new URL(url).pathname.startsWith("/api/"));
+
+    if (!subRole || !isSameOriginApi) return nativeFetch(input, init);
+
+    const headers = new Headers(input instanceof Request ? input.headers : undefined);
+    new Headers(init.headers || {}).forEach((value, key) => headers.set(key, value));
+    headers.set("x-sop-sub-role", subRole);
+
+    return nativeFetch(input, { ...init, headers });
+  };
+
   function applyRole(role) {
     const selectedRole = normalizeRole(role);
+    const selectedSubRole = normalizeSubRole(localStorage.getItem(SUB_ROLE_KEY));
     body.dataset.sopRole = selectedRole;
+    body.dataset.sopSubRole = selectedRole === "creator" ? selectedSubRole : "";
     body.classList.toggle("role-unselected", !selectedRole);
 
-    const label = ROLE_LABELS[selectedRole] || "Select Role";
+    const subRoleLabel = selectedRole === "creator" ? selectedSubRoleLabel() : "";
+    const label = subRoleLabel || ROLE_LABELS[selectedRole] || "Select Role";
     document.querySelectorAll("[data-current-role-label]").forEach((element) => {
       element.textContent = label;
     });
@@ -110,14 +159,18 @@ import { roleAccessViews, roleRouteRules } from "../data/platform-config";
     syncRoleInputs(selectedRole);
 
     if (gate instanceof HTMLElement) {
-      gate.hidden = Boolean(selectedRole);
+      gate.hidden = Boolean(selectedRole && (selectedRole !== "creator" || selectedSubRole));
+    }
+    if (subRolePanel instanceof HTMLElement) {
+      subRolePanel.hidden = selectedRole !== "creator" || Boolean(selectedSubRole);
     }
 
+    const roleReady = selectedRole && (selectedRole !== "creator" || selectedSubRole);
     const allowed = !selectedRole || roleCanAccessPath(selectedRole, window.location.pathname);
     if (accessDenied instanceof HTMLElement) {
-      accessDenied.hidden = !selectedRole || allowed;
+      accessDenied.hidden = !roleReady || allowed;
     }
-    body.classList.toggle("role-blocked", Boolean(selectedRole) && !allowed);
+    body.classList.toggle("role-blocked", Boolean(roleReady) && !allowed);
 
     if (accessMessage) {
       accessMessage.textContent = `${label} access does not include this page. Switch roles or go to the ${label} landing view.`;
@@ -128,9 +181,25 @@ import { roleAccessViews, roleRouteRules } from "../data/platform-config";
     const selectedRole = normalizeRole(role);
     if (!selectedRole) return;
     localStorage.setItem(ROLE_KEY, selectedRole);
+    if (selectedRole !== "creator") {
+      localStorage.removeItem(SUB_ROLE_KEY);
+    }
     applyRole(selectedRole);
 
-    if (!roleCanAccessPath(selectedRole, window.location.pathname) && landing) {
+    if (selectedRole !== "creator" && !roleCanAccessPath(selectedRole, window.location.pathname) && landing) {
+      window.location.href = landing;
+    }
+  }
+
+  function setSubRole(subRole) {
+    const selectedSubRole = normalizeSubRole(subRole);
+    if (!selectedSubRole) return;
+    localStorage.setItem(SUB_ROLE_KEY, selectedSubRole);
+    localStorage.setItem(ROLE_KEY, "creator");
+    applyRole("creator");
+
+    const landing = ROLE_LANDING.creator || "/";
+    if (!roleCanAccessPath("creator", window.location.pathname) && landing) {
       window.location.href = landing;
     }
   }
@@ -145,7 +214,15 @@ import { roleAccessViews, roleRouteRules } from "../data/platform-config";
   document.querySelectorAll("[data-role-reset]").forEach((button) => {
     button.addEventListener("click", () => {
       localStorage.removeItem(ROLE_KEY);
+      localStorage.removeItem(SUB_ROLE_KEY);
       applyRole("");
+    });
+  });
+
+  document.querySelectorAll("[data-sub-role-select]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (!(button instanceof HTMLElement)) return;
+      setSubRole(button.dataset.subRoleSelect || "");
     });
   });
 

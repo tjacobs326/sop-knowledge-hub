@@ -52,6 +52,9 @@ function sopSelect() {
     categories.slug AS categorySlug,
     owner.id AS ownerId,
     owner.name AS owner,
+    sops.owner_sub_role_id AS ownerSubRoleId,
+    sub_roles.label AS ownerSubRole,
+    sub_roles.department AS ownerDepartment,
     teams.name AS ownerTeam,
     versions.id AS versionId,
     COALESCE(versions.version_number, versions.version_label) AS versionNumber,
@@ -69,6 +72,7 @@ function sopSelect() {
   FROM sops
   LEFT JOIN categories ON categories.id = sops.category_id
   LEFT JOIN users owner ON owner.id = COALESCE(sops.owner_id, sops.owner_user_id)
+  LEFT JOIN creator_sub_roles sub_roles ON sub_roles.id = sops.owner_sub_role_id
   LEFT JOIN teams ON teams.id = sops.owner_team_id
   LEFT JOIN sop_versions versions ON versions.id = sops.current_version_id
   LEFT JOIN sop_tags ON sop_tags.sop_id = sops.id
@@ -97,6 +101,9 @@ export function normalizeSop(row: Record<string, unknown>) {
     categorySlug: row.categorySlug,
     ownerId: row.ownerId,
     owner: row.owner,
+    ownerSubRoleId: row.ownerSubRoleId,
+    ownerSubRole: row.ownerSubRole,
+    ownerDepartment: row.ownerDepartment,
     ownerTeam: row.ownerTeam,
     status: row.status,
     type: row.type,

@@ -47,6 +47,7 @@ export interface SopRow {
   category_id: string | null;
   owner_user_id: string | null;
   owner_team_id: string | null;
+  owner_sub_role_id: string | null;
   status: "Draft" | "In Review" | "Approved" | "Needs Revision" | "Published" | "Archived";
   type: "Process" | "Troubleshooting Guide" | "Template" | "Checklist" | "Job Aid" | "Decision Tree";
   current_version_id: string | null;
@@ -60,6 +61,39 @@ export interface SopRow {
   archived_at: ISODateTime | null;
   created_at: ISODateTime;
   updated_at: ISODateTime;
+}
+
+export interface CreatorSubRoleRow {
+  id: string;
+  label: string;
+  slug: string;
+  department: string;
+  team_id: string | null;
+  description: string | null;
+  sort_order: number;
+  status: "Active" | "Inactive" | "Archived";
+  created_at: ISODateTime;
+  updated_at: ISODateTime;
+}
+
+export interface CreatorSubRoleAuthorRow {
+  id: string;
+  sub_role_id: string;
+  author_name: string;
+  author_email: string | null;
+  match_priority: number;
+  match_expression: string | null;
+  notes: string | null;
+  created_at: ISODateTime;
+  updated_at: ISODateTime;
+}
+
+export interface UserSubRoleRow {
+  user_id: string;
+  sub_role_id: string;
+  granted_by_user_id: string | null;
+  granted_at: ISODateTime;
+  expires_at: ISODateTime | null;
 }
 
 export interface SopVersionRow {

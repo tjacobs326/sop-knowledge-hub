@@ -10,6 +10,7 @@ import {
 import { requireDb } from "../../_shared/admin";
 import { getAuthUser, requirePermission } from "../../_shared/auth";
 import { newId, type PagesFunctionContext } from "../../_shared/cloudflare";
+import { requireSopOwnership } from "../../_shared/ownership";
 import { getSopById } from "../../_shared/sop-data";
 
 export const onRequestGet = async (context: PagesFunctionContext) => {
@@ -61,6 +62,8 @@ export const onRequestPut = async (context: PagesFunctionContext) => {
   const id = getRouteParam(context, "id");
   const existing = await getSopById(context.env.DB!, id, false);
   if (!existing) return failure("NOT_FOUND", "SOP not found.", 404);
+  const ownership = await requireSopOwnership(context, auth.user!, id);
+  if (ownership.response) return ownership.response;
 
   const [payload, parseError] = await readBody<UpdateSopPayload>(context.request);
   if (parseError) return parseError;
@@ -81,7 +84,7 @@ export const onRequestPut = async (context: PagesFunctionContext) => {
   await context.env.DB!.prepare(
     `UPDATE sops
      SET title = ?, summary = ?, purpose = ?, category_id = ?, owner_id = ?, owner_user_id = ?,
-         owner_team_id = ?, estimated_minutes = ?, estimated_completion_time = ?, audience = ?,
+         owner_team_id = ?, owner_sub_role_id = ?, estimated_minutes = ?, estimated_completion_time = ?, audience = ?,
          review_due_at = COALESCE(?, review_due_at), updated_at = ?
      WHERE id = ?`,
   )
@@ -92,7 +95,8 @@ export const onRequestPut = async (context: PagesFunctionContext) => {
       payload?.categoryId || existing.categoryId || null,
       payload?.ownerId || existing.ownerId || null,
       payload?.ownerId || existing.ownerId || null,
-      payload?.ownerTeamId || null,
+      payload?.ownerTeamId || ownership.subRole?.teamId || null,
+      ownership.subRole?.id || existing.ownerSubRoleId || null,
       Number(payload?.estimatedMinutes || existing.estimatedMinutes || 0) || null,
       payload?.estimatedMinutes ? `${payload.estimatedMinutes} minutes` : existing.estimatedCompletionTime || null,
       audience,

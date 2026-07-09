@@ -1408,6 +1408,32 @@ body.role-blocked .site-main {
   margin-top: 1.25rem;
 }
 
+.role-gate__subroles {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.role-gate__subroles[hidden] {
+  display: none;
+}
+
+.role-gate__grid--subroles {
+  grid-template-columns: repeat(5, minmax(8.5rem, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.85rem;
+}
+
+.role-gate__grid--subroles .role-gate__card {
+  min-height: 9.5rem;
+  padding: 0.95rem;
+}
+
+.role-gate__grid--subroles .role-gate__card strong {
+  font-size: 0.98rem;
+  line-height: 1.2;
+}
+
 .role-gate__card {
   display: grid;
   gap: 0.65rem;
@@ -6406,6 +6432,10 @@ tbody tr:hover {
   }
 
   .role-gate__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .role-gate__grid--subroles {
     grid-template-columns: 1fr;
   }
 

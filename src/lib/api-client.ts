@@ -9,10 +9,13 @@ type ApiResult<T> = {
 };
 
 async function apiFetch<T>(path: string, init: RequestInit = {}) {
+  const selectedSubRole =
+    typeof localStorage === "undefined" ? "" : localStorage.getItem("sopHubSelectedCreatorSubRole") || "";
   const response = await fetch(path, {
     ...init,
     headers: {
       "content-type": "application/json",
+      ...(selectedSubRole ? { "x-sop-sub-role": selectedSubRole } : {}),
       ...(init.headers || {}),
     },
   });
