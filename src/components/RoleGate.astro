@@ -72,6 +72,7 @@ import { creatorSubRoleViews, roleAccessViews, roleRouteRules } from "../data/pl
 <script is:inline define:vars={{ creatorSubRoleViews, roleAccessViews, roleRouteRules }}>
   const ROLE_KEY = "sopHubSelectedRole";
   const SUB_ROLE_KEY = "sopHubSelectedCreatorSubRole";
+  const ROLE_CONTEXT_EVENT = "sop-role-context-change";
   const ROLE_LABELS = Object.fromEntries(roleAccessViews.map((role) => [role.id, role.title]));
   const ROLE_LANDING = Object.fromEntries(roleAccessViews.map((role) => [role.id, role.landingPage]));
   const SUB_ROLE_LABELS = Object.fromEntries(creatorSubRoleViews.map((subRole) => [subRole.id, subRole.title]));
@@ -135,8 +136,23 @@ import { creatorSubRoleViews, roleAccessViews, roleRouteRules } from "../data/pl
     new Headers(init.headers || {}).forEach((value, key) => headers.set(key, value));
     headers.set("x-sop-sub-role", subRole);
 
-    return nativeFetch(input, { ...init, headers });
+    return nativeFetch(input, { ...init, cache: "no-store", headers });
   };
+
+  function emitRoleContextChange(previousRole, previousSubRole) {
+    const role = normalizeRole(localStorage.getItem(ROLE_KEY));
+    const subRole = role === "creator" ? normalizeSubRole(localStorage.getItem(SUB_ROLE_KEY)) : "";
+    window.dispatchEvent(
+      new CustomEvent(ROLE_CONTEXT_EVENT, {
+        detail: {
+          role,
+          subRole,
+          previousRole: normalizeRole(previousRole),
+          previousSubRole: normalizeSubRole(previousSubRole),
+        },
+      }),
+    );
+  }
 
   function applyRole(role) {
     const selectedRole = normalizeRole(role);
@@ -179,11 +195,14 @@ import { creatorSubRoleViews, roleAccessViews, roleRouteRules } from "../data/pl
   function setRole(role, landing) {
     const selectedRole = normalizeRole(role);
     if (!selectedRole) return;
+    const previousRole = normalizeRole(localStorage.getItem(ROLE_KEY));
+    const previousSubRole = normalizeSubRole(localStorage.getItem(SUB_ROLE_KEY));
     localStorage.setItem(ROLE_KEY, selectedRole);
     if (selectedRole !== "creator") {
       localStorage.removeItem(SUB_ROLE_KEY);
     }
     applyRole(selectedRole);
+    emitRoleContextChange(previousRole, previousSubRole);
 
     if (selectedRole !== "creator" && !roleCanAccessPath(selectedRole, window.location.pathname) && landing) {
       window.location.href = landing;
@@ -193,9 +212,12 @@ import { creatorSubRoleViews, roleAccessViews, roleRouteRules } from "../data/pl
   function setSubRole(subRole) {
     const selectedSubRole = normalizeSubRole(subRole);
     if (!selectedSubRole) return;
+    const previousRole = normalizeRole(localStorage.getItem(ROLE_KEY));
+    const previousSubRole = normalizeSubRole(localStorage.getItem(SUB_ROLE_KEY));
     localStorage.setItem(SUB_ROLE_KEY, selectedSubRole);
     localStorage.setItem(ROLE_KEY, "creator");
     applyRole("creator");
+    emitRoleContextChange(previousRole, previousSubRole);
 
     const landing = ROLE_LANDING.creator || "/";
     if (!roleCanAccessPath("creator", window.location.pathname) && landing) {
@@ -212,9 +234,12 @@ import { creatorSubRoleViews, roleAccessViews, roleRouteRules } from "../data/pl
 
   document.querySelectorAll("[data-role-reset]").forEach((button) => {
     button.addEventListener("click", () => {
+      const previousRole = normalizeRole(localStorage.getItem(ROLE_KEY));
+      const previousSubRole = normalizeSubRole(localStorage.getItem(SUB_ROLE_KEY));
       localStorage.removeItem(ROLE_KEY);
       localStorage.removeItem(SUB_ROLE_KEY);
       applyRole("");
+      emitRoleContextChange(previousRole, previousSubRole);
     });
   });
 

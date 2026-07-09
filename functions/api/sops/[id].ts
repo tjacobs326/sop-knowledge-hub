@@ -35,7 +35,8 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
     status: 200,
     headers: {
       "content-type": "application/json; charset=utf-8",
-      ...cacheHeaders(publicOnly ? "public" : "private"),
+      ...cacheHeaders(selectedSubRole || !publicOnly ? "private" : "public"),
+      vary: "x-sop-sub-role",
     },
   });
 };

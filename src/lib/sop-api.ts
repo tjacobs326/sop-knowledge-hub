@@ -7,6 +7,9 @@ export interface D1SopRecord {
   category?: string;
   categorySlug?: string;
   owner?: string;
+  ownerSubRoleId?: string;
+  ownerSubRole?: string;
+  ownerDepartment?: string;
   status?: string;
   tags?: string[];
   tools?: string[];
@@ -39,6 +42,9 @@ export interface NormalizedSop {
   categorySlug: string;
   status: string;
   owner: string;
+  ownerSubRoleId: string;
+  ownerSubRole: string;
+  ownerDepartment: string;
   updatedAt: string;
   reviewDate: string;
   tags: string[];
@@ -85,6 +91,7 @@ async function fetchJson(path: string) {
   const selectedSubRole =
     typeof localStorage === "undefined" ? "" : localStorage.getItem("sopHubSelectedCreatorSubRole") || "";
   const response = await fetch(path, {
+    cache: selectedSubRole ? "no-store" : "default",
     headers: {
       accept: "application/json",
       ...(selectedSubRole ? { "x-sop-sub-role": selectedSubRole } : {}),
@@ -128,6 +135,9 @@ export function normalizeSop(record: D1SopRecord): NormalizedSop {
     categorySlug: String(record.categorySlug || slugify(category)),
     status: String(record.status || "Published"),
     owner: String(record.owner || "Unassigned"),
+    ownerSubRoleId: String(record.ownerSubRoleId || ""),
+    ownerSubRole: String(record.ownerSubRole || ""),
+    ownerDepartment: String(record.ownerDepartment || ""),
     updatedAt,
     reviewDate,
     tags: asArray(record.tags),

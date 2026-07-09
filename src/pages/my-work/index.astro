@@ -231,12 +231,15 @@ const sopRecords = sops.map((sop) => ({
   const DRAFTS_STORAGE_KEY = myWorkData.DRAFTS_STORAGE_KEY;
   const SUBMISSIONS_STORAGE_KEY = myWorkData.SUBMISSIONS_STORAGE_KEY;
   const REVIEW_QUEUE_STORAGE_KEY = myWorkData.REVIEW_QUEUE_STORAGE_KEY;
+  const SUB_ROLE_KEY = "sopHubSelectedCreatorSubRole";
+  const ROLE_CONTEXT_EVENT = "sop-role-context-change";
   const priorityBadgeDefinitions = myWorkData.priorityBadgeDefinitions || {};
   const statusBadgeDefinitions = myWorkData.statusBadgeDefinitions || {};
   const currentUserSelect = document.getElementById("current-user");
   const currentAccessLevel = document.getElementById("current-access-level");
   const today = new Date().toISOString().slice(0, 10);
   const reviewStatuses = ["Submitted", "Triage", "Assigned", "In Review", "Needs More Information", "Needs Revision"];
+  let sopHydrationRequestId = 0;
 
   const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (character) => {
@@ -350,9 +353,14 @@ const sopRecords = sops.map((sop) => ({
     };
   }
 
+  function selectedCreatorSubRole() {
+    return localStorage.getItem(SUB_ROLE_KEY) || "";
+  }
+
   function renderDashboard() {
     const user = getCurrentUser();
     const { sops, drafts, submissions, reviewItems } = workData();
+    const selectedSubRole = selectedCreatorSubRole();
 
     if (currentAccessLevel instanceof HTMLInputElement) {
       currentAccessLevel.value = user.accessLevel;
@@ -363,7 +371,7 @@ const sopRecords = sops.map((sop) => ({
     );
     const myDrafts = drafts.filter((draft) => isMine(draft.owner, user));
     const assigned = reviewItems.filter((item) => isMine(item.assignedOwner, user));
-    const owned = sops.filter((sop) => isMine(sop.owner, user));
+    const owned = selectedSubRole ? sops : sops.filter((sop) => isMine(sop.owner, user));
     const needsReview = assigned.filter((item) => reviewStatuses.includes(item.status));
     const overdue = [
       ...owned.filter((sop) => sop.reviewDate && sop.reviewDate < today),
@@ -466,14 +474,27 @@ const sopRecords = sops.map((sop) => ({
   renderDashboard();
 
   async function hydrateMyWorkSops() {
+    const requestId = ++sopHydrationRequestId;
+    const requestedSubRole = localStorage.getItem(SUB_ROLE_KEY) || "";
+    if (requestedSubRole) {
+      initialSops = [];
+      renderDashboard();
+    }
+
     try {
       const records = await fetchAllD1Sops({ limit: 100, sort: "recent" });
+      if (requestId !== sopHydrationRequestId || requestedSubRole !== (localStorage.getItem(SUB_ROLE_KEY) || "")) {
+        return;
+      }
       if (!records.length) return;
       initialSops = records.map((sop) => ({
         id: sop.id,
         title: sop.title,
         category: sop.category,
         owner: sop.owner,
+        ownerSubRoleId: sop.ownerSubRoleId,
+        ownerSubRole: sop.ownerSubRole,
+        ownerDepartment: sop.ownerDepartment,
         status: sop.status,
         reviewDate: sop.reviewDate,
         lastUpdated: sop.updatedAt,
@@ -481,9 +502,20 @@ const sopRecords = sops.map((sop) => ({
       }));
       renderDashboard();
     } catch {
-      // Keep static work records when D1 is unavailable.
+      if (requestedSubRole) {
+        initialSops = [];
+        renderDashboard();
+      }
+      // Keep static work records when D1 is unavailable and no department filter is active.
     }
   }
+
+  window.addEventListener(ROLE_CONTEXT_EVENT, (event) => {
+    const detail = event instanceof CustomEvent ? event.detail || {} : {};
+    if (detail.previousSubRole !== detail.subRole || detail.previousRole !== detail.role) {
+      hydrateMyWorkSops();
+    }
+  });
 
   hydrateMyWorkSops();
 </script>
