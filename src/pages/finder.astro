@@ -1,13 +1,8 @@
 ---
 import Layout from "../components/Layout.astro";
 import GuidedFinder from "../components/GuidedFinder.astro";
-import finderData from "../data/guided-finder.json";
-import { getAllSops, buildSearchRecord } from "../lib/sops";
-
-const sops = await getAllSops();
-const records = sops.map(buildSearchRecord);
 ---
 
 <Layout title="Guided Finder" wide>
-  <GuidedFinder finderData={finderData} sops={records} />
+  <GuidedFinder />
 </Layout>

@@ -149,6 +149,25 @@ async function getGuideId(db: D1DatabaseBinding, slug: string) {
   return row?.id || "";
 }
 
+async function getGuideRecommendation(db: D1DatabaseBinding, guideId: string) {
+  return db
+    .prepare(
+      `SELECT
+        sops.id,
+        sops.title,
+        sops.slug,
+        categories.name AS category,
+        categories.slug AS categorySlug
+       FROM decision_guides guides
+       JOIN sops ON sops.id = guides.default_sop_id
+       LEFT JOIN categories ON categories.id = sops.category_id
+       WHERE guides.id = ?
+       LIMIT 1`,
+    )
+    .bind(guideId)
+    .first<Record<string, unknown>>();
+}
+
 function scoreRule(rule: RuleRow, signals: Record<string, boolean>, signalRows: SignalRow[], roleKey: string) {
   const signalScore = signalRows
     .filter((signal) => signal.ruleId === rule.id)
@@ -265,6 +284,9 @@ export async function routeDecisionGuide(db: D1DatabaseBinding, slug: string, in
   const best = ranked[0];
   if (!best) return null;
 
+  const recommendedSop = await getGuideRecommendation(db, guideId);
+  const recommendedSopSlug = String(recommendedSop?.slug || "");
+
   const result = {
     guideId,
     selectedRoleKey: roleKey,
@@ -282,6 +304,18 @@ export async function routeDecisionGuide(db: D1DatabaseBinding, slug: string, in
     summary: best.rule.summary,
     nextSteps: safeJsonParse<string[]>(best.rule.nextStepsJson, []),
     externalUrl: best.rule.externalUrl,
+    recommendedSop: recommendedSop
+      ? {
+          id: recommendedSop.id,
+          title: recommendedSop.title,
+          slug: recommendedSop.slug,
+          category: recommendedSop.category,
+          categorySlug: recommendedSop.categorySlug,
+          detailUrl: recommendedSopSlug
+            ? `/sops/detail/?slug=${encodeURIComponent(recommendedSopSlug)}`
+            : `/sops/detail/?id=${encodeURIComponent(String(recommendedSop.id || ""))}`,
+        }
+      : null,
     signals,
     alternatives: ranked.slice(1, 4).map(({ rule, score }) => ({
       ruleId: rule.id,

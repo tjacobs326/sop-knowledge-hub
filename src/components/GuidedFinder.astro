@@ -1,269 +1,375 @@
 ---
 import AppIcon from "./AppIcon.astro";
-
-interface FinderAnswer {
-  label: string;
-  next?: string;
-  results?: string[];
-}
-
-interface FinderNode {
-  question: string;
-  answers: FinderAnswer[];
-}
-
-interface FinderData {
-  startNode: string;
-  nodes: Record<string, FinderNode>;
-}
-
-interface SopRecord {
-  id: string;
-  title: string;
-  purpose: string;
-  category: string;
-  tags: string[];
-  tools: string[];
-  owner: string;
-  lastUpdated: string;
-  reviewDate: string;
-  status: string;
-  url: string;
-}
-
-interface Props {
-  finderData: FinderData;
-  sops: SopRecord[];
-}
-
-const { finderData, sops } = Astro.props;
 ---
 
-<section class="guided-finder" aria-labelledby="finder-heading">
-  <div class="finder-hero">
-    <div class="finder-hero__content">
+<section class="guided-finder ticket-guide" aria-labelledby="finder-heading">
+  <div class="ticket-guide-hero">
+    <div class="ticket-guide-hero__content">
       <p class="eyebrow">Guided Finder</p>
-      <h1 id="finder-heading">What are you trying to do?</h1>
-      <p>Tell us what you need and we'll help you find the right SOP, template, or guide.</p>
+      <h1 id="finder-heading">ITS Ticket Guide</h1>
+      <p>Answer a few questions and we will route the request to the right support path.</p>
     </div>
-    <div class="finder-hero__art" aria-hidden="true">
-      <span class="finder-spark finder-spark--one"></span>
-      <span class="finder-spark finder-spark--two"></span>
-      <div class="finder-art-card finder-art-card--doc">
+    <div class="ticket-guide-hero__visual" aria-hidden="true">
+      <div class="ticket-guide-card">
+        <strong>SOP</strong>
         <span></span>
         <span></span>
-        <span></span>
-      </div>
-      <div class="finder-compass">
-        <span class="finder-compass__ring"></span>
-        <span class="finder-compass__tick finder-compass__tick--north"></span>
-        <span class="finder-compass__tick finder-compass__tick--east"></span>
-        <span class="finder-compass__tick finder-compass__tick--south"></span>
-        <span class="finder-compass__tick finder-compass__tick--west"></span>
-        <span class="finder-compass__needle"></span>
-        <span class="finder-compass__pin"></span>
-      </div>
-      <div class="finder-art-card finder-art-card--checklist">
-        <span></span>
-        <span></span>
-        <span></span>
+        <span class="short"></span>
+        <div class="ticket-guide-card__checks">
+          <i></i>
+          <i></i>
+          <i></i>
+        </div>
+        <div class="ticket-guide-card__doc">
+          <svg viewBox="0 0 120 120" focusable="false" aria-hidden="true">
+            <path class="blob" d="M20 72c-9-28 9-55 39-58 27-3 52 14 55 43 3 31-18 50-48 52-25 2-38-11-46-37Z"></path>
+            <path class="paper" d="M42 24h27l18 18v52H42V24Z"></path>
+            <path class="fold" d="M69 24v18h18"></path>
+            <path class="line" d="M53 53h24M53 64h20M53 75h17"></path>
+            <path class="shield" d="M81 70l18-7 18 7v13c0 14-10 23-18 26-8-3-18-12-18-26V70Z"></path>
+            <path class="check" d="m90 84 6 6 13-16"></path>
+          </svg>
+        </div>
       </div>
     </div>
   </div>
 
-  <div class="finder-panel">
-    <label class="finder-search" for="finder-search-input">
-      <span>Search or describe what you need help with</span>
-      <span class="finder-search__box">
-        <span aria-hidden="true"><AppIcon name="search" /></span>
-        <input
-          id="finder-search-input"
-          type="search"
-          placeholder="Example: Submit a ticket, create a course, approve a request..."
-          autocomplete="off"
-        />
-      </span>
-    </label>
-    <h2 id="finder-question" class="sr-only"></h2>
-    <div id="finder-answers" class="finder-answers"></div>
-    <div id="finder-results" class="finder-results" aria-live="polite"></div>
-    <button class="button button--secondary" id="finder-restart" type="button" hidden>
-      Restart Finder
-    </button>
+  <div class="ticket-guide-layout">
+    <form id="ticket-guide-form" class="ticket-guide-panel" aria-label="ITS ticket routing guide">
+      <div class="ticket-guide-status" id="ticket-guide-status" role="status" aria-live="polite">
+        Loading guide...
+      </div>
+
+      <div class="ticket-guide-step">
+        <div>
+          <span>1</span>
+          <h2>Who are you helping?</h2>
+        </div>
+        <div id="ticket-guide-roles" class="ticket-guide-choice-grid"></div>
+      </div>
+
+      <div class="ticket-guide-step">
+        <div>
+          <span>2</span>
+          <h2>What kind of request is this?</h2>
+        </div>
+        <div id="ticket-guide-requests" class="ticket-guide-choice-grid"></div>
+      </div>
+
+      <label class="ticket-guide-field" for="ticket-guide-details">
+        <span>Describe what is happening</span>
+        <textarea
+          id="ticket-guide-details"
+          rows="5"
+          placeholder="Example: A Captivate activity completed, but the grade did not pass back for one student."
+        ></textarea>
+      </label>
+
+      <fieldset class="ticket-guide-impact">
+        <legend>Impact signals</legend>
+        <label><input type="checkbox" name="studentBlocked" /> Student is blocked</label>
+        <label><input type="checkbox" name="gradesAffected" /> Grades are affected</label>
+        <label><input type="checkbox" name="manyStudents" /> Many students</label>
+        <label><input type="checkbox" name="oneStudent" /> One student</label>
+        <label><input type="checkbox" name="liveCourse" /> Live course</label>
+      </fieldset>
+
+      <div class="ticket-guide-actions">
+        <button class="button button--primary" type="submit">
+          <AppIcon name="search" />
+          Find the right route
+        </button>
+        <button class="button button--secondary" type="button" id="ticket-guide-reset">Reset</button>
+      </div>
+    </form>
+
+    <aside class="ticket-guide-result" id="ticket-guide-result" aria-live="polite">
+      <div class="ticket-guide-empty">
+        <span aria-hidden="true">
+          <svg viewBox="0 0 120 120" focusable="false">
+            <path class="blob" d="M17 73c-8-31 15-54 45-55 31-1 50 23 45 55-5 28-28 43-55 36-18-5-30-17-35-36Z"></path>
+            <path class="target" d="M60 29a31 31 0 1 0 0 62 31 31 0 0 0 0-62Zm0 12a19 19 0 1 1 0 38 19 19 0 0 1 0-38Z"></path>
+            <path class="arrow" d="M72 48 91 29m-7 0h7v7"></path>
+            <path class="dart" d="M55 60h11"></path>
+          </svg>
+        </span>
+        <h2>Ready when you are</h2>
+        <p>Choose a role, choose a request type, then describe the issue. The finder will calculate the best route from the backend rules.</p>
+      </div>
+    </aside>
+  </div>
+
+  <div class="ticket-guide-support-grid">
+    <section class="ticket-guide-panel ticket-guide-reference">
+      <div class="section-heading">
+        <h2>Common Scenarios</h2>
+      </div>
+      <div id="ticket-guide-scenarios" class="ticket-guide-scenarios"></div>
+    </section>
+
+    <section class="ticket-guide-panel ticket-guide-reference">
+      <div class="section-heading">
+        <h2>How Routing Works</h2>
+      </div>
+      <ol id="ticket-guide-journey" class="ticket-guide-journey"></ol>
+    </section>
+
+    <section class="ticket-guide-panel ticket-guide-reference">
+      <div class="section-heading">
+        <h2>FAQ</h2>
+      </div>
+      <div id="ticket-guide-faqs" class="ticket-guide-faqs"></div>
+    </section>
   </div>
 </section>
 
-<script is:inline type="application/json" id="finder-data-json" set:html={JSON.stringify(finderData)}></script>
-<script is:inline type="application/json" id="finder-sops-json" set:html={JSON.stringify(sops)}></script>
-
 <script>
   // @ts-nocheck
-  import { fetchAllD1Sops, toSearchRecord } from "../lib/sop-api";
+  const guideSlug = "its-ticket-routing";
+  const state = {
+    guide: null,
+    role: "",
+    requestType: "",
+  };
 
-  function readJson(id, fallback) {
-    const element = document.getElementById(id);
-    if (!element?.textContent) return fallback;
-    try {
-      return JSON.parse(element.textContent);
-    } catch {
-      return fallback;
-    }
-  }
+  const form = document.getElementById("ticket-guide-form");
+  const statusEl = document.getElementById("ticket-guide-status");
+  const roleEl = document.getElementById("ticket-guide-roles");
+  const requestEl = document.getElementById("ticket-guide-requests");
+  const resultEl = document.getElementById("ticket-guide-result");
+  const detailsEl = document.getElementById("ticket-guide-details");
+  const resetEl = document.getElementById("ticket-guide-reset");
+  const scenariosEl = document.getElementById("ticket-guide-scenarios");
+  const journeyEl = document.getElementById("ticket-guide-journey");
+  const faqsEl = document.getElementById("ticket-guide-faqs");
 
-  const finderData = readJson("finder-data-json", { startNode: "", nodes: {} });
-  let sopRecords = readJson("finder-sops-json", []);
-  const questionEl = document.getElementById("finder-question");
-  const answersEl = document.getElementById("finder-answers");
-  const resultsEl = document.getElementById("finder-results");
-  const restartButton = document.getElementById("finder-restart");
-  const finderSearchInput = document.getElementById("finder-search-input");
-
-  const answerIcons = [
-    {
-      icon: '<svg viewBox="0 0 24 24" focusable="false"><path d="M5 9.25V6.5A1.5 1.5 0 0 1 6.5 5h11A1.5 1.5 0 0 1 19 6.5v2.75a2.75 2.75 0 0 0 0 5.5v2.75a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 17.5v-2.75a2.75 2.75 0 0 0 0-5.5Z"/><path d="M9.25 8.25h5.5M9.25 12h5.5M9.25 15.75h3.5"/></svg>',
-      tone: "ticket",
-    },
-    {
-      icon: '<svg viewBox="0 0 24 24" focusable="false"><path d="M5.5 5.75h5.25A2.25 2.25 0 0 1 13 8v10.25a2.25 2.25 0 0 0-2.25-2.25H5.5V5.75Z"/><path d="M18.5 5.75h-5.25A2.25 2.25 0 0 0 11 8v10.25a2.25 2.25 0 0 1 2.25-2.25h5.25V5.75Z"/></svg>',
-      tone: "course",
-    },
-    {
-      icon: '<svg viewBox="0 0 24 24" focusable="false"><path d="m7 12 3.25 3.25L17.5 8"/><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z"/></svg>',
-      tone: "qa",
-    },
-    {
-      icon: '<svg viewBox="0 0 24 24" focusable="false"><path d="M12 3.75 13.9 9l5.35 1.9-5.35 1.9L12 18.25l-1.9-5.45-5.35-1.9L10.1 9 12 3.75Z"/><path d="m18.5 16 .65 1.85L21 18.5l-1.85.65L18.5 21l-.65-1.85L16 18.5l1.85-.65.65-1.85Z"/></svg>',
-      tone: "ai",
-    },
-    {
-      icon: '<svg viewBox="0 0 24 24" focusable="false"><path d="M14.5 5.5a4.75 4.75 0 0 0 4 6.85l-6.15 6.15a2.75 2.75 0 0 1-3.9-3.9l6.15-6.15a4.75 4.75 0 0 0-.1-2.95Z"/><path d="m7.75 16.25 2 2"/></svg>',
-      tone: "fix",
-    },
-    {
-      icon: '<svg viewBox="0 0 24 24" focusable="false"><path d="M7 4.5h6.25L17 8.25V19.5H7V4.5Z"/><path d="M13 4.75V8.5h3.75"/><path d="M9.75 12.25h4.5M9.75 15.25h4.5"/></svg>',
-      tone: "template",
-    },
-    {
-      icon: '<svg viewBox="0 0 24 24" focusable="false"><path d="M6.75 12h.01M12 12h.01M17.25 12h.01"/></svg>',
-      tone: "other",
-    },
-  ];
-
-  let currentNodeId = finderData.startNode;
+  const iconMap = {
+    headphones: "support",
+    "graduation-cap": "academic",
+    "clipboard-list": "project",
+    presentation: "faculty",
+    wrench: "broken",
+    "user-plus": "access",
+    copy: "template",
+    video: "media",
+    "book-open-check": "cengage",
+    "git-pull-request": "project",
+  };
 
   const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (character) => {
-      const replacements = {
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;",
-      };
+      const replacements = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
       return replacements[character];
     });
 
-  function renderNode(nodeId) {
-    const node = finderData.nodes[nodeId];
-    if (!node || !questionEl || !answersEl || !resultsEl || !restartButton) return;
+  function guideIcon(name) {
+    const key = iconMap[name] || name || "default";
+    const svgs = {
+      support: '<svg viewBox="0 0 120 120"><path class="blob" d="M21 74c-8-29 12-55 43-56 30-1 52 20 51 50-1 29-22 47-51 47-23 0-37-15-43-41Z"/><path class="main" d="M36 64a24 24 0 0 1 48 0v16H72V64a12 12 0 0 0-24 0v16H36V64Z"/><path class="accent" d="M71 85h9c7 0 12-5 12-12V62"/><path class="line" d="M45 92h27"/></svg>',
+      academic: '<svg viewBox="0 0 120 120"><path class="blob" d="M23 73c-10-29 12-53 43-53 29 0 49 19 50 47 1 29-20 48-49 49-24 1-38-13-44-43Z"/><path class="main" d="M21 43 60 25l39 18-39 19-39-19Z"/><path class="accent" d="M39 57v24c13 9 29 9 42 0V57"/><path class="line" d="M99 45v27"/></svg>',
+      project: '<svg viewBox="0 0 120 120"><path class="blob" d="M22 76c-9-30 12-53 42-56 31-2 52 18 52 48 0 29-22 46-51 48-25 1-38-14-43-40Z"/><path class="main" d="M31 78 60 93l29-15-29-15-29 15Z"/><path class="accent" d="M31 58 60 73l29-15-29-15-29 15Z"/><path class="main" d="M31 39 60 54l29-15-29-15-29 15Z"/></svg>',
+      faculty: '<svg viewBox="0 0 120 120"><path class="blob" d="M21 73c-8-30 14-53 44-54 29-1 49 19 51 47 2 30-20 49-49 50-24 1-39-13-46-43Z"/><path class="main" d="M60 27c15 8 26 8 39 5v27c0 25-17 41-39 50-22-9-39-25-39-50V32c13 3 24 3 39-5Z"/><path class="check" d="m44 62 11 11 24-29"/></svg>',
+      broken: '<svg viewBox="0 0 120 120"><path class="blob" d="M21 73c-8-29 13-52 43-53 29-1 50 18 52 47 2 30-21 49-49 50-24 1-39-14-46-44Z"/><path class="main" d="M77 28a23 23 0 0 0 18 31L61 93a14 14 0 0 1-20-20l34-34c-1-4-1-8 2-11Z"/><path class="line" d="m42 77 15 15"/></svg>',
+      access: '<svg viewBox="0 0 120 120"><path class="blob" d="M22 74c-9-30 13-53 43-54 29-1 49 19 51 47 2 30-21 48-49 49-24 1-39-13-45-42Z"/><path class="main" d="M52 58a18 18 0 1 0 0-36 18 18 0 0 0 0 36Zm-30 39c5-18 16-28 30-28s25 10 30 28H22Z"/><path class="accent" d="M88 42v28M74 56h28"/></svg>',
+      template: '<svg viewBox="0 0 120 120"><path class="blob" d="M22 74c-9-29 12-53 42-54 30-1 51 18 52 47 1 30-21 49-50 50-24 1-39-14-44-43Z"/><path class="main" d="M38 25h31l18 18v52H38V25Z"/><path class="accent" d="M69 25v18h18"/><path class="line" d="M49 58h26M49 70h26M49 82h16"/></svg>',
+      media: '<svg viewBox="0 0 120 120"><path class="blob" d="M23 73c-10-29 12-53 43-53 29 0 49 19 50 47 1 29-20 48-49 49-24 1-38-13-44-43Z"/><path class="main" d="M27 35h49v50H27V35Z"/><path class="accent" d="m76 52 23-13v42L76 68V52Z"/><path class="line" d="m47 49 18 11-18 11V49Z"/></svg>',
+      cengage: '<svg viewBox="0 0 120 120"><path class="blob" d="M22 74c-9-30 13-53 43-54 29-1 50 19 51 48 1 29-21 47-50 48-24 1-38-13-44-42Z"/><path class="main" d="M32 31h34c13 0 22 9 22 22v36H53c-12 0-21-9-21-21V31Z"/><path class="accent" d="M49 50h25M49 63h25M49 76h16"/></svg>',
+      default: '<svg viewBox="0 0 120 120"><path class="blob" d="M21 74c-8-30 13-54 43-55 30-1 51 19 52 48 1 30-21 49-50 50-24 1-39-14-45-43Z"/><path class="main" d="M37 30h32l17 17v43H37V30Z"/><path class="line" d="M49 57h25M49 69h20"/></svg>',
+    };
+    return svgs[key] || svgs.default;
+  }
 
-    currentNodeId = nodeId;
-    questionEl.textContent = node.question;
-    answersEl.innerHTML = node.answers
+  function setStatus(message, tone = "") {
+    if (!statusEl) return;
+    statusEl.textContent = message;
+    statusEl.dataset.tone = tone;
+  }
+
+  function renderChoices(container, items, activeKey, type) {
+    if (!container) return;
+    container.innerHTML = items
+      .map((item) => {
+        const key = item.roleKey || item.requestKey;
+        return `
+          <button class="ticket-guide-choice ${key === activeKey ? "is-active" : ""}" type="button" data-choice-type="${type}" data-choice-key="${escapeHtml(key)}">
+            <span class="ticket-guide-choice__icon" aria-hidden="true">${guideIcon(item.icon)}</span>
+            <span>
+              <strong>${escapeHtml(item.label)}</strong>
+              <small>${escapeHtml(item.hint || item.defaultBadge || "")}</small>
+            </span>
+          </button>
+        `;
+      })
+      .join("");
+  }
+
+  function renderGuide(guide) {
+    state.guide = guide;
+    state.role = guide.roles?.[0]?.roleKey || "";
+    state.requestType = guide.requestTypes?.[0]?.requestKey || "";
+    renderChoices(roleEl, guide.roles || [], state.role, "role");
+    renderChoices(requestEl, guide.requestTypes || [], state.requestType, "request");
+    renderScenarios(guide.scenarios || []);
+    renderJourney(guide.journey || []);
+    renderFaqs(guide.faqs || []);
+    setStatus("Guide loaded from SOP backend.", "ready");
+  }
+
+  function renderScenarios(scenarios) {
+    if (!scenariosEl) return;
+    scenariosEl.innerHTML = scenarios
       .map(
-        (answer, index) => {
-          const icon = answerIcons[index % answerIcons.length];
-          return `
-            <button class="finder-answer finder-answer--${icon.tone}" type="button" data-answer-index="${index}">
-              <span class="finder-answer__icon" aria-hidden="true">${icon.icon}</span>
-              <span class="finder-answer__label">${escapeHtml(answer.label)}</span>
-            </button>
-          `;
-        },
+        (scenario) => `
+          <article>
+            <span class="${escapeHtml(scenario.routeClass)}">${escapeHtml(scenario.routeLabel)}</span>
+            <h3>${escapeHtml(scenario.title)}</h3>
+            <p>${escapeHtml(scenario.why)}</p>
+            <small>${escapeHtml(scenario.nextStep)}</small>
+          </article>
+        `,
       )
       .join("");
-    resultsEl.innerHTML = "";
-    restartButton.hidden = nodeId === finderData.startNode;
   }
 
-  function renderResults(ids) {
-    if (!questionEl || !answersEl || !resultsEl || !restartButton) return;
-
-    const records = ids
-      .map((id) => sopRecords.find((record) => record.id === id))
-      .filter(Boolean);
-
-    questionEl.textContent = "Recommended SOPs";
-    answersEl.innerHTML = "";
-    restartButton.hidden = false;
-    resultsEl.innerHTML =
-      records.length > 0
-        ? records
-            .map(
-              (record) => `
-              <article class="sop-card">
-                <div class="sop-card__topline">
-                  <span>${escapeHtml(record.category)}</span>
-                  <span class="status-badge">${escapeHtml(record.status)}</span>
-                </div>
-                <h3><a href="${record.url}">${escapeHtml(record.title)}</a></h3>
-                <p>${escapeHtml(record.purpose)}</p>
-                <p class="sop-card__tools"><strong>Tools:</strong> ${escapeHtml(
-                  record.tools.join(", "),
-                )}</p>
-                <ul class="tag-list" aria-label="Tags">
-                  ${record.tags.map((tag) => `<li>${escapeHtml(tag)}</li>`).join("")}
-                </ul>
-              </article>
-            `,
-            )
-            .join("")
-        : `<p>No matching SOPs are available yet.</p>`;
+  function renderJourney(steps) {
+    if (!journeyEl) return;
+    journeyEl.innerHTML = steps
+      .map(
+        (step) => `
+          <li>
+            <span>${escapeHtml(step.stepNumber)}</span>
+            <div>
+              <strong>${escapeHtml(step.title)}</strong>
+              <p>${escapeHtml(step.body)}</p>
+            </div>
+          </li>
+        `,
+      )
+      .join("");
   }
 
-  answersEl?.addEventListener("click", (event) => {
+  function renderFaqs(faqs) {
+    if (!faqsEl) return;
+    faqsEl.innerHTML = faqs
+      .map(
+        (faq) => `
+          <details>
+            <summary>${escapeHtml(faq.question)}</summary>
+            <p>${escapeHtml(faq.answer)}</p>
+          </details>
+        `,
+      )
+      .join("");
+  }
+
+  function collectImpact() {
+    const impact = {};
+    form?.querySelectorAll(".ticket-guide-impact input").forEach((input) => {
+      if (input instanceof HTMLInputElement) impact[input.name] = input.checked;
+    });
+    return impact;
+  }
+
+  function renderResult(result) {
+    if (!resultEl) return;
+    const nextSteps = (result.nextSteps || []).map((step) => `<li>${escapeHtml(step)}</li>`).join("");
+    const signals = Object.entries(result.signals || {})
+      .filter(([, active]) => Boolean(active))
+      .map(([key]) => `<li>${escapeHtml(key.replaceAll("_", " "))}</li>`)
+      .join("");
+    const sopLink = result.recommendedSop?.detailUrl
+      ? `<a class="button button--secondary" href="${escapeHtml(result.recommendedSop.detailUrl)}">Open related SOP</a>`
+      : "";
+    const actionLabel = result.requiresProjectPath ? "Project path required" : result.requiresTicket ? "Ticket required" : "No ITS ticket required";
+
+    resultEl.innerHTML = `
+      <div class="ticket-guide-result-card">
+        <div class="ticket-guide-result-card__top">
+          <span class="${escapeHtml(result.routeClass)}">${escapeHtml(result.routeLabel)}</span>
+          <strong>${escapeHtml(result.confidenceScore)}% match</strong>
+        </div>
+        <h2>${escapeHtml(result.title)}</h2>
+        <p>${escapeHtml(result.summary)}</p>
+        <dl>
+          <div><dt>Destination</dt><dd>${escapeHtml(result.destinationLabel)}</dd></div>
+          <div><dt>Action</dt><dd>${escapeHtml(actionLabel)}</dd></div>
+        </dl>
+        <h3>Next steps</h3>
+        <ol>${nextSteps}</ol>
+        ${signals ? `<h3>Detected signals</h3><ul class="ticket-guide-signals">${signals}</ul>` : ""}
+        <div class="ticket-guide-result-card__actions">
+          ${sopLink}
+          <a class="button button--secondary" href="/submit/">Submit request</a>
+        </div>
+      </div>
+    `;
+  }
+
+  async function loadGuide() {
+    try {
+      const response = await fetch(`/api/guides/${guideSlug}`, { headers: { accept: "application/json" } });
+      if (!response.ok) throw new Error(`Guide request failed: ${response.status}`);
+      const payload = await response.json();
+      renderGuide(payload.data?.guide || payload.guide);
+    } catch (error) {
+      setStatus("The guide could not load. Please refresh and try again.", "error");
+    }
+  }
+
+  async function routeRequest() {
+    setStatus("Calculating the best route...", "loading");
+    const payload = {
+      role: state.role,
+      requestType: state.requestType,
+      details: detailsEl instanceof HTMLTextAreaElement ? detailsEl.value : "",
+      impact: collectImpact(),
+    };
+    const response = await fetch(`/api/guides/${guideSlug}/route`, {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) throw new Error(`Route request failed: ${response.status}`);
+    const body = await response.json();
+    renderResult(body.data?.result);
+    setStatus("Route calculated from backend rules.", "ready");
+  }
+
+  form?.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
-
-    const answerButton = target.closest("[data-answer-index]");
-    if (!(answerButton instanceof HTMLElement)) return;
-
-    const node = finderData.nodes[currentNodeId];
-    const answer = node.answers[Number(answerButton.dataset.answerIndex)];
-
-    if (answer.next) {
-      renderNode(answer.next);
-      return;
-    }
-
-    renderResults(answer.results ?? []);
+    const button = target.closest("[data-choice-type]");
+    if (!(button instanceof HTMLElement)) return;
+    const type = button.dataset.choiceType;
+    const key = button.dataset.choiceKey || "";
+    if (type === "role") state.role = key;
+    if (type === "request") state.requestType = key;
+    renderChoices(roleEl, state.guide?.roles || [], state.role, "role");
+    renderChoices(requestEl, state.guide?.requestTypes || [], state.requestType, "request");
   });
 
-  restartButton?.addEventListener("click", () => renderNode(finderData.startNode));
-
-  finderSearchInput?.addEventListener("input", (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLInputElement) || !answersEl) return;
-
-    const query = target.value.trim().toLowerCase();
-    const buttons = Array.from(answersEl.querySelectorAll("[data-answer-index]"));
-    buttons.forEach((button) => {
-      if (!(button instanceof HTMLElement)) return;
-      const text = button.textContent?.toLowerCase() || "";
-      button.hidden = Boolean(query) && !text.includes(query);
-    });
-  });
-
-  renderNode(finderData.startNode);
-
-  async function hydrateFinderSops() {
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
     try {
-      const records = await fetchAllD1Sops({ limit: 100, sort: "recent" });
-      if (records.length) sopRecords = records.map(toSearchRecord);
+      await routeRequest();
     } catch {
-      // Keep static content records as the fallback for local preview without D1.
+      setStatus("The route could not be calculated. Please try again.", "error");
     }
-  }
+  });
 
-  hydrateFinderSops();
+  resetEl?.addEventListener("click", () => {
+    form?.reset();
+    if (state.guide) renderGuide(state.guide);
+    resultEl?.replaceChildren();
+    if (resultEl) {
+      resultEl.innerHTML = `
+        <div class="ticket-guide-empty">
+          <h2>Ready when you are</h2>
+          <p>Choose a role, choose a request type, then describe the issue. The finder will calculate the best route from the backend rules.</p>
+        </div>
+      `;
+    }
+  });
+
+  loadGuide();
 </script>
