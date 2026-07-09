@@ -5,6 +5,10 @@ interface Props {
     | "search"
     | "people"
     | "chart"
+    | "statPublished"
+    | "statCategories"
+    | "statTags"
+    | "statUpdated"
     | "target"
     | "book"
     | "documentShield"
@@ -20,11 +24,11 @@ const { name } = Astro.props;
 {
   name === "shield" && (
     <svg class="hero-art-icon hero-art-icon--shield" viewBox="0 0 96 96" role="img" aria-hidden="true">
-      <path d="M18 68c-11-17-3-41 16-50 20-10 45 0 52 20 7 19-5 41-26 48-17 5-34-3-42-18Z" fill="#ffe5b8" opacity=".78" />
-      <path d="M48 22 70 31v16c0 16-9 27-22 34C35 74 26 63 26 47V31l22-9Z" fill="#10225b" stroke="#10225b" stroke-width="3.2" stroke-linejoin="round" />
-      <path d="m39 50 7 7 14-18" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
-      <path d="M74 17v8M70 21h8M78 28l3 3M66 14l3 3" fill="none" stroke="#ff981f" stroke-width="2.4" stroke-linecap="round" />
-      <path d="M22 24h7M25.5 20.5v7" fill="none" stroke="#c8cfdb" stroke-width="2.2" stroke-linecap="round" />
+      <circle cx="48" cy="48" r="36" fill="#fff4df" />
+      <path d="M48 18 70 27v17c0 16-8 27-22 34C34 71 26 60 26 44V27l22-9Z" fill="#10225b" stroke="#10225b" stroke-width="3.5" stroke-linejoin="round" />
+      <path d="m38 48 8 8 15-20" fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M72 16v8M68 20h8" fill="none" stroke="#ff6b00" stroke-width="3" stroke-linecap="round" />
+      <path d="M25 27h7" fill="none" stroke="#d8dfeb" stroke-width="3" stroke-linecap="round" />
     </svg>
   )
 }
@@ -32,13 +36,12 @@ const { name } = Astro.props;
 {
   name === "search" && (
     <svg class="hero-art-icon hero-art-icon--search" viewBox="0 0 96 96" role="img" aria-hidden="true">
-      <path d="M22 69c-12-15-5-39 12-50 18-11 43-5 53 13 10 19 0 43-21 51-17 7-34 0-44-14Z" fill="#eaf1ff" opacity=".95" />
-      <circle cx="42" cy="42" r="21" fill="#ffffff" stroke="#10225b" stroke-width="3.4" />
-      <circle cx="42" cy="42" r="13" fill="#f7fbff" stroke="#9aa7bd" stroke-width="2.4" />
-      <path d="m58 58 20 20" fill="none" stroke="#10225b" stroke-width="8" stroke-linecap="round" />
-      <path d="m58 58 20 20" fill="none" stroke="#2e78ff" stroke-width="4.8" stroke-linecap="round" />
-      <path d="M69 19v7M65.5 22.5h7M76 28l2.5 2.5" fill="none" stroke="#2e78ff" stroke-width="2.3" stroke-linecap="round" />
-      <path d="M23 23c5-6 12-9 21-9" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" opacity=".9" />
+      <circle cx="44" cy="43" r="34" fill="#eaf2ff" />
+      <circle cx="41" cy="40" r="20" fill="#ffffff" stroke="#10225b" stroke-width="4" />
+      <circle cx="41" cy="40" r="11" fill="#f7fbff" stroke="#9aa7bd" stroke-width="3" />
+      <path d="m56 55 19 19" fill="none" stroke="#10225b" stroke-width="8" stroke-linecap="round" />
+      <path d="m56 55 19 19" fill="none" stroke="#2e78ff" stroke-width="4.5" stroke-linecap="round" />
+      <path d="M69 18v8M65 22h8" fill="none" stroke="#2e78ff" stroke-width="3" stroke-linecap="round" />
     </svg>
   )
 }
@@ -46,12 +49,14 @@ const { name } = Astro.props;
 {
   name === "people" && (
     <svg class="hero-art-icon hero-art-icon--people" viewBox="0 0 96 96" role="img" aria-hidden="true">
-      <path d="M20 69c-9-16-1-38 16-48 18-10 42-3 51 14 9 18-2 41-23 49-18 7-36 0-44-15Z" fill="#f0e8ff" opacity=".88" />
-      <circle cx="39" cy="38" r="12" fill="#ffffff" stroke="#10225b" stroke-width="3" />
-      <circle cx="58" cy="40" r="10" fill="#9b78ff" stroke="#10225b" stroke-width="3" />
-      <path d="M20 71c3-15 12-23 27-23s24 8 27 23" fill="#eaf1ff" stroke="#10225b" stroke-width="3" stroke-linecap="round" />
-      <path d="M44 72c2-10 8-16 20-16 10 0 17 5 20 16" fill="#7f5cf4" stroke="#10225b" stroke-width="3" stroke-linecap="round" />
-      <path d="M71 17v7M67.5 20.5h7M22 29l4 4M72 29l4-4" fill="none" stroke="#ff981f" stroke-width="2.2" stroke-linecap="round" />
+      <circle cx="48" cy="49" r="35" fill="#f0eaff" />
+      <circle cx="48" cy="35" r="12" fill="#ffffff" stroke="#10225b" stroke-width="4" />
+      <path d="M26 73c3-16 12-25 22-25s19 9 22 25" fill="#ffffff" stroke="#10225b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+      <circle cx="28" cy="42" r="9" fill="#d9ccff" stroke="#10225b" stroke-width="3.5" />
+      <path d="M14 72c2-12 9-20 18-20 6 0 11 3 15 8" fill="#d9ccff" stroke="#10225b" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
+      <circle cx="68" cy="42" r="9" fill="#8e6dff" stroke="#10225b" stroke-width="3.5" />
+      <path d="M50 60c4-5 9-8 15-8 10 0 17 8 19 20" fill="#8e6dff" stroke="#10225b" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M72 18v8M68 22h8" fill="none" stroke="#ff6b00" stroke-width="3" stroke-linecap="round" />
     </svg>
   )
 }
@@ -59,14 +64,61 @@ const { name } = Astro.props;
 {
   name === "chart" && (
     <svg class="hero-art-icon hero-art-icon--chart" viewBox="0 0 96 96" role="img" aria-hidden="true">
-      <path d="M19 70c-9-16-2-39 17-49 19-9 43-1 51 18 8 19-4 41-25 47-17 5-35-2-43-16Z" fill="#e9f8ed" opacity=".9" />
-      <path d="M22 76h56" fill="none" stroke="#10225b" stroke-width="3" stroke-linecap="round" />
-      <path d="M31 57h10v19H31z" fill="#2e78ff" stroke="#10225b" stroke-width="3" stroke-linejoin="round" />
-      <path d="M46 47h10v29H46z" fill="#19b7e8" stroke="#10225b" stroke-width="3" stroke-linejoin="round" />
-      <path d="M61 36h10v40H61z" fill="#9be37a" stroke="#10225b" stroke-width="3" stroke-linejoin="round" />
-      <path d="M28 44c10-2 20-12 27-10 7 1 9 9 20-6" fill="none" stroke="#ff981f" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round" />
-      <path d="m73 22 5 1-1 12" fill="none" stroke="#ff981f" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round" />
-      <path d="M77 15v7M73.5 18.5h7" fill="none" stroke="#ff981f" stroke-width="2.2" stroke-linecap="round" />
+      <circle cx="48" cy="49" r="35" fill="#e9f8ed" />
+      <path d="M22 76h56" fill="none" stroke="#10225b" stroke-width="4" stroke-linecap="round" />
+      <path d="M30 58h10v18H30z" fill="#2e78ff" stroke="#10225b" stroke-width="3.5" stroke-linejoin="round" />
+      <path d="M45 47h10v29H45z" fill="#19b7e8" stroke="#10225b" stroke-width="3.5" stroke-linejoin="round" />
+      <path d="M60 35h10v41H60z" fill="#9be37a" stroke="#10225b" stroke-width="3.5" stroke-linejoin="round" />
+      <path d="M29 44c9 0 17-10 25-9 7 1 11 6 21-8" fill="none" stroke="#ff6b00" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="m72 24 7 1-1 12" fill="none" stroke="#ff6b00" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+  )
+}
+
+{
+  name === "statPublished" && (
+    <svg class="stat-art-icon stat-art-icon--published" viewBox="0 0 80 80" role="img" aria-hidden="true">
+      <circle cx="40" cy="40" r="31" fill="#ffffff" opacity=".12" />
+      <path d="M26 16h22l13 13v35H26V16Z" fill="#ffffff" stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round" />
+      <path d="M48 16v14h13" fill="#ff8a1f" stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round" />
+      <path d="M34 40h20M34 50h18M34 59h12" fill="none" stroke="#10225b" stroke-width="3.4" stroke-linecap="round" />
+      <path d="M23 19h8" fill="none" stroke="#ff8a1f" stroke-width="3" stroke-linecap="round" />
+    </svg>
+  )
+}
+
+{
+  name === "statCategories" && (
+    <svg class="stat-art-icon stat-art-icon--categories" viewBox="0 0 80 80" role="img" aria-hidden="true">
+      <circle cx="40" cy="40" r="31" fill="#ffffff" opacity=".12" />
+      <path d="M17 27h18l5 6h23v29H17V27Z" fill="#ffffff" stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round" />
+      <path d="M19 33h42v29H19V33Z" fill="#f7fbff" stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round" />
+      <path d="M20 27h15l5 6h21v7H19V27Z" fill="#ff8a1f" />
+      <path d="M28 44h8M44 44h8M28 54h24" fill="none" stroke="#10225b" stroke-width="3.5" stroke-linecap="round" />
+    </svg>
+  )
+}
+
+{
+  name === "statTags" && (
+    <svg class="stat-art-icon stat-art-icon--tags" viewBox="0 0 80 80" role="img" aria-hidden="true">
+      <circle cx="40" cy="40" r="31" fill="#ffffff" opacity=".12" />
+      <path d="M18 22h28l18 18-25 25-21-21V22Z" fill="#ffffff" stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round" />
+      <path d="M25 29h18l14 14-18 18-14-14V29Z" fill="#ff8a1f" />
+      <circle cx="34" cy="37" r="4.6" fill="#10225b" />
+      <path d="M47 45 36 56" fill="none" stroke="#10225b" stroke-width="3.5" stroke-linecap="round" />
+    </svg>
+  )
+}
+
+{
+  name === "statUpdated" && (
+    <svg class="stat-art-icon stat-art-icon--updated" viewBox="0 0 80 80" role="img" aria-hidden="true">
+      <circle cx="40" cy="40" r="31" fill="#ffffff" opacity=".12" />
+      <circle cx="40" cy="40" r="23" fill="#ffffff" stroke="#ffffff" stroke-width="3.5" />
+      <path d="M40 25v16l12 8" fill="none" stroke="#10225b" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M40 25v16l12 8" fill="none" stroke="#ff8a1f" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M21 19h9M25.5 14.5v9" fill="none" stroke="#ff8a1f" stroke-width="3" stroke-linecap="round" />
     </svg>
   )
 }

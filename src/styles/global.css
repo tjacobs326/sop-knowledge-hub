@@ -1230,6 +1230,14 @@ body.role-blocked .site-main {
   height: 2.15rem;
 }
 
+.hero-stats__icon .stat-art-icon {
+  display: block;
+  width: 3.35rem;
+  height: 3.35rem;
+  overflow: visible;
+  filter: drop-shadow(0 8px 14px rgba(1, 9, 31, 0.24));
+}
+
 .dashboard-stats .app-icon[data-variant="illustrated"] > path:not(.app-icon__fill),
 .dashboard-stats .app-icon__fill {
   stroke: rgba(240, 246, 255, 0.96);
@@ -6142,6 +6150,11 @@ tbody tr:hover {
   .hero-stats__icon .app-icon {
     width: 1.15rem;
     height: 1.15rem;
+  }
+
+  .hero-stats__icon .stat-art-icon {
+    width: 2.15rem;
+    height: 2.15rem;
   }
 
   .hero-stats dd {
