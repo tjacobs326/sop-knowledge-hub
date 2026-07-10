@@ -1,39 +1,6 @@
 ---
 import Layout from "../../components/Layout.astro";
-import { mockDrafts } from "../../data/mock-drafts";
-import { mockSubmissions } from "../../data/mock-submissions";
-import { userAccounts } from "../../data/mock-users";
 import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badges";
-import { DRAFTS_STORAGE_KEY } from "../../lib/drafts";
-import { getAllSops, getSopUrl } from "../../lib/sops";
-import { REVIEW_QUEUE_STORAGE_KEY, SUBMISSIONS_STORAGE_KEY, createSubmissionReviewItem } from "../../lib/submissions";
-
-const sops = await getAllSops();
-const reviewItems = [
-  ...mockDrafts.map((draft) => ({
-    id: `review-${draft.id}`,
-    title: draft.title,
-    category: draft.category,
-    status: draft.status === "Published" ? "Published" : "In Review",
-    assignedOwner: draft.owner,
-    reviewDate: draft.reviewDate,
-    source: "Internal SOP Creator",
-  })),
-  ...mockSubmissions.map(createSubmissionReviewItem),
-];
-
-const currentUsers = userAccounts.filter((user) => user.status === "Active");
-
-const sopRecords = sops.map((sop) => ({
-  id: sop.data.id,
-  title: sop.data.title,
-  category: sop.data.category,
-  owner: sop.data.owner,
-  status: sop.data.status,
-  reviewDate: sop.data.reviewDate,
-  lastUpdated: sop.data.lastUpdated,
-  url: getSopUrl(sop),
-}));
 ---
 
 <Layout title="My Work" wide>
@@ -41,23 +8,19 @@ const sopRecords = sops.map((sop) => ({
     <div class="section-heading">
       <p class="eyebrow">Workflow Dashboard</p>
       <h1 id="my-work-heading">My Work</h1>
-      <p>See the requests, drafts, assignments, owned SOPs, reviews, and overdue work tied to the current user.</p>
+      <p>See the requests, drafts, assignments, owned SOPs, reviews, and overdue work tied to the current Creator / Reviewer sub-role.</p>
     </div>
 
     <div class="form-grid work-user-panel">
       <div class="field">
         <label for="current-user">View work for</label>
         <select id="current-user">
-          {currentUsers.map((user) => (
-            <option value={user.email}>
-              {user.name} - {user.department}
-            </option>
-          ))}
+          <option value="">Loading backend users...</option>
         </select>
       </div>
       <div class="field">
         <label>Access level</label>
-        <input id="current-access-level" type="text" readonly value={currentUsers[0].accessLevel} />
+        <input id="current-access-level" type="text" readonly value="Loading..." />
       </div>
     </div>
 
@@ -196,21 +159,19 @@ const sopRecords = sops.map((sop) => ({
 </Layout>
 
 <script is:inline type="application/json" id="my-work-data-json" set:html={JSON.stringify({
-  currentUsers,
-  initialSops: sopRecords,
-  initialDrafts: mockDrafts,
-  initialSubmissions: mockSubmissions,
-  initialReviewItems: reviewItems,
-  DRAFTS_STORAGE_KEY,
-  SUBMISSIONS_STORAGE_KEY,
-  REVIEW_QUEUE_STORAGE_KEY,
   priorityBadgeDefinitions,
   statusBadgeDefinitions,
 })}></script>
 
 <script>
   // @ts-nocheck
-  import { fetchAllD1Sops } from "../../lib/sop-api";
+  const ROLE_CONTEXT_EVENT = "sop-role-context-change";
+  const SUB_ROLE_KEY = "sopHubSelectedCreatorSubRole";
+  const currentUserSelect = document.getElementById("current-user");
+  const currentAccessLevel = document.getElementById("current-access-level");
+  const tableIds = ["submitted-list", "draft-list", "assigned-list", "owned-list", "review-list", "overdue-list"];
+  let activeRequestId = 0;
+  let selectedUserId = "";
 
   function readJson(id, fallback) {
     const element = document.getElementById(id);
@@ -223,23 +184,8 @@ const sopRecords = sops.map((sop) => ({
   }
 
   const myWorkData = readJson("my-work-data-json", {});
-  const currentUsers = myWorkData.currentUsers || [];
-  let initialSops = myWorkData.initialSops || [];
-  const initialDrafts = myWorkData.initialDrafts || [];
-  const initialSubmissions = myWorkData.initialSubmissions || [];
-  const initialReviewItems = myWorkData.initialReviewItems || [];
-  const DRAFTS_STORAGE_KEY = myWorkData.DRAFTS_STORAGE_KEY;
-  const SUBMISSIONS_STORAGE_KEY = myWorkData.SUBMISSIONS_STORAGE_KEY;
-  const REVIEW_QUEUE_STORAGE_KEY = myWorkData.REVIEW_QUEUE_STORAGE_KEY;
-  const SUB_ROLE_KEY = "sopHubSelectedCreatorSubRole";
-  const ROLE_CONTEXT_EVENT = "sop-role-context-change";
   const priorityBadgeDefinitions = myWorkData.priorityBadgeDefinitions || {};
   const statusBadgeDefinitions = myWorkData.statusBadgeDefinitions || {};
-  const currentUserSelect = document.getElementById("current-user");
-  const currentAccessLevel = document.getElementById("current-access-level");
-  const today = new Date().toISOString().slice(0, 10);
-  const reviewStatuses = ["Submitted", "Triage", "Assigned", "In Review", "Needs More Information", "Needs Revision"];
-  let sopHydrationRequestId = 0;
 
   const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (character) => {
@@ -253,41 +199,9 @@ const sopRecords = sops.map((sop) => ({
       return replacements[character];
     });
 
-  function readStorage(key) {
-    try {
-      const parsed = JSON.parse(localStorage.getItem(key) || "[]");
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  }
-
-  function mergeById(...groups) {
-    const map = new Map();
-    groups.flat().forEach((item) => {
-      if (item?.id) map.set(item.id, item);
-    });
-    return Array.from(map.values());
-  }
-
-  function getCurrentUser() {
-    const email = currentUserSelect instanceof HTMLSelectElement ? currentUserSelect.value : currentUsers[0].email;
-    return currentUsers.find((user) => user.email === email) || currentUsers[0];
-  }
-
-  function isMine(value, user) {
-    const normalized = String(value || "").toLowerCase();
-    return Boolean(
-      normalized &&
-        (normalized === user.name.toLowerCase() ||
-          normalized === user.email.toLowerCase() ||
-          normalized === user.department.toLowerCase()),
-    );
-  }
-
   function formatDateClient(value) {
     if (!value) return "Not set";
-    const date = new Date(`${value}T00:00:00`);
+    const date = new Date(`${String(value).slice(0, 10)}T00:00:00`);
     if (Number.isNaN(date.getTime())) return value;
     return new Intl.DateTimeFormat("en-US", {
       month: "short",
@@ -300,26 +214,21 @@ const sopRecords = sops.map((sop) => ({
     return `<a class="button button--secondary" href="${escapeHtml(href)}">${escapeHtml(label)}</a>`;
   }
 
-  function statusBadge(status) {
-    const key = String(status || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    const badge = statusBadgeDefinitions[key] || {
-      label: status || "New",
-      className: "status-badge--new",
+  function badge(definitions, value, fallbackLabel, fallbackClass, baseClass) {
+    const key = String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const definition = definitions[key] || {
+      label: value || fallbackLabel,
+      className: fallbackClass,
     };
-    return `<span class="badge status-badge ${escapeHtml(badge.className)}"><span class="sr-only">Status:</span>${escapeHtml(
-      badge.label,
-    )}</span>`;
+    return `<span class="badge ${escapeHtml(baseClass)} ${escapeHtml(definition.className)}">${escapeHtml(definition.label)}</span>`;
+  }
+
+  function statusBadge(status) {
+    return badge(statusBadgeDefinitions, status, "New", "status-badge--new", "status-badge");
   }
 
   function priorityBadge(priority) {
-    const key = String(priority || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    const badge = priorityBadgeDefinitions[key] || {
-      label: priority || "Medium",
-      className: "priority-badge--medium",
-    };
-    return `<span class="badge priority-badge ${escapeHtml(badge.className)}"><span class="sr-only">Priority:</span>${escapeHtml(
-      badge.label,
-    )}</span>`;
+    return badge(priorityBadgeDefinitions, priority, "Medium", "priority-badge--medium", "priority-badge");
   }
 
   function renderRows(id, rows, columns, emptyText) {
@@ -341,181 +250,184 @@ const sopRecords = sops.map((sop) => ({
 
   function setCount(id, value) {
     const element = document.getElementById(id);
-    if (element) element.textContent = String(value);
+    if (element) element.textContent = String(Number(value || 0));
   }
 
-  function workData() {
-    return {
-      sops: initialSops,
-      drafts: mergeById(initialDrafts, readStorage(DRAFTS_STORAGE_KEY)),
-      submissions: mergeById(initialSubmissions, readStorage(SUBMISSIONS_STORAGE_KEY)),
-      reviewItems: mergeById(initialReviewItems, readStorage(REVIEW_QUEUE_STORAGE_KEY)),
-    };
+  function clearDashboard(message = "Loading backend work records...") {
+    setCount("count-submitted", 0);
+    setCount("count-drafts", 0);
+    setCount("count-assigned", 0);
+    setCount("count-review", 0);
+    setCount("count-overdue", 0);
+    tableIds.forEach((id) => {
+      const list = document.getElementById(id);
+      if (list) {
+        list.innerHTML = `<tr><td colspan="5"><div class="empty-state empty-state--table"><strong>Loading</strong><p>${escapeHtml(message)}</p></div></td></tr>`;
+      }
+    });
   }
 
-  function selectedCreatorSubRole() {
-    return localStorage.getItem(SUB_ROLE_KEY) || "";
-  }
-
-  function renderDashboard() {
-    const user = getCurrentUser();
-    const { sops, drafts, submissions, reviewItems } = workData();
-    const selectedSubRole = selectedCreatorSubRole();
-
-    if (currentAccessLevel instanceof HTMLInputElement) {
-      currentAccessLevel.value = user.accessLevel;
+  function renderUserOptions(users, selectedUser) {
+    if (!(currentUserSelect instanceof HTMLSelectElement)) return;
+    if (!users.length) {
+      currentUserSelect.innerHTML = `<option value="">No backend users for this sub-role</option>`;
+      selectedUserId = "";
+      return;
     }
 
-    const submitted = submissions.filter(
-      (submission) => isMine(submission.submittedBy, user) || isMine(submission.submitterEmail, user),
-    );
-    const myDrafts = drafts.filter((draft) => isMine(draft.owner, user));
-    const assigned = reviewItems.filter((item) => isMine(item.assignedOwner, user));
-    const owned = selectedSubRole ? sops : sops.filter((sop) => isMine(sop.owner, user));
-    const needsReview = assigned.filter((item) => reviewStatuses.includes(item.status));
-    const overdue = [
-      ...owned.filter((sop) => sop.reviewDate && sop.reviewDate < today),
-      ...assigned
-        .filter((item) => item.reviewDate && item.reviewDate < today)
-        .map((item) => ({
-          title: item.title,
-          owner: item.assignedOwner || "Unassigned",
-          reviewDate: item.reviewDate,
-          status: item.status,
-          url: "/admin/needs-review/",
-        })),
-    ];
+    const nextSelectedId = selectedUser?.id || users[0]?.id || "";
+    selectedUserId = nextSelectedId;
+    currentUserSelect.innerHTML = users
+      .map(
+        (user) =>
+          `<option value="${escapeHtml(user.id)}" ${user.id === nextSelectedId ? "selected" : ""}>${escapeHtml(
+            user.name,
+          )} - ${escapeHtml(user.department || user.title || "Creator / Reviewer")}</option>`,
+      )
+      .join("");
+  }
 
-    setCount("count-submitted", submitted.length);
-    setCount("count-drafts", myDrafts.length);
-    setCount("count-assigned", assigned.length);
-    setCount("count-review", needsReview.length);
-    setCount("count-overdue", overdue.length);
+  function renderDashboard(payload) {
+    const counts = payload.counts || {};
+    const sections = payload.sections || {};
+    const context = payload.context || {};
+    const users = payload.viewOptions?.users || [];
+    const selectedUser = context.selectedUser || users[0] || null;
+
+    renderUserOptions(users, selectedUser);
+    if (currentAccessLevel instanceof HTMLInputElement) {
+      currentAccessLevel.value = context.accessLevel || selectedUser?.accessLevel || "Creator / Reviewer";
+    }
+
+    setCount("count-submitted", counts.submittedRequests);
+    setCount("count-drafts", counts.draftSops);
+    setCount("count-assigned", counts.assignedToMe);
+    setCount("count-review", counts.needMyReview);
+    setCount("count-overdue", counts.overdueReviews);
 
     renderRows(
       "submitted-list",
-      submitted,
+      sections.submittedRequests || [],
       [
         (item) => escapeHtml(item.title),
         (item) => statusBadge(item.status),
         (item) => priorityBadge(item.priority),
         (item) => escapeHtml(formatDateClient(item.updatedDate)),
-        (item) => actionButton(`/admin/review/?request=${encodeURIComponent(item.id)}`, "Edit Request"),
+        (item) => actionButton(item.url || `/admin/review/?request=${encodeURIComponent(item.id)}`, "Review Request"),
       ],
-      "No submitted requests for this user.",
+      "No backend SOP requests are assigned to this sub-role or selected user.",
     );
 
     renderRows(
       "draft-list",
-      myDrafts,
+      sections.draftSops || [],
       [
         (item) => escapeHtml(item.title),
         (item) => statusBadge(item.status),
         (item) => escapeHtml(formatDateClient(item.reviewDate)),
-        (item) => `<a class="button button--secondary" href="/create/?edit=draft&id=${encodeURIComponent(item.id)}">Edit Draft</a>`,
+        (item) => actionButton(`/create/?edit=${encodeURIComponent(item.id)}`, "Edit Draft"),
       ],
-      "No draft SOPs for this user.",
+      "No backend draft SOPs are owned by this sub-role or selected user.",
     );
 
     renderRows(
       "assigned-list",
-      assigned,
+      sections.assignedItems || [],
       [
         (item) => escapeHtml(item.title),
         (item) => statusBadge(item.status),
         (item) => escapeHtml(formatDateClient(item.reviewDate)),
-        (item) => escapeHtml(item.assignedOwner || "Unassigned"),
-        () => actionButton("/admin/needs-review/", "Edit Item"),
+        (item) => escapeHtml(item.owner || "Unassigned"),
+        (item) => actionButton(item.url || "/admin/needs-review/", "Open Item"),
       ],
-      "No SOPs are assigned to this user.",
+      "No backend SOPs are assigned to this sub-role or selected user.",
     );
 
     renderRows(
       "owned-list",
-      owned,
+      sections.ownedSops || [],
       [
         (item) => `<a href="${escapeHtml(item.url)}">${escapeHtml(item.title)}</a>`,
-        (item) => escapeHtml(item.category),
+        (item) => escapeHtml(item.category || "Uncategorized"),
         (item) => statusBadge(item.status),
         (item) => escapeHtml(formatDateClient(item.reviewDate)),
-        (item) => actionButton(`${item.url}?edit=published`, "Edit SOP"),
+        (item) => actionButton(`${item.url}${String(item.url || "").includes("?") ? "&" : "?"}edit=published`, "Edit SOP"),
       ],
-      "No published SOPs are owned by this user.",
+      "No backend SOPs are owned by this selected sub-role.",
     );
 
     renderRows(
       "review-list",
-      needsReview,
+      sections.reviewItems || [],
       [
         (item) => escapeHtml(item.title),
         (item) => statusBadge(item.status),
         (item) => priorityBadge(item.priority || "Medium"),
         (item) => escapeHtml(formatDateClient(item.reviewDate)),
-        () => actionButton("/admin/needs-review/", "Edit Review"),
+        (item) => actionButton(item.url || "/admin/needs-review/", "Open Review"),
       ],
-      "No SOPs currently need this user's review.",
+      "No backend SOPs currently need review for this sub-role or selected user.",
     );
 
     renderRows(
       "overdue-list",
-      overdue,
+      sections.overdueReviews || [],
       [
         (item) => (item.url ? `<a href="${escapeHtml(item.url)}">${escapeHtml(item.title)}</a>` : escapeHtml(item.title)),
         (item) => escapeHtml(item.owner || "Unassigned"),
         (item) => escapeHtml(formatDateClient(item.reviewDate)),
         () => statusBadge("Past Due"),
-        (item) => actionButton(item.url || "/admin/needs-review/", "Edit Review"),
+        (item) => actionButton(item.url || "/admin/needs-review/", "Open Review"),
       ],
-      "No overdue reviews for this user.",
+      "No backend overdue reviews for this sub-role or selected user.",
     );
   }
 
-  currentUserSelect?.addEventListener("change", renderDashboard);
-  renderDashboard();
+  async function loadMyWork({ preserveUser = false } = {}) {
+    const requestId = ++activeRequestId;
+    const subRole = localStorage.getItem(SUB_ROLE_KEY) || "";
+    const params = new URLSearchParams();
+    if (preserveUser && selectedUserId) params.set("userId", selectedUserId);
+    if (subRole) params.set("subRole", subRole);
 
-  async function hydrateMyWorkSops() {
-    const requestId = ++sopHydrationRequestId;
-    const requestedSubRole = localStorage.getItem(SUB_ROLE_KEY) || "";
-    if (requestedSubRole) {
-      initialSops = [];
-      renderDashboard();
-    }
+    clearDashboard();
 
     try {
-      const records = await fetchAllD1Sops({ limit: 100, sort: "recent" });
-      if (requestId !== sopHydrationRequestId || requestedSubRole !== (localStorage.getItem(SUB_ROLE_KEY) || "")) {
-        return;
+      const response = await fetch(`/api/my-work?${params.toString()}`, {
+        headers: {
+          accept: "application/json",
+          ...(subRole ? { "x-sop-sub-role": subRole } : {}),
+        },
+        cache: "no-store",
+      });
+      const data = await response.json().catch(() => ({}));
+      if (requestId !== activeRequestId) return;
+      if (!response.ok || data?.success === false) {
+        throw new Error(data?.error?.message || "The My Work dashboard could not load.");
       }
-      if (!records.length) return;
-      initialSops = records.map((sop) => ({
-        id: sop.id,
-        title: sop.title,
-        category: sop.category,
-        owner: sop.owner,
-        ownerSubRoleId: sop.ownerSubRoleId,
-        ownerSubRole: sop.ownerSubRole,
-        ownerDepartment: sop.ownerDepartment,
-        status: sop.status,
-        reviewDate: sop.reviewDate,
-        lastUpdated: sop.updatedAt,
-        url: sop.detailUrl,
-      }));
-      renderDashboard();
-    } catch {
-      if (requestedSubRole) {
-        initialSops = [];
-        renderDashboard();
+      renderDashboard(data.data || data);
+    } catch (error) {
+      if (requestId !== activeRequestId) return;
+      clearDashboard(error instanceof Error ? error.message : "The My Work dashboard could not load.");
+      if (currentAccessLevel instanceof HTMLInputElement) currentAccessLevel.value = "Unavailable";
+      if (currentUserSelect instanceof HTMLSelectElement) {
+        currentUserSelect.innerHTML = `<option value="">Backend users unavailable</option>`;
       }
-      // Keep static work records when D1 is unavailable and no department filter is active.
     }
   }
+
+  currentUserSelect?.addEventListener("change", () => {
+    selectedUserId = currentUserSelect instanceof HTMLSelectElement ? currentUserSelect.value : "";
+    loadMyWork({ preserveUser: true });
+  });
 
   window.addEventListener(ROLE_CONTEXT_EVENT, (event) => {
     const detail = event instanceof CustomEvent ? event.detail || {} : {};
     if (detail.previousSubRole !== detail.subRole || detail.previousRole !== detail.role) {
-      hydrateMyWorkSops();
+      selectedUserId = "";
+      loadMyWork();
     }
   });
 
-  hydrateMyWorkSops();
+  loadMyWork();
 </script>
