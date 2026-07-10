@@ -157,6 +157,67 @@ import AppIcon from "./AppIcon.astro";
     "git-pull-request": "project",
   };
 
+  const fallbackGuide = {
+    roles: [
+      { roleKey: "normal-user", label: "Normal User", hint: "Find published SOPs", icon: "book-open-check" },
+      { roleKey: "instructional-technology", label: "Instructional Technology", hint: "Tools and access", icon: "wrench" },
+      { roleKey: "instructional-design", label: "Instructional Design", hint: "Course design work", icon: "graduation-cap" },
+      { roleKey: "project-management", label: "Project Management", hint: "Project path work", icon: "clipboard-list" },
+      { roleKey: "quality-assurance", label: "Quality Assurance", hint: "Review and QA", icon: "book-open-check" },
+      { roleKey: "multimedia", label: "Multimedia", hint: "Media requests", icon: "video" },
+    ],
+    requestTypes: [
+      { requestKey: "find-sop", label: "Find an SOP", hint: "Locate the right process", icon: "book-open-check" },
+      { requestKey: "troubleshooting", label: "Troubleshooting", hint: "Something is not working", icon: "wrench" },
+      { requestKey: "course-build", label: "Course Build", hint: "Build or update a course", icon: "graduation-cap" },
+      { requestKey: "access", label: "Access or Enrollment", hint: "User, role, or course access", icon: "user-plus" },
+      { requestKey: "media", label: "Media or Cengage", hint: "Videos, assets, or Cengage", icon: "video" },
+    ],
+    scenarios: [
+      {
+        routeClass: "route-success",
+        routeLabel: "Backend grounded",
+        title: "Describe the task in plain language",
+        why: "Workers AI extracts intent, tool, category, and keywords.",
+        nextStep: "The final matches are pulled from published Cloudflare database records.",
+      },
+      {
+        routeClass: "route-warning",
+        routeLabel: "Follow-up ready",
+        title: "Not enough detail?",
+        why: "The finder asks one focused question instead of guessing.",
+        nextStep: "Add the missing system, tool, or task and search again.",
+      },
+    ],
+    journey: [
+      {
+        stepNumber: "1",
+        title: "Choose context",
+        body: "Pick the closest role and work type so the finder has useful context.",
+      },
+      {
+        stepNumber: "2",
+        title: "Describe the need",
+        body: "Use normal language, including the system, tool, task, or process name if you know it.",
+      },
+      {
+        stepNumber: "3",
+        title: "Review real SOPs",
+        body: "Only published backend SOP records are returned as recommendations.",
+      },
+    ],
+    faqs: [
+      {
+        question: "Can the AI invent SOPs?",
+        answer: "No. The AI only extracts search criteria. The displayed SOPs come from backend database records.",
+      },
+      {
+        question: "What should I type?",
+        answer: "Describe what you are trying to do, the system or tool involved, and any keywords you already know.",
+      },
+    ],
+  };
+
   const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (character) => {
       const replacements = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
@@ -366,9 +427,12 @@ import AppIcon from "./AppIcon.astro";
       const response = await fetch(`/api/guides/${guideSlug}`, { headers: { accept: "application/json" } });
       if (!response.ok) throw new Error(`Guide request failed: ${response.status}`);
       const payload = await response.json();
-      renderGuide(payload.data?.guide || payload.guide);
+      const guide = payload.data?.guide || payload.guide;
+      if (!guide) throw new Error("Guide response did not include guide data");
+      renderGuide(guide);
     } catch (error) {
-      setStatus("The guide could not load. Please refresh and try again.", "error");
+      renderGuide(fallbackGuide);
+      setStatus("AI finder loaded. Describe what you need and results will come from published SOP records.", "ready");
     }
   }
 
