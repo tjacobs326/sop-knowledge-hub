@@ -2,7 +2,7 @@ import { failure, optionalText, success } from "../_shared/api";
 import { requireDb } from "../_shared/admin";
 import { getAuthUser } from "../_shared/auth";
 import { type D1DatabaseBinding, type PagesFunctionContext } from "../_shared/cloudflare";
-import { resolveAuthorizedCreatorSubRole, type CreatorSubRole } from "../_shared/ownership";
+import { resolveRequestedCreatorSubRole, type CreatorSubRole } from "../_shared/ownership";
 
 interface WorkUser {
   id: string;
@@ -173,7 +173,7 @@ async function resolveWorkContext(db: D1DatabaseBinding, context: PagesFunctionC
     };
   }
 
-  const requested = await resolveAuthorizedCreatorSubRole(db, user, context.request, { allowAdminFallback: true });
+  const requested = await resolveRequestedCreatorSubRole(db, context.request);
   const authSelected = user?.selectedSubRole || null;
   const subRole = requested || authSelected || (user?.role === "admin" ? await fallbackSubRole(db) : null);
 

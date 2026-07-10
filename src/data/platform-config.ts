@@ -57,7 +57,7 @@ export const creatorSubRoleViews = [
   {
     id: "subrole-multimedia",
     slug: "multimedia",
-    title: "Multimedia Specialist",
+    title: "Multimedia",
     department: "Multimedia",
     author: "John Winchester",
   },

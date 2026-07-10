@@ -2,7 +2,7 @@ import { cacheHeaders, failure, optionalText, readBody, success, unixNow } from 
 import { requireDb, slugify } from "../_shared/admin";
 import { hasPermission, requirePermission, type AuthUser, type PermissionName } from "../_shared/auth";
 import { newId, type D1DatabaseBinding, type PagesFunctionContext } from "../_shared/cloudflare";
-import { resolveAuthorizedCreatorSubRole, type CreatorSubRole } from "../_shared/ownership";
+import { resolveRequestedCreatorSubRole, type CreatorSubRole } from "../_shared/ownership";
 import { transitionSop, type SopWorkflowAction } from "../_shared/sop-workflow";
 
 interface QueueUser {
@@ -170,7 +170,7 @@ async function resolveQueueContext(db: D1DatabaseBinding, context: PagesFunction
     };
   }
 
-  const requested = await resolveAuthorizedCreatorSubRole(db, auth.user, context.request, { allowAdminFallback: true });
+  const requested = await resolveRequestedCreatorSubRole(db, context.request);
   const subRole = requested || auth.user.selectedSubRole || (auth.user.role === "admin" ? await fallbackSubRole(db) : null);
   if (!subRole) {
     return {

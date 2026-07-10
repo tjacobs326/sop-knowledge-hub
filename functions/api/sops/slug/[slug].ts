@@ -1,8 +1,7 @@
 import { cacheHeaders, failure, getRouteParam, roleFromRequest } from "../../../_shared/api";
 import { requireDb } from "../../../_shared/admin";
-import { getAuthUser } from "../../../_shared/auth";
 import { type PagesFunctionContext } from "../../../_shared/cloudflare";
-import { resolveAuthorizedCreatorSubRole } from "../../../_shared/ownership";
+import { resolveRequestedCreatorSubRole } from "../../../_shared/ownership";
 import { getSopBySlug } from "../../../_shared/sop-data";
 
 export const onRequestGet = async (context: PagesFunctionContext) => {
@@ -13,8 +12,7 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
   const publicOnly = roleFromRequest(context.request) === "normal";
   const sop = await getSopBySlug(context.env.DB!, slug, publicOnly);
   if (!sop) return failure("NOT_FOUND", "SOP not found.", 404);
-    const user = await getAuthUser(context);
-    const selectedSubRole = await resolveAuthorizedCreatorSubRole(context.env.DB!, user, context.request);
+  const selectedSubRole = await resolveRequestedCreatorSubRole(context.env.DB!, context.request);
   if (selectedSubRole && sop.ownerSubRoleId !== selectedSubRole.id) {
     return failure(
       "SOP_OWNERSHIP_REQUIRED",

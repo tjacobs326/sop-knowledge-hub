@@ -386,8 +386,6 @@ export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
   await ensureRequestWorkflowSchema(env.DB!);
-  const auth = await requirePermission({ request, env }, "Submit Requests");
-  if (auth.response) return auth.response;
 
   const [payload, parseError] = await readBody<SopRequestPayload>(request);
   if (parseError) return parseError;

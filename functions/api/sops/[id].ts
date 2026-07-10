@@ -10,7 +10,7 @@ import {
 import { requireDb } from "../../_shared/admin";
 import { getAuthUser, requirePermission } from "../../_shared/auth";
 import { newId, type PagesFunctionContext } from "../../_shared/cloudflare";
-import { requireSopOwnership, resolveAuthorizedCreatorSubRole } from "../../_shared/ownership";
+import { requireSopOwnership, resolveRequestedCreatorSubRole } from "../../_shared/ownership";
 import { getSopById } from "../../_shared/sop-data";
 
 export const onRequestGet = async (context: PagesFunctionContext) => {
@@ -22,7 +22,7 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
   const publicOnly = !user || user.role === "normal";
   const sop = await getSopById(context.env.DB!, id, publicOnly);
   if (!sop) return failure("NOT_FOUND", "SOP not found.", 404);
-  const selectedSubRole = await resolveAuthorizedCreatorSubRole(context.env.DB!, user, context.request);
+  const selectedSubRole = await resolveRequestedCreatorSubRole(context.env.DB!, context.request);
   if (selectedSubRole && sop.ownerSubRoleId !== selectedSubRole.id) {
     return failure(
       "SOP_OWNERSHIP_REQUIRED",
@@ -83,7 +83,7 @@ export const onRequestPut = async (context: PagesFunctionContext) => {
   if (!existing) return failure("NOT_FOUND", "SOP not found.", 404);
   const ownership = await requireSopOwnership(context, auth.user!, id);
   if (ownership.response) return ownership.response;
-  const selectedSubRole = ownership.subRole || (await resolveAuthorizedCreatorSubRole(context.env.DB!, auth.user, context.request));
+  const selectedSubRole = ownership.subRole || (await resolveRequestedCreatorSubRole(context.env.DB!, context.request));
 
   const [payload, parseError] = await readBody<UpdateSopPayload>(context.request);
   if (parseError) return parseError;

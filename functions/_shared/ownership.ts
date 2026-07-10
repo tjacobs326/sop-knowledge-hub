@@ -18,9 +18,11 @@ interface SopOwnershipRow {
 }
 
 export function selectedSubRoleFromRequest(request: Request) {
+  const url = new URL(request.url);
   return (
     request.headers.get("x-sop-sub-role") ||
     request.headers.get("x-sop-selected-sub-role") ||
+    url.searchParams.get("subRole") ||
     ""
   ).trim();
 }
@@ -88,24 +90,6 @@ export function resolveSelectedSubRole(user: AuthUser, request: Request) {
   return (
     user.subRoles.find((subRole) => subRole.id === requested || subRole.slug === requested) || null
   );
-}
-
-export async function resolveAuthorizedCreatorSubRole(
-  db: D1DatabaseBinding,
-  user: AuthUser | null,
-  request: Request,
-  options: { allowAdminFallback?: boolean } = {},
-) {
-  if (!user || user.isGuest || user.role === "normal") return null;
-
-  const requested = selectedSubRoleFromRequest(request);
-  if (user.role === "admin") {
-    const subRoles = await listCreatorSubRoles(db);
-    if (requested) return subRoles.find((subRole) => subRole.id === requested || subRole.slug === requested) || null;
-    return options.allowAdminFallback ? subRoles[0] || null : null;
-  }
-
-  return resolveSelectedSubRole(user, request);
 }
 
 async function getSopOwnership(db: D1DatabaseBinding, sopId: string) {

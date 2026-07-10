@@ -2,7 +2,7 @@ import { cacheHeaders, failure, optionalText, readBody, success, unixNow } from 
 import { requireDb } from "../_shared/admin";
 import { getAuthUser, hasPermission, type AuthUser } from "../_shared/auth";
 import { newId, type D1DatabaseBinding, type PagesFunctionContext } from "../_shared/cloudflare";
-import { resolveAuthorizedCreatorSubRole, type CreatorSubRole } from "../_shared/ownership";
+import { resolveRequestedCreatorSubRole, type CreatorSubRole } from "../_shared/ownership";
 
 const MODEL = "@cf/meta/llama-3.1-8b-instruct-fast";
 const MAX_SOURCE_CHARS = 7000;
@@ -91,7 +91,7 @@ async function fallbackSubRole(db: D1DatabaseBinding) {
 
 async function resolveAssistContext(db: D1DatabaseBinding, context: PagesFunctionContext) {
   const user = await getAuthUser(context);
-  const requested = await resolveAuthorizedCreatorSubRole(db, user, context.request, { allowAdminFallback: true });
+  const requested = await resolveRequestedCreatorSubRole(db, context.request);
   const subRole = requested || user?.selectedSubRole || (user?.role === "admin" ? await fallbackSubRole(db) : null);
 
   if (user?.role === "creator" && requested && !user.subRoles.some((item) => item.id === requested.id)) {

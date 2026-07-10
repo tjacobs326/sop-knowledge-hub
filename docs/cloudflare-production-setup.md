@@ -35,45 +35,15 @@ Before deploying this backend version, enable these in the Cloudflare dashboard:
    - The dataset is created automatically the first time the app writes analytics events.
    - Keep this binding out of `wrangler.jsonc` until Analytics Engine is enabled on the account.
 
-3. Cloudflare Access for authenticated staff
-   - Protect the production Pages hostname with Cloudflare Access for logged-in staff.
-   - Keep public demo/guest access available only for published, non-sensitive routes and APIs.
-   - Access sends authenticated identity to the app by using the `Cf-Access-Jwt-Assertion` header and the browser `CF_Authorization` cookie. The app validates the JWT assertion before trusting the user's email.
-   - The app maps the authenticated Access email to `users.email` in D1. If no email is present, the backend returns a read-only guest session.
-   - Required D1 assignments:
-     - Standard users: `users.access_level = 'Normal User'` or the Standard User role.
-     - Creator / Reviewer users: `users.access_level = 'Creator / Reviewer'`, role `role-creator-reviewer`, and one or more rows in `user_sub_roles`.
-     - Administrators: `users.access_level = 'Admin'`, role `role-admin`.
-   - Do not trust `localStorage`, `subRole` URL parameters, or browser-modified headers as authorization. Backend APIs validate the current user, role, permissions, and allowed sub-role from D1.
-
-## Required Environment Variables
-
-No application secret is required for guest mode. Production authentication depends on Cloudflare Access and these bindings/settings:
-
-- `DB`: D1 binding for users, roles, permissions, sub-roles, SOPs, requests, and workflow data.
-- `AI`: Workers AI binding for Guided Finder and AI Assist.
-- `CF_ACCESS_AUD`: Cloudflare Access application audience tag.
-- `CF_ACCESS_TEAM_DOMAIN`: Cloudflare Access team domain, for example `https://your-team.cloudflareaccess.com`.
-- `HELPDOCS_API_KEY`: optional local/import secret for HelpDocs import scripts. Do not expose it to frontend code.
-
-If `CF_ACCESS_AUD` and `CF_ACCESS_TEAM_DOMAIN` are not configured, production visitors are treated as view-only guests even if they send identity-looking headers.
-
 ## Verification Commands
 
 ```bash
 npm run check
 npm run build
 npm run cf:functions:build
-npm run db:migrate:remote
 npm run db:tables:remote
 npm run media:bucket:list
 npm run cf:deploy:direct
-```
-
-Run access smoke tests against a deployed preview or local Pages dev server:
-
-```bash
-TARGET_ORIGIN=https://your-preview.sop-knowledge-hub.pages.dev npm run test:access
 ```
 
 ## Runtime Endpoints
@@ -94,10 +64,6 @@ TARGET_ORIGIN=https://your-preview.sop-knowledge-hub.pages.dev npm run test:acce
 
 - `POST /api/chat`
   - Uses Workers AI and approved SOP source records.
-
-- `GET /api/auth/session`
-  - Returns the server-authorized session context.
-  - Unauthenticated visitors receive guest mode with read-only permissions.
 
 ## Notes
 

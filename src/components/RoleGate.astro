@@ -72,7 +72,6 @@ import { creatorSubRoleViews, roleAccessViews, roleRouteRules } from "../data/pl
 <script is:inline define:vars={{ creatorSubRoleViews, roleAccessViews, roleRouteRules }}>
   const ROLE_KEY = "sopHubSelectedRole";
   const SUB_ROLE_KEY = "sopHubSelectedCreatorSubRole";
-  const AUTH_EMAIL_KEY = "sopHubAuthenticatedEmail";
   const ROLE_CONTEXT_EVENT = "sop-role-context-change";
   const ROLE_LABELS = Object.fromEntries(roleAccessViews.map((role) => [role.id, role.title]));
   const ROLE_LANDING = Object.fromEntries(roleAccessViews.map((role) => [role.id, role.landingPage]));
@@ -84,14 +83,6 @@ import { creatorSubRoleViews, roleAccessViews, roleRouteRules } from "../data/pl
   const accessMessage = document.getElementById("role-access-message");
   const landingLink = document.getElementById("role-landing-link");
   const body = document.body;
-  let authSession = {
-    authenticated: false,
-    guest: true,
-    user: null,
-    allowedRoles: ["guest", "normal"],
-    loginUrl: "/cdn-cgi/access/login",
-    logoutUrl: "/cdn-cgi/access/logout",
-  };
 
   const routeRules = roleRouteRules.map((rule) => ({
     pattern: new RegExp(rule.pattern),
@@ -99,82 +90,11 @@ import { creatorSubRoleViews, roleAccessViews, roleRouteRules } from "../data/pl
   }));
 
   function normalizeRole(role) {
-    return role === "admin" || role === "creator" || role === "normal" || role === "guest" ? role : "";
+    return role === "admin" || role === "creator" || role === "normal" ? role : "";
   }
 
   function normalizeSubRole(subRole) {
-    const assigned = authSession.user?.subRoles || [];
-    const allowed = authSession.user?.role === "admin" ? creatorSubRoleViews : assigned;
-    return allowed.some((item) => item.id === subRole || item.slug === subRole) ? subRole : "";
-  }
-
-  function viewRole(role) {
-    return role === "guest" ? "normal" : normalizeRole(role);
-  }
-
-  function roleIsAllowed(role) {
-    const selected = normalizeRole(role);
-    if (!selected) return false;
-    if (selected === "normal" && authSession.allowedRoles.includes("guest")) return true;
-    return authSession.allowedRoles.includes(selected);
-  }
-
-  function clearRoleScopedState() {
-    Object.keys(localStorage)
-      .filter((key) => key.startsWith("sopHub") && key !== AUTH_EMAIL_KEY)
-      .forEach((key) => localStorage.removeItem(key));
-  }
-
-  function syncAccountBoundary() {
-    const email = authSession.user?.email || "guest";
-    const previous = localStorage.getItem(AUTH_EMAIL_KEY);
-    if (previous && previous !== email) {
-      clearRoleScopedState();
-    }
-    localStorage.setItem(AUTH_EMAIL_KEY, email);
-  }
-
-  function updateRoleControls() {
-    document.querySelectorAll("[data-role-select]").forEach((button) => {
-      if (!(button instanceof HTMLButtonElement)) return;
-      const role = normalizeRole(button.dataset.roleSelect || "");
-      const allowed = roleIsAllowed(role);
-      button.disabled = !allowed;
-      button.setAttribute(
-        "aria-disabled",
-        allowed ? "false" : "true",
-      );
-      button.title = allowed
-        ? ""
-        : authSession.guest
-          ? "Login with the appropriate permissions to use this access view."
-          : "Your account is not assigned to this access view.";
-    });
-
-    document.querySelectorAll("[data-sub-role-select]").forEach((button) => {
-      if (!(button instanceof HTMLButtonElement)) return;
-      const allowed = Boolean(normalizeSubRole(button.dataset.subRoleSelect || ""));
-      button.disabled = !allowed;
-      button.setAttribute("aria-disabled", allowed ? "false" : "true");
-      button.title = allowed ? "" : "Your account is not assigned to this Creator / Reviewer department.";
-    });
-  }
-
-  function protectedActionMessage() {
-    return authSession.guest
-      ? "Guest mode is view-only. Login with the appropriate permissions to perform this action."
-      : "Your account does not have permission to perform this action.";
-  }
-
-  function guardWriteControls() {
-    if (!authSession.guest) return;
-    document
-      .querySelectorAll('form:not(.topbar-search) button[type="submit"], .button--danger, [data-review-action], [data-action="publish"], [data-action="approve"]')
-      .forEach((control) => {
-        if (!(control instanceof HTMLButtonElement)) return;
-        control.disabled = true;
-        control.title = protectedActionMessage();
-      });
+    return creatorSubRoleViews.some((item) => item.id === subRole) ? subRole : "";
   }
 
   function selectedSubRoleLabel() {
@@ -220,7 +140,7 @@ import { creatorSubRoleViews, roleAccessViews, roleRouteRules } from "../data/pl
   };
 
   function emitRoleContextChange(previousRole, previousSubRole) {
-    const role = viewRole(normalizeRole(localStorage.getItem(ROLE_KEY)));
+    const role = normalizeRole(localStorage.getItem(ROLE_KEY));
     const subRole = role === "creator" ? normalizeSubRole(localStorage.getItem(SUB_ROLE_KEY)) : "";
     window.dispatchEvent(
       new CustomEvent(ROLE_CONTEXT_EVENT, {
@@ -235,17 +155,15 @@ import { creatorSubRoleViews, roleAccessViews, roleRouteRules } from "../data/pl
   }
 
   function applyRole(role) {
-    let selectedRole = viewRole(normalizeRole(role));
-    if (!roleIsAllowed(selectedRole)) selectedRole = "normal";
+    const selectedRole = normalizeRole(role);
     const selectedSubRole = normalizeSubRole(localStorage.getItem(SUB_ROLE_KEY));
     const roleReady = selectedRole && (selectedRole !== "creator" || selectedSubRole);
     body.dataset.sopRole = selectedRole;
     body.dataset.sopSubRole = selectedRole === "creator" ? selectedSubRole : "";
-    body.dataset.sopAccess = authSession.guest ? "guest" : authSession.user?.accessLevel || "";
     body.classList.toggle("role-unselected", !roleReady);
 
     const subRoleLabel = selectedRole === "creator" ? selectedSubRoleLabel() : "";
-    const label = authSession.guest ? "Guest Preview" : subRoleLabel || ROLE_LABELS[selectedRole] || "Select Role";
+    const label = subRoleLabel || ROLE_LABELS[selectedRole] || "Select Role";
     document.querySelectorAll("[data-current-role-label]").forEach((element) => {
       element.textContent = label;
     });
@@ -270,21 +188,13 @@ import { creatorSubRoleViews, roleAccessViews, roleRouteRules } from "../data/pl
     body.classList.toggle("role-blocked", Boolean(roleReady) && !allowed);
 
     if (accessMessage) {
-      accessMessage.textContent = authSession.guest
-        ? "Guest mode is view-only and cannot access restricted creator/reviewer or admin pages."
-        : `${label} access does not include this page. Switch roles or go to the ${label} landing view.`;
+      accessMessage.textContent = `${label} access does not include this page. Switch roles or go to the ${label} landing view.`;
     }
-    updateRoleControls();
-    guardWriteControls();
   }
 
   function setRole(role, landing) {
-    const selectedRole = viewRole(normalizeRole(role));
+    const selectedRole = normalizeRole(role);
     if (!selectedRole) return;
-    if (!roleIsAllowed(selectedRole)) {
-      window.alert(protectedActionMessage());
-      return;
-    }
     const previousRole = normalizeRole(localStorage.getItem(ROLE_KEY));
     const previousSubRole = normalizeSubRole(localStorage.getItem(SUB_ROLE_KEY));
     localStorage.setItem(ROLE_KEY, selectedRole);
@@ -301,10 +211,7 @@ import { creatorSubRoleViews, roleAccessViews, roleRouteRules } from "../data/pl
 
   function setSubRole(subRole) {
     const selectedSubRole = normalizeSubRole(subRole);
-    if (!selectedSubRole) {
-      window.alert("Your account is not assigned to that Creator / Reviewer department.");
-      return;
-    }
+    if (!selectedSubRole) return;
     const previousRole = normalizeRole(localStorage.getItem(ROLE_KEY));
     const previousSubRole = normalizeSubRole(localStorage.getItem(SUB_ROLE_KEY));
     localStorage.setItem(SUB_ROLE_KEY, selectedSubRole);
@@ -343,36 +250,5 @@ import { creatorSubRoleViews, roleAccessViews, roleRouteRules } from "../data/pl
     });
   });
 
-  async function loadAuthSession() {
-    try {
-      const response = await fetch("/api/auth/session", {
-        cache: "no-store",
-        credentials: "same-origin",
-        headers: { accept: "application/json" },
-      });
-      const payload = await response.json();
-      if (payload?.success && payload.data) {
-        authSession = {
-          ...authSession,
-          ...payload.data,
-          allowedRoles: payload.data.allowedRoles || ["guest", "normal"],
-        };
-      }
-    } catch {
-      authSession = { ...authSession, guest: true, allowedRoles: ["guest", "normal"] };
-    }
-
-    syncAccountBoundary();
-    const storedRole = viewRole(normalizeRole(localStorage.getItem(ROLE_KEY))) || (authSession.guest ? "normal" : authSession.user?.role || "normal");
-    if (!roleIsAllowed(storedRole)) {
-      localStorage.setItem(ROLE_KEY, "normal");
-      localStorage.removeItem(SUB_ROLE_KEY);
-    } else if (!localStorage.getItem(ROLE_KEY)) {
-      localStorage.setItem(ROLE_KEY, storedRole);
-    }
-    applyRole(normalizeRole(localStorage.getItem(ROLE_KEY)));
-  }
-
-  body.classList.add("role-unselected");
-  loadAuthSession();
+  applyRole(normalizeRole(localStorage.getItem(ROLE_KEY)));
 </script>

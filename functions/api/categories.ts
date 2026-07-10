@@ -1,8 +1,7 @@
 import { cacheHeaders, failure } from "../_shared/api";
 import { requireDb } from "../_shared/admin";
 import { type PagesFunctionContext } from "../_shared/cloudflare";
-import { getAuthUser } from "../_shared/auth";
-import { resolveAuthorizedCreatorSubRole } from "../_shared/ownership";
+import { resolveRequestedCreatorSubRole } from "../_shared/ownership";
 import { listCategories } from "../_shared/sop-data";
 
 export const onRequestGet = async ({ request, env }: PagesFunctionContext) => {
@@ -10,8 +9,7 @@ export const onRequestGet = async ({ request, env }: PagesFunctionContext) => {
   if (missingDb) return missingDb;
 
   try {
-    const user = await getAuthUser({ request, env });
-    const selectedSubRole = await resolveAuthorizedCreatorSubRole(env.DB!, user, request);
+    const selectedSubRole = await resolveRequestedCreatorSubRole(env.DB!, request);
     const categories = await listCategories(env.DB!, { ownerSubRoleId: selectedSubRole?.id });
     return new Response(JSON.stringify({ success: true, data: { categories }, categories }), {
       status: 200,

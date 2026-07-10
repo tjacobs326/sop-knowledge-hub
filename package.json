@@ -16,7 +16,6 @@
     "db:seed:remote": "npx wrangler d1 execute sop-knowledge-hub-db --remote --file ./seeds/0001_core_data.sql",
     "db:tables:local": "npx wrangler d1 execute sop-knowledge-hub-db --local --command \"SELECT name FROM sqlite_schema WHERE type IN ('table','view') ORDER BY name;\"",
     "db:tables:remote": "npx wrangler d1 execute sop-knowledge-hub-db --remote --command \"SELECT name FROM sqlite_schema WHERE type IN ('table','view') ORDER BY name;\"",
-    "test:access": "node scripts/access-control-smoke.mjs",
     "helpdocs:import": "node scripts/import-helpdocs.mjs",
     "helpdocs:import:local": "node scripts/import-helpdocs.mjs --apply=local",
     "helpdocs:import:remote": "node scripts/import-helpdocs.mjs --apply=remote",
