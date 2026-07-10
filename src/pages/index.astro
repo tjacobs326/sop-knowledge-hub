@@ -561,6 +561,54 @@ const resources = [
     `;
   }
 
+  function categoryKey(category) {
+    return String(category?.slug || category?.categorySlug || category?.name || "").toLowerCase();
+  }
+
+  function categoriesFromSops(sops, categoryMetadata) {
+    const metadataByName = new Map();
+    const metadataBySlug = new Map();
+    categoryMetadata.forEach((category) => {
+      metadataByName.set(String(category.name || "").toLowerCase(), category);
+      metadataBySlug.set(String(category.slug || "").toLowerCase(), category);
+    });
+
+    const grouped = new Map();
+    sops
+      .filter((sop) => String(sop.status || "").toLowerCase() === "published")
+      .forEach((sop) => {
+        const name = String(sop.category || "Uncategorized");
+        const slug = String(sop.categorySlug || name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""));
+        const key = slug || name.toLowerCase();
+        const existing = grouped.get(key) || {
+          name,
+          slug,
+          sopCount: 0,
+          relatedSopIds: [],
+        };
+        existing.sopCount += 1;
+        existing.relatedSopIds.push(sop.id);
+        grouped.set(key, existing);
+      });
+
+    return Array.from(grouped.values())
+      .map((category) => {
+        const metadata =
+          metadataBySlug.get(categoryKey(category)) ||
+          metadataByName.get(String(category.name || "").toLowerCase()) ||
+          {};
+        return {
+          ...metadata,
+          ...category,
+          description: metadata.description || "Browse related SOPs and guidance.",
+          icon: metadata.icon || category.icon || "document",
+          color: metadata.color || category.color || "#f8fafc",
+          detailUrl: `/categories/detail/?slug=${encodeURIComponent(category.slug || "")}`,
+        };
+      })
+      .sort((a, b) => Number(b.sopCount || 0) - Number(a.sopCount || 0) || String(a.name).localeCompare(String(b.name)));
+  }
+
   function renderCategoryLoading() {
     const categoryGrid = document.getElementById("home-category-grid");
     if (categoryGrid) {
@@ -586,7 +634,7 @@ const resources = [
   }
 
   function renderRecentRow(sop) {
-    const categoryIcon = renderCategoryIconSvg({ name: sop.category, slug: sop.category, icon: categoryIconByName[sop.category] });
+    const categoryIcon = renderCategoryIconSvg({ name: sop.category, slug: sop.categorySlug });
 
     return `
       <tr>
@@ -625,14 +673,15 @@ const resources = [
       if (requestId !== homeHydrationRequestId || requestedSubRole !== selectedCreatorSubRole()) return;
       if (!allSops.length && !requestedSubRole) return;
 
+      const roleCategories = categoriesFromSops(allSops, categories);
       const tagCount = new Set(allSops.flatMap((sop) => sop.tags)).size;
       const latest = recentSops[0] || allSops[0];
       setText("home-published-count", allSops.filter((sop) => sop.status === "Published").length);
-      setText("home-category-count", categories.length);
+      setText("home-category-count", roleCategories.length);
       setText("home-tag-count", tagCount);
       setText("home-last-updated", formatDateClient(latest?.updatedAt));
 
-      renderCategoryGrid(categories);
+      renderCategoryGrid(roleCategories);
 
       const recentTable = document.getElementById("home-recent-sops");
       if (recentTable && recentSops.length) {
