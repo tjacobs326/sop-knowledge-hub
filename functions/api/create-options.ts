@@ -2,7 +2,7 @@ import { failure, success } from "../_shared/api";
 import { requireDb } from "../_shared/admin";
 import { getAuthUser, requirePermission } from "../_shared/auth";
 import { type PagesFunctionContext } from "../_shared/cloudflare";
-import { resolveRequestedCreatorSubRole } from "../_shared/ownership";
+import { resolveAuthorizedCreatorSubRole } from "../_shared/ownership";
 
 export const onRequestGet = async (context: PagesFunctionContext) => {
   const missingDb = requireDb(context.env.DB);
@@ -12,7 +12,7 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
 
   const db = context.env.DB!;
   const user = await getAuthUser(context);
-  const selectedSubRole = await resolveRequestedCreatorSubRole(db, context.request);
+  const selectedSubRole = await resolveAuthorizedCreatorSubRole(db, user, context.request);
   const selectedTeamId = selectedSubRole?.teamId || user?.selectedSubRole?.teamId || "";
 
   const [categories, users, tags] = await Promise.all([

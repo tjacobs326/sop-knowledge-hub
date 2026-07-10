@@ -2,7 +2,7 @@ import { cacheHeaders, failure, optionalText } from "../_shared/api";
 import { requireDb } from "../_shared/admin";
 import { hasPermission, requirePermission } from "../_shared/auth";
 import { type D1DatabaseBinding, type PagesFunctionContext } from "../_shared/cloudflare";
-import { resolveRequestedCreatorSubRole, type CreatorSubRole } from "../_shared/ownership";
+import { resolveAuthorizedCreatorSubRole, type CreatorSubRole } from "../_shared/ownership";
 
 interface DraftUser {
   id: string;
@@ -97,7 +97,7 @@ async function resolveDraftContext(db: D1DatabaseBinding, context: PagesFunction
     };
   }
 
-  const requested = await resolveRequestedCreatorSubRole(db, context.request);
+  const requested = await resolveAuthorizedCreatorSubRole(db, auth.user, context.request, { allowAdminFallback: true });
   const subRole = requested || auth.user.selectedSubRole || (auth.user.role === "admin" ? await fallbackSubRole(db) : null);
   if (!subRole) {
     return {

@@ -1,7 +1,8 @@
 import { cacheHeaders, failure } from "../../_shared/api";
 import { requireDb } from "../../_shared/admin";
+import { getAuthUser } from "../../_shared/auth";
 import { type PagesFunctionContext } from "../../_shared/cloudflare";
-import { resolveRequestedCreatorSubRole } from "../../_shared/ownership";
+import { resolveAuthorizedCreatorSubRole } from "../../_shared/ownership";
 import { listSops } from "../../_shared/sop-data";
 
 export const onRequestGet = async ({ request, env }: PagesFunctionContext) => {
@@ -11,7 +12,8 @@ export const onRequestGet = async ({ request, env }: PagesFunctionContext) => {
   try {
     const url = new URL(request.url);
     const limit = Number(url.searchParams.get("limit") || "10");
-    const selectedSubRole = await resolveRequestedCreatorSubRole(env.DB!, request);
+    const user = await getAuthUser({ request, env });
+    const selectedSubRole = await resolveAuthorizedCreatorSubRole(env.DB!, user, request);
     const sops = await listSops(env.DB!, {
       sort: "popular",
       limit,

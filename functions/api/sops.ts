@@ -2,7 +2,7 @@ import { failure, roleFromRequest, cacheHeaders, readBody, optionalText, success
 import { idFrom, requireDb, slugify } from "../_shared/admin";
 import { getAuthUser, requirePermission } from "../_shared/auth";
 import { newId, type PagesFunctionContext } from "../_shared/cloudflare";
-import { requireCreatorSubRoleSelection, resolveRequestedCreatorSubRole } from "../_shared/ownership";
+import { requireCreatorSubRoleSelection, resolveAuthorizedCreatorSubRole } from "../_shared/ownership";
 import { countSops, listSops, type SopFilters } from "../_shared/sop-data";
 
 function readFilters(request: Request, role: ApiRole): SopFilters {
@@ -34,7 +34,7 @@ export const onRequestGet = async ({ request, env }: PagesFunctionContext) => {
     const user = await getAuthUser({ request, env });
     const role = url.searchParams.has("status") && user ? user.role : roleFromRequest(request);
     const filters = readFilters(request, role);
-    const selectedSubRole = await resolveRequestedCreatorSubRole(env.DB!, request);
+    const selectedSubRole = await resolveAuthorizedCreatorSubRole(env.DB!, user, request);
     if (selectedSubRole) {
       filters.ownerSubRoleId = selectedSubRole.id;
     }
@@ -137,7 +137,7 @@ export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
   if (auth.response) return auth.response;
   const ownership = await requireCreatorSubRoleSelection({ request, env }, auth.user!);
   if (ownership.response) return ownership.response;
-  const selectedSubRole = ownership.subRole || (await resolveRequestedCreatorSubRole(env.DB!, request));
+  const selectedSubRole = ownership.subRole || (await resolveAuthorizedCreatorSubRole(env.DB!, auth.user, request));
 
   const [payload, parseError] = await readBody<CreateSopPayload>(request);
   if (parseError) return parseError;
