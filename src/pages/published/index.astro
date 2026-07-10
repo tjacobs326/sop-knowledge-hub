@@ -129,6 +129,17 @@ import { PUBLISHED_SOPS_STORAGE_KEY } from "../../lib/drafts";
             <strong>${escapeHtml(step.title)}</strong>
             ${step.instructions ? `<p>${escapeHtml(step.instructions)}</p>` : ""}
             ${step.note ? `<p><strong>Note:</strong> ${escapeHtml(step.note)}</p>` : ""}
+            ${(step.attachments || [])
+              .map((attachment) => {
+                const isVideo = String(attachment.mimeType || "").startsWith("video/") || attachment.assetType === "Video";
+                const isDecorative = attachment.accessibilityStatus === "decorative" || attachment.isDecorative === true;
+                return `<figure class="step-screenshot">${
+                  isVideo
+                    ? `<video controls preload="metadata" src="${escapeHtml(attachment.url)}"></video>`
+                    : `<img loading="lazy" src="${escapeHtml(attachment.url)}" alt="${escapeHtml(isDecorative ? "" : attachment.altText || "")}" />`
+                }<figcaption>${escapeHtml(attachment.caption || attachment.altText || attachment.fileName || "Step attachment")}</figcaption></figure>`;
+              })
+              .join("")}
             ${
               step.screenshot
                 ? `<figure class="step-screenshot"><img src="${escapeHtml(
@@ -195,9 +206,13 @@ import { PUBLISHED_SOPS_STORAGE_KEY } from "../../lib/drafts";
       `;
     }
 
-    const list = document.getElementById("published-steps");
-    if (list) {
+    if (Array.isArray(record.procedureSteps) && record.procedureSteps.length) {
+      renderSteps(record.procedureSteps);
+    } else {
+      const list = document.getElementById("published-steps");
+      if (list) {
       list.outerHTML = `<div class="sop-rich-content" id="published-d1-content">${sanitizeHtml(sop.body)}</div>`;
+      }
     }
     renderTroubleshooting(record.version?.troubleshooting);
   }

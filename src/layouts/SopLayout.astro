@@ -304,6 +304,17 @@ const editPayload = {
               <strong>${escapePublishedHtml(step.title)}</strong>
               ${step.instructions ? `<p>${escapePublishedHtml(step.instructions)}</p>` : ""}
               ${step.note ? `<p><strong>Note:</strong> ${escapePublishedHtml(step.note)}</p>` : ""}
+              ${(step.attachments || [])
+                .map((attachment) => {
+                  const isVideo = String(attachment.mimeType || "").startsWith("video/") || attachment.assetType === "Video";
+                  const isDecorative = attachment.accessibilityStatus === "decorative" || attachment.isDecorative === true;
+                  return `<figure class="step-screenshot">${
+                    isVideo
+                      ? `<video controls preload="metadata" src="${escapePublishedHtml(attachment.url)}"></video>`
+                      : `<img loading="lazy" src="${escapePublishedHtml(attachment.url)}" alt="${escapePublishedHtml(isDecorative ? "" : attachment.altText || "")}" />`
+                  }<figcaption>${escapePublishedHtml(attachment.caption || attachment.altText || attachment.fileName || "Step attachment")}</figcaption></figure>`;
+                })
+                .join("")}
               ${
                 step.screenshot
                   ? `<figure class="step-screenshot"><img src="${escapePublishedHtml(

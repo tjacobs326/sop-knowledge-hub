@@ -1,4 +1,5 @@
 import { safeJsonParse, type D1DatabaseBinding } from "./cloudflare";
+import { listProcedureSteps } from "./sop-steps";
 
 export interface SopFilters {
   search?: string;
@@ -377,7 +378,12 @@ export async function getSopById(db: D1DatabaseBinding, id: string, publicOnly =
     )
     .bind(...(publicOnly ? [id, publishedStatus] : [id]))
     .first<Record<string, unknown>>();
-  return row ? normalizeSop(row) : null;
+  if (!row) return null;
+  const sop = normalizeSop(row);
+  return {
+    ...sop,
+    procedureSteps: await listProcedureSteps(db, String(sop.currentVersionId || "")),
+  };
 }
 
 export async function getSopBySlug(db: D1DatabaseBinding, slug: string, publicOnly = true) {
@@ -390,7 +396,12 @@ export async function getSopBySlug(db: D1DatabaseBinding, slug: string, publicOn
     )
     .bind(...(publicOnly ? [slug, publishedStatus] : [slug]))
     .first<Record<string, unknown>>();
-  return row ? normalizeSop(row) : null;
+  if (!row) return null;
+  const sop = normalizeSop(row);
+  return {
+    ...sop,
+    procedureSteps: await listProcedureSteps(db, String(sop.currentVersionId || "")),
+  };
 }
 
 interface CategoryFilters {

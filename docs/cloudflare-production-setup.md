@@ -48,11 +48,11 @@ npm run cf:deploy:direct
 
 ## Runtime Endpoints
 
-- `POST /api/media`
+- `POST /api/media/`
   - Stores images, videos, and documents in R2.
   - Writes metadata into `media_assets`.
 
-- `GET /api/media?id=<media-id>`
+- `GET /api/media/?id=<media-id>`
   - Streams an active R2 media object by D1 media ID.
 
 - `POST /api/analytics/track`

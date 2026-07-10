@@ -139,6 +139,9 @@ const sopTypes = [
   const cancelLink = document.getElementById("cancel-create");
   const SUB_ROLE_KEY = "sopHubSelectedCreatorSubRole";
   const EDIT_SOP_STORAGE_KEY = "sopHubEditSop";
+  const STEP_MEDIA_ACCEPT = "image/png,image/jpeg,image/webp,video/mp4";
+  const MAX_STEP_MEDIA_BYTES = 50 * 1024 * 1024;
+  const MAX_ALT_TEXT_LENGTH = 125;
   let options = { currentUser: null, categories: [], users: [], reviewers: [], tags: [] };
   let currentSop = null;
   let hasUnsavedChanges = false;
@@ -177,6 +180,14 @@ const sopTypes = [
     };
   }
 
+  function mediaHeaders() {
+    const subRole = localStorage.getItem(SUB_ROLE_KEY) || "";
+    return {
+      accept: "application/json",
+      ...(subRole ? { "x-sop-sub-role": subRole } : {}),
+    };
+  }
+
   function getField(name) {
     const element = form?.querySelector(`[name="${name}"]`);
     return element instanceof HTMLInputElement ||
@@ -195,6 +206,162 @@ const sopTypes = [
     ) {
       element.value = String(value ?? "");
     }
+  }
+
+  function allowedStepMedia(file) {
+    return (
+      file instanceof File &&
+      ["image/png", "image/jpeg", "image/webp", "video/mp4"].includes(file.type) &&
+      /\.(png|jpe?g|webp|mp4)$/i.test(file.name || "") &&
+      file.size <= MAX_STEP_MEDIA_BYTES
+    );
+  }
+
+  function normalizeAttachment(attachment = {}, index = 0) {
+    const id = attachment.mediaAssetId || attachment.id || "";
+    if (!id) return null;
+    const isDecorative =
+      attachment.accessibilityStatus === "decorative" || attachment.isDecorative === true || attachment.isDecorative === 1;
+    const altText = String(attachment.altText || "").slice(0, MAX_ALT_TEXT_LENGTH);
+    return {
+      id,
+      mediaAssetId: id,
+      fileName: attachment.fileName || attachment.originalFileName || "Attachment",
+      mimeType: attachment.mimeType || "",
+      assetType: attachment.assetType || (String(attachment.mimeType || "").startsWith("video/") ? "Video" : "Image"),
+      url: attachment.url || `/api/media/?id=${encodeURIComponent(id)}`,
+      altText: isDecorative ? "" : altText,
+      accessibilityStatus: isDecorative ? "decorative" : altText ? "meaningful" : attachment.accessibilityStatus || "",
+      isDecorative,
+      _savedAccessibilityStatus: isDecorative ? "decorative" : altText ? "meaningful" : attachment.accessibilityStatus || "",
+      _savedAltText: isDecorative ? "" : altText,
+      _savedIsDecorative: isDecorative,
+      caption: attachment.caption || "",
+      relationship: attachment.relationship || "Instructional Media",
+      sortOrder: Number.isFinite(Number(attachment.sortOrder)) ? Number(attachment.sortOrder) : index,
+    };
+  }
+
+  function attachmentsForStep(stepElement) {
+    return Array.isArray(stepElement?._attachments) ? stepElement._attachments : [];
+  }
+
+  function renderAttachmentList(stepElement) {
+    const list = stepElement.querySelector("[data-step-attachment-list]");
+    if (!(list instanceof HTMLElement)) return;
+    const attachments = attachmentsForStep(stepElement);
+    list.hidden = attachments.length === 0;
+    list.innerHTML = attachments
+      .map((attachment, index) => {
+        const isVideo = String(attachment.mimeType || "").startsWith("video/") || attachment.assetType === "Video";
+        const isMeaningful = attachment.accessibilityStatus === "meaningful";
+        const isDecorative = attachment.accessibilityStatus === "decorative" || attachment.isDecorative === true;
+        const altLength = String(attachment.altText || "").length;
+        const altRemaining = MAX_ALT_TEXT_LENGTH - altLength;
+        const promptId = `attachment-a11y-${attachment.id || index}`;
+        const media = isVideo
+          ? `<video controls preload="metadata" src="${escapeHtml(attachment.url)}"></video>`
+          : `<img loading="lazy" src="${escapeHtml(attachment.url)}" alt="${escapeHtml(isDecorative ? "" : attachment.altText || "")}" />`;
+        return `
+          <figure class="attachment-preview step-attachment" data-step-attachment="${index}">
+            ${media}
+            <figcaption>
+              <span>${escapeHtml(attachment.fileName)}</span>
+              <div class="table-actions">
+                <button class="button button--ghost" type="button" data-move-attachment="up" ${index === 0 ? "disabled" : ""}>Move Up</button>
+                <button class="button button--ghost" type="button" data-move-attachment="down" ${index === attachments.length - 1 ? "disabled" : ""}>Move Down</button>
+                <button class="button button--secondary" type="button" data-replace-attachment="${index}">Replace</button>
+                <button class="button button--danger" type="button" data-remove-attachment="${index}">Remove</button>
+              </div>
+            </figcaption>
+            <fieldset class="step-attachment__accessibility" aria-describedby="${promptId}-help">
+              <legend>Accessibility</legend>
+              <p id="${promptId}-help" class="field-help">Choose whether this media communicates meaningful content. Meaningful media needs alternative text that explains its purpose or important visual information.</p>
+              <div class="choice-row">
+                <label>
+                  <input type="radio" name="${promptId}" value="meaningful" data-attachment-accessibility="${index}" ${isMeaningful ? "checked" : ""} />
+                  Requires alternative text
+                </label>
+                <label>
+                  <input type="radio" name="${promptId}" value="decorative" data-attachment-accessibility="${index}" ${isDecorative ? "checked" : ""} />
+                  Decorative
+                </label>
+              </div>
+              <div class="step-attachment__alt-panel" ${isMeaningful ? "" : "hidden"}>
+                <label>
+                  <span>Alternative text</span>
+                  <input type="text" maxlength="${MAX_ALT_TEXT_LENGTH}" value="${escapeHtml(attachment.altText)}" data-attachment-alt="${index}" aria-describedby="${promptId}-count" />
+                </label>
+                <p class="field-help">Describe the purpose or meaningful content of the media, not every visual detail.</p>
+                <p class="field-help" id="${promptId}-count" data-alt-count="${index}">${altLength}/${MAX_ALT_TEXT_LENGTH} characters. ${altRemaining} remaining.</p>
+              </div>
+              <div class="table-actions">
+                <button class="button button--secondary" type="button" data-save-accessibility="${index}">Save</button>
+                <button class="button button--ghost" type="button" data-cancel-accessibility="${index}">Cancel</button>
+              </div>
+            </fieldset>
+            <div class="step-attachment__fields">
+              <label>
+                <span>${isVideo ? "Video caption / description" : "Caption"}</span>
+                <input type="text" value="${escapeHtml(attachment.caption)}" data-attachment-caption="${index}" />
+              </label>
+            </div>
+          </figure>
+        `;
+      })
+      .join("");
+  }
+
+  function setStepStatus(stepElement, message, kind = "status") {
+    const status = stepElement.querySelector("[data-step-attachment-status]");
+    if (status instanceof HTMLElement) {
+      status.textContent = message;
+      status.dataset.state = kind;
+    }
+  }
+
+  async function uploadStepFiles(stepElement, files, replaceIndex = null) {
+    const fileList = Array.from(files || []);
+    if (!fileList.length) return;
+    const invalid = fileList.find((file) => !allowedStepMedia(file));
+    if (invalid) {
+      setStepStatus(stepElement, `${invalid.name} must be PNG, JPG, JPEG, WebP, or MP4 and 50 MB or smaller.`, "error");
+      return;
+    }
+
+    setStepStatus(stepElement, `Uploading ${fileList.length} attachment${fileList.length === 1 ? "" : "s"}...`);
+    for (const file of fileList) {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("purpose", "SOP Step");
+      formData.append("altText", "");
+      formData.append("accessibilityStatus", "");
+      formData.append("caption", "");
+      const response = await fetch("/api/media/", {
+        method: "POST",
+        headers: mediaHeaders(),
+        body: formData,
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setStepStatus(stepElement, payload?.error || `${file.name} could not be uploaded.`, "error");
+        return;
+      }
+      const uploaded = Array.isArray(payload.uploaded) ? payload.uploaded[0] : null;
+      const normalized = normalizeAttachment(uploaded, attachmentsForStep(stepElement).length);
+      if (!normalized) continue;
+      normalized.accessibilityStatus = "";
+      normalized.isDecorative = false;
+      if (Number.isInteger(replaceIndex)) {
+        stepElement._attachments.splice(replaceIndex, 1, normalized);
+      } else {
+        stepElement._attachments.push(normalized);
+      }
+    }
+    stepElement._attachments = attachmentsForStep(stepElement).map((attachment, index) => ({ ...attachment, sortOrder: index }));
+    renderAttachmentList(stepElement);
+    setStepStatus(stepElement, "Attachment uploaded. Choose whether it needs alternative text or is decorative.", "success");
+    hasUnsavedChanges = true;
   }
 
   function createStepElement(step = {}, index = 1) {
@@ -218,7 +385,19 @@ const sopTypes = [
         <label>Optional note</label>
         <input name="stepNote" type="text" value="${escapeHtml(step.note || "")}" />
       </div>
+      <div class="field field--full step-attachments">
+        <label>Step attachments</label>
+        <input name="stepAttachmentFiles" type="file" accept="${STEP_MEDIA_ACCEPT}" multiple data-step-media-input />
+        <p class="field-help">Upload PNG, JPG, JPEG, WebP, or MP4 files. Maximum size: 50 MB each.</p>
+        <div class="attachment-list" data-step-attachment-list hidden></div>
+        <input type="file" accept="${STEP_MEDIA_ACCEPT}" data-step-replace-input hidden />
+        <p class="field-help" data-step-attachment-status role="status">No attachments added.</p>
+      </div>
     `;
+    wrapper._attachments = (Array.isArray(step.attachments) ? step.attachments : [])
+      .map(normalizeAttachment)
+      .filter(Boolean);
+    renderAttachmentList(wrapper);
     return wrapper;
   }
 
@@ -235,6 +414,17 @@ const sopTypes = [
         title: step.querySelector('[name="stepTitle"]')?.value.trim() || "",
         instructions: step.querySelector('[name="stepInstructions"]')?.value.trim() || "",
         note: step.querySelector('[name="stepNote"]')?.value.trim() || "",
+        attachments: attachmentsForStep(step).map((attachment, index) => ({
+          ...attachment,
+          accessibilityStatus: attachment.accessibilityStatus || "",
+          isDecorative: attachment.accessibilityStatus === "decorative" || attachment.isDecorative === true,
+          altText: attachment.accessibilityStatus === "decorative"
+            ? ""
+            : (step.querySelector(`[data-attachment-alt="${index}"]`)?.value.trim() || attachment.altText || "").slice(0, MAX_ALT_TEXT_LENGTH),
+          caption:
+            step.querySelector(`[data-attachment-caption="${index}"]`)?.value.trim() || attachment.caption || "",
+          sortOrder: index,
+        })),
       }))
       .filter((step) => step.title || step.instructions);
   }
@@ -345,6 +535,20 @@ const sopTypes = [
     if (draft.procedureSteps.some((step) => !step.title || !step.instructions)) {
       errors.push("Each procedure step needs a title and instructions.");
     }
+    for (const [stepIndex, step] of draft.procedureSteps.entries()) {
+      for (const [attachmentIndex, attachment] of (step.attachments || []).entries()) {
+        const label = `Step ${stepIndex + 1}, attachment ${attachmentIndex + 1}`;
+        if (!attachment.accessibilityStatus) {
+          errors.push(`${label}: choose Requires alternative text or Decorative.`);
+        }
+        if (attachment.accessibilityStatus === "meaningful" && !attachment.altText) {
+          errors.push(`${label}: enter alternative text or mark the media decorative.`);
+        }
+        if (String(attachment.altText || "").length > MAX_ALT_TEXT_LENGTH) {
+          errors.push(`${label}: alternative text must be ${MAX_ALT_TEXT_LENGTH} characters or fewer.`);
+        }
+      }
+    }
     if (action === "publish" && (!draft.purpose || !draft.procedureSteps.length || !draft.categoryId)) {
       errors.push("Complete the title, purpose, category, and procedure before publishing.");
     }
@@ -373,7 +577,20 @@ const sopTypes = [
       .map(([label, value]) => `<div><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`)
       .join("");
     document.getElementById("preview-steps").innerHTML = draft.procedureSteps
-      .map((step) => `<li><h4>${escapeHtml(step.title)}</h4><p>${escapeHtml(step.instructions)}</p>${step.note ? `<p><strong>Note:</strong> ${escapeHtml(step.note)}</p>` : ""}</li>`)
+      .map((step) => {
+        const attachments = (step.attachments || [])
+          .map((attachment) => {
+            const isVideo = String(attachment.mimeType || "").startsWith("video/") || attachment.assetType === "Video";
+            const isDecorative = attachment.accessibilityStatus === "decorative" || attachment.isDecorative === true;
+            return `<figure class="step-screenshot">${
+              isVideo
+                ? `<video controls preload="metadata" src="${escapeHtml(attachment.url)}"></video>`
+                : `<img loading="lazy" src="${escapeHtml(attachment.url)}" alt="${escapeHtml(isDecorative ? "" : attachment.altText || "")}" />`
+            }<figcaption>${escapeHtml(attachment.caption || attachment.altText || attachment.fileName)}</figcaption></figure>`;
+          })
+          .join("");
+        return `<li><h4>${escapeHtml(step.title)}</h4><p>${escapeHtml(step.instructions)}</p>${step.note ? `<p><strong>Note:</strong> ${escapeHtml(step.note)}</p>` : ""}${attachments}</li>`;
+      })
       .join("");
     document.getElementById("preview-related").innerHTML = draft.relatedSops.length
       ? draft.relatedSops.map((item) => `<li>${escapeHtml(item)}</li>`).join("")
@@ -420,6 +637,7 @@ const sopTypes = [
       troubleshooting: draft.troubleshootingNotes,
       changeSummary: draft.changeSummary,
       reviewDate: draft.reviewDate,
+      procedureSteps: draft.procedureSteps,
     };
     const response = currentSop?.id
       ? await fetch(`/api/sops/${encodeURIComponent(currentSop.id)}`, {
@@ -573,7 +791,114 @@ const sopTypes = [
     if (target instanceof HTMLElement && target.matches("[data-remove-step]")) {
       target.closest("[data-step]")?.remove();
       hasUnsavedChanges = true;
+      return;
     }
+    if (!(target instanceof HTMLElement)) return;
+    const stepElement = target.closest("[data-step]");
+    if (!(stepElement instanceof HTMLElement)) return;
+    const attachmentElement = target.closest("[data-step-attachment]");
+    const index = attachmentElement instanceof HTMLElement ? Number(attachmentElement.dataset.stepAttachment || -1) : -1;
+    const attachments = attachmentsForStep(stepElement);
+    if (target.matches("[data-remove-attachment]") && index >= 0) {
+      attachments.splice(index, 1);
+      stepElement._attachments = attachments.map((attachment, attachmentIndex) => ({ ...attachment, sortOrder: attachmentIndex }));
+      renderAttachmentList(stepElement);
+      setStepStatus(stepElement, "Attachment removed. Save the SOP to persist this change.", "success");
+      hasUnsavedChanges = true;
+      return;
+    }
+    if (target.matches("[data-move-attachment]") && index >= 0) {
+      const direction = target.dataset.moveAttachment;
+      const nextIndex = direction === "up" ? index - 1 : index + 1;
+      if (nextIndex >= 0 && nextIndex < attachments.length) {
+        [attachments[index], attachments[nextIndex]] = [attachments[nextIndex], attachments[index]];
+        stepElement._attachments = attachments.map((attachment, attachmentIndex) => ({ ...attachment, sortOrder: attachmentIndex }));
+        renderAttachmentList(stepElement);
+        hasUnsavedChanges = true;
+      }
+      return;
+    }
+    if (target.matches("[data-replace-attachment]") && index >= 0) {
+      const input = stepElement.querySelector("[data-step-replace-input]");
+      if (input instanceof HTMLInputElement) {
+        input.dataset.replaceIndex = String(index);
+        input.click();
+      }
+    }
+    if (target.matches("[data-save-accessibility]") && index >= 0) {
+      const attachment = attachments[index];
+      if (!attachment?.accessibilityStatus) {
+        setStepStatus(stepElement, "Choose whether the attachment needs alternative text or is decorative.", "error");
+        return;
+      }
+      if (attachment.accessibilityStatus === "meaningful" && !attachment.altText) {
+        setStepStatus(stepElement, "Enter alternative text before saving this attachment accessibility setting.", "error");
+        return;
+      }
+      attachment._savedAccessibilityStatus = attachment.accessibilityStatus;
+      attachment._savedAltText = attachment.altText || "";
+      attachment._savedIsDecorative = attachment.isDecorative === true;
+      setStepStatus(stepElement, "Attachment accessibility saved. Save the SOP to persist this change.", "success");
+      hasUnsavedChanges = true;
+      return;
+    }
+    if (target.matches("[data-cancel-accessibility]") && index >= 0) {
+      const attachment = attachments[index];
+      if (!attachment) return;
+      attachment.accessibilityStatus = attachment._savedAccessibilityStatus || "";
+      attachment.altText = attachment._savedAltText || "";
+      attachment.isDecorative = attachment._savedIsDecorative === true;
+      renderAttachmentList(stepElement);
+      setStepStatus(stepElement, "Attachment accessibility changes canceled.", "success");
+      return;
+    }
+  });
+
+  stepContainer?.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    const stepElement = target.closest("[data-step]");
+    if (!(stepElement instanceof HTMLElement)) return;
+    if (target.matches("[data-step-media-input]")) {
+      uploadStepFiles(stepElement, target.files).finally(() => {
+        target.value = "";
+      });
+    }
+    if (target.matches("[data-step-replace-input]")) {
+      const replaceIndex = Number(target.dataset.replaceIndex || -1);
+      uploadStepFiles(stepElement, target.files, replaceIndex).finally(() => {
+        target.value = "";
+        delete target.dataset.replaceIndex;
+      });
+    }
+  });
+
+  stepContainer?.addEventListener("input", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    const stepElement = target.closest("[data-step]");
+    const attachmentElement = target.closest("[data-step-attachment]");
+    if (!(stepElement instanceof HTMLElement) || !(attachmentElement instanceof HTMLElement)) return;
+    const index = Number(attachmentElement.dataset.stepAttachment || -1);
+    const attachment = attachmentsForStep(stepElement)[index];
+    if (!attachment) return;
+    if (target.matches("[data-attachment-accessibility]")) {
+      attachment.accessibilityStatus = target.value === "decorative" ? "decorative" : "meaningful";
+      attachment.isDecorative = attachment.accessibilityStatus === "decorative";
+      if (attachment.isDecorative) attachment.altText = "";
+      renderAttachmentList(stepElement);
+    }
+    if (target.matches("[data-attachment-alt]")) {
+      const value = target.value.slice(0, MAX_ALT_TEXT_LENGTH);
+      attachment.altText = value.trim();
+      if (target.value !== value) target.value = value;
+      const counter = attachmentElement.querySelector(`[data-alt-count="${index}"]`);
+      if (counter instanceof HTMLElement) {
+        counter.textContent = `${value.length}/${MAX_ALT_TEXT_LENGTH} characters. ${MAX_ALT_TEXT_LENGTH - value.length} remaining.`;
+      }
+    }
+    if (target.matches("[data-attachment-caption]")) attachment.caption = target.value.trim();
+    hasUnsavedChanges = true;
   });
 
   document.addEventListener("click", async (event) => {

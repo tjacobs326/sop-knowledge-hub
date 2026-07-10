@@ -3899,6 +3899,75 @@ legend {
   overflow-wrap: anywhere;
 }
 
+.step-attachments {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.step-attachment__fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--color-panel);
+}
+
+.step-attachment__fields label,
+.step-attachment__alt-panel label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.step-attachment__accessibility {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.85rem;
+  background: var(--color-white);
+  border: 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.step-attachment__accessibility legend {
+  padding: 0;
+  color: var(--color-ink);
+  font-weight: 900;
+}
+
+.choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+}
+
+.choice-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.25rem;
+  color: var(--color-ink);
+  font-weight: 800;
+}
+
+.step-attachment__alt-panel {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.step-attachment__alt-panel[hidden] {
+  display: none;
+}
+
+[data-step-attachment-status][data-state="error"] {
+  color: var(--color-danger);
+  font-weight: 800;
+}
+
+[data-step-attachment-status][data-state="success"] {
+  color: var(--color-forest);
+  font-weight: 800;
+}
+
 .form-errors,
 .confirmation {
   padding: 0.8rem 1rem;

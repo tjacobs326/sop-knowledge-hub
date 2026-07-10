@@ -4,6 +4,7 @@ import { getAuthUser, requirePermission } from "../_shared/auth";
 import { newId, type PagesFunctionContext } from "../_shared/cloudflare";
 import { requireCreatorSubRoleSelection, resolveRequestedCreatorSubRole } from "../_shared/ownership";
 import { countSops, listSops, type SopFilters } from "../_shared/sop-data";
+import { syncProcedureSteps, validateProcedureStepAttachments, type ProcedureStepInput } from "../_shared/sop-steps";
 
 function readFilters(request: Request, role: ApiRole): SopFilters {
   const url = new URL(request.url);
@@ -96,6 +97,7 @@ interface CreateSopPayload {
   changeSummary?: string;
   createdBy?: string;
   reviewDate?: string;
+  procedureSteps?: ProcedureStepInput[];
 }
 
 function listValue(value: unknown) {
@@ -150,6 +152,16 @@ export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
   if (!purpose) fields.purpose = "Purpose is required.";
   if (!content) fields.content = "Content is required.";
   if (Object.keys(fields).length) return failure("VALIDATION_ERROR", "Please correct the highlighted fields.", 400, fields);
+  try {
+    validateProcedureStepAttachments(Array.isArray(payload?.procedureSteps) ? payload.procedureSteps : []);
+  } catch (error) {
+    return failure(
+      "VALIDATION_ERROR",
+      error instanceof Error ? error.message : "Please complete attachment accessibility details.",
+      400,
+      { procedureSteps: "Each attachment must be marked decorative or include alt text of 125 characters or fewer." },
+    );
+  }
 
   const id = newId("sop");
   const versionId = newId("version");
@@ -255,6 +267,7 @@ export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
   }
 
   await linkTags(env.DB!, id, tags);
+  await syncProcedureSteps(env.DB!, id, versionId, Array.isArray(payload?.procedureSteps) ? payload.procedureSteps : []);
 
   await env.DB!.prepare(
     `INSERT INTO audit_logs (id, actor_user_id, action, entity_type, entity_id, after_json, created_at)

@@ -311,7 +311,7 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
     formData.append("entityType", "request");
 
     try {
-      const response = await fetch("/api/media", {
+      const response = await fetch("/api/media/", {
         method: "POST",
         body: formData,
       });

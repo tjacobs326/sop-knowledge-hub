@@ -12,6 +12,7 @@ import { getAuthUser, requirePermission } from "../../_shared/auth";
 import { newId, type PagesFunctionContext } from "../../_shared/cloudflare";
 import { requireSopOwnership, resolveRequestedCreatorSubRole } from "../../_shared/ownership";
 import { getSopById } from "../../_shared/sop-data";
+import { syncProcedureSteps, validateProcedureStepAttachments, type ProcedureStepInput } from "../../_shared/sop-steps";
 
 export const onRequestGet = async (context: PagesFunctionContext) => {
   const missingDb = requireDb(context.env.DB);
@@ -62,6 +63,7 @@ interface UpdateSopPayload {
   reviewDate?: string;
   reviewDueAt?: number | string;
   actorUserId?: string;
+  procedureSteps?: ProcedureStepInput[];
 }
 
 function listValue(value: unknown) {
@@ -110,6 +112,17 @@ export const onRequestPut = async (context: PagesFunctionContext) => {
         : payload?.reviewDate
           ? Math.floor(new Date(`${String(payload.reviewDate)}T00:00:00`).getTime() / 1000)
         : null;
+
+  try {
+    validateProcedureStepAttachments(Array.isArray(payload?.procedureSteps) ? payload.procedureSteps : []);
+  } catch (error) {
+    return failure(
+      "VALIDATION_ERROR",
+      error instanceof Error ? error.message : "Please complete attachment accessibility details.",
+      400,
+      { procedureSteps: "Each attachment must be marked decorative or include alt text of 125 characters or fewer." },
+    );
+  }
 
   await context.env.DB!.prepare(
     `UPDATE sops
@@ -163,6 +176,10 @@ export const onRequestPut = async (context: PagesFunctionContext) => {
         existing.currentVersionId,
       )
       .run();
+
+    if (Array.isArray(payload?.procedureSteps)) {
+      await syncProcedureSteps(context.env.DB!, id, String(existing.currentVersionId), payload.procedureSteps);
+    }
   }
 
   await context.env.DB!.prepare(
