@@ -93,11 +93,15 @@ const description = isNeedsReviewMode
   const confirmation = document.getElementById("review-confirmation");
   const tabs = Array.from(document.querySelectorAll("[data-review-filter]"));
   const summaryCards = Array.from(document.querySelectorAll("[data-review-summary-filter]"));
+  const ROLE_CONTEXT_EVENT = "sop-role-context-change";
+  const ROLE_KEY = "sopHubSelectedRole";
   const SUB_ROLE_KEY = "sopHubSelectedCreatorSubRole";
-  let activeFilter = isNeedsReviewMode ? "summary:needs-review" : "All";
+  const DEFAULT_FILTER = isNeedsReviewMode ? "summary:needs-review" : "All";
+  let activeFilter = DEFAULT_FILTER;
   let queueItems = [];
   let queueCounts = {};
   let reviewerMembers = [];
+  let activeQueueRequestId = 0;
 
   const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (character) => {
@@ -121,6 +125,10 @@ const description = isNeedsReviewMode
     if (isNeedsReviewMode) params.set("view", "needs-review");
     const query = params.toString();
     return query ? `?${query}` : "";
+  }
+
+  function selectedSubRole() {
+    return localStorage.getItem(SUB_ROLE_KEY) || "";
   }
 
   async function parseApiResponse(response) {
@@ -299,7 +307,28 @@ const description = isNeedsReviewMode
       : `<div class="empty-state"><strong>No review items</strong><p>No backend review records ${isNeedsReviewMode ? "currently need your review" : "match this filter"} for the selected user, role, department, or sub-role.</p></div>`;
   }
 
+  function clearQueueState(message = "Connecting to the live Cloudflare database.", { resetFilter = false } = {}) {
+    queueItems = [];
+    queueCounts = {};
+    reviewerMembers = [];
+    if (resetFilter) {
+      setActiveFilter(DEFAULT_FILTER);
+    } else {
+      renderSummaryCounts();
+    }
+    if (contextEl) {
+      contextEl.textContent = "Loading review queue context...";
+    }
+    if (list) {
+      list.innerHTML = `<div class="empty-state"><strong>Loading review items</strong><p>${escapeHtml(message)}</p></div>`;
+    }
+  }
+
   function showError(error) {
+    queueItems = [];
+    queueCounts = {};
+    reviewerMembers = [];
+    renderSummaryCounts();
     if (errorsEl) {
       errorsEl.hidden = false;
       errorsEl.innerHTML = `<p>${escapeHtml(error instanceof Error ? error.message : "Review Queue could not load.")}</p>`;
@@ -310,16 +339,17 @@ const description = isNeedsReviewMode
   }
 
   async function loadQueue() {
+    const requestId = ++activeQueueRequestId;
+    const requestedSubRole = selectedSubRole();
     if (errorsEl) errorsEl.hidden = true;
     if (confirmation) confirmation.hidden = true;
-    if (list) {
-      list.innerHTML = `<div class="empty-state"><strong>Loading review items</strong><p>Connecting to the live Cloudflare database.</p></div>`;
-    }
+    clearQueueState();
     const response = await fetch(`/api/review-queue${selectedSubRoleQuery()}`, {
       headers: apiHeaders(),
       cache: "no-store",
     });
     const data = await parseApiResponse(response);
+    if (requestId !== activeQueueRequestId || requestedSubRole !== selectedSubRole()) return;
     queueItems = Array.isArray(data.items) ? data.items : [];
     queueCounts = data.counts || {};
     reviewerMembers = data.viewOptions?.users || [];
@@ -328,6 +358,7 @@ const description = isNeedsReviewMode
   }
 
   async function runAction(card, action) {
+    const requestedSubRole = selectedSubRole();
     const id = card.dataset.reviewId || "";
     const itemType = card.dataset.reviewType || "";
     const item = queueItems.find((record) => record.id === id);
@@ -348,6 +379,7 @@ const description = isNeedsReviewMode
       }),
     });
     await parseApiResponse(response);
+    if (requestedSubRole !== selectedSubRole()) return;
     if (confirmation && item) {
       confirmation.hidden = false;
       confirmation.innerHTML = `<strong>Review item updated.</strong><p>${escapeHtml(item.title)} was updated in the backend workflow.</p>`;
@@ -381,7 +413,20 @@ const description = isNeedsReviewMode
   });
 
   window.addEventListener("storage", (event) => {
-    if (event.key === SUB_ROLE_KEY) loadQueue().catch(showError);
+    if (event.key === SUB_ROLE_KEY || event.key === ROLE_KEY) {
+      activeQueueRequestId += 1;
+      clearQueueState("Refreshing review items for the newly selected role.", { resetFilter: true });
+      loadQueue().catch(showError);
+    }
+  });
+
+  window.addEventListener(ROLE_CONTEXT_EVENT, (event) => {
+    const detail = event instanceof CustomEvent ? event.detail || {} : {};
+    if (detail.previousSubRole !== detail.subRole || detail.previousRole !== detail.role) {
+      activeQueueRequestId += 1;
+      clearQueueState("Refreshing review items for the newly selected role.", { resetFilter: true });
+      loadQueue().catch(showError);
+    }
   });
 
   loadQueue().catch(showError);

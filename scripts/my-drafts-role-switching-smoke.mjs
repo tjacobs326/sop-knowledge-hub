@@ -3,8 +3,12 @@ import { resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
 const draftsPage = readFileSync(resolve(root, "src/pages/drafts/index.astro"), "utf8");
+const reviewQueue = readFileSync(resolve(root, "src/components/ReviewQueue.astro"), "utf8");
 const myDraftsApi = readFileSync(resolve(root, "functions/api/my-drafts.ts"), "utf8");
+const reviewQueueApi = readFileSync(resolve(root, "functions/api/review-queue.ts"), "utf8");
 const ownership = readFileSync(resolve(root, "functions/_shared/ownership.ts"), "utf8");
+const auth = readFileSync(resolve(root, "functions/_shared/auth.ts"), "utf8");
+const platformConfig = readFileSync(resolve(root, "src/data/platform-config.ts"), "utf8");
 
 function assert(condition, message) {
   if (!condition) {
@@ -19,6 +23,11 @@ assert(
 assert(
   draftsPage.includes("window.addEventListener(ROLE_CONTEXT_EVENT"),
   "My Drafts must refresh when the current role/sub-role changes in the same tab.",
+);
+assert(
+  draftsPage.includes('const ROLE_KEY = "sopHubSelectedRole"') &&
+    draftsPage.includes("event.key === SUB_ROLE_KEY || event.key === ROLE_KEY"),
+  "My Drafts must refresh on cross-tab main role and sub-role storage changes.",
 );
 assert(
   draftsPage.includes("let activeDraftRequestId = 0") &&
@@ -56,5 +65,57 @@ assert(
     ownership.includes('url.searchParams.get("subRole")'),
   "Backend sub-role resolution must use the active sub-role request context.",
 );
+assert(
+  reviewQueue.includes('const ROLE_CONTEXT_EVENT = "sop-role-context-change"') &&
+    reviewQueue.includes("window.addEventListener(ROLE_CONTEXT_EVENT"),
+  "Review Queue and Needs Review must refresh from the shared role context event.",
+);
+assert(
+  reviewQueue.includes('const ROLE_KEY = "sopHubSelectedRole"') &&
+    reviewQueue.includes("event.key === SUB_ROLE_KEY || event.key === ROLE_KEY"),
+  "Review Queue and Needs Review must refresh on cross-tab main role and sub-role storage changes.",
+);
+assert(
+  reviewQueue.includes("let activeQueueRequestId = 0") &&
+    reviewQueue.includes("requestId !== activeQueueRequestId") &&
+    reviewQueue.includes("requestedSubRole !== selectedSubRole()"),
+  "Review Queue and Needs Review must ignore stale responses from prior role/sub-role loads.",
+);
+assert(
+  reviewQueue.includes("queueItems = []") &&
+    reviewQueue.includes("queueCounts = {}") &&
+    reviewQueue.includes("reviewerMembers = []") &&
+    reviewQueue.includes("DEFAULT_FILTER"),
+  "Review Queue and Needs Review must clear prior items, counts, filters, and reviewer options on role change.",
+);
+assert(
+  reviewQueue.includes('"x-sop-sub-role": subRole') &&
+    reviewQueue.includes('params.set("view", "needs-review")'),
+  "Review Queue and Needs Review must send active sub-role and view context to the backend.",
+);
+assert(
+  reviewQueueApi.includes('requirePermission(context, "Review SOPs")'),
+  "The Review Queue API must require review permission.",
+);
+assert(
+  reviewQueueApi.includes('auth.user.role === "creator"') &&
+    reviewQueueApi.includes("!auth.user.subRoles.some((item) => item.id === subRole.id)"),
+  "The Review Queue API must reject creator users requesting an unassigned sub-role.",
+);
+assert(
+  reviewQueueApi.includes("owner_sub_role_id = ?") &&
+    reviewQueueApi.includes("assigned_department = ?") &&
+    reviewQueueApi.includes("assigned_team_id = ?") &&
+    reviewQueueApi.includes("requestInScope") &&
+    reviewQueueApi.includes("sopInScope"),
+  "The Review Queue API must scope list and action requests to authorized department, sub-role, team, or assignment records.",
+);
+assert(
+  auth.includes('id: "subrole-multimedia"') &&
+    auth.includes('slug: "multimedia"') &&
+    platformConfig.includes('id: "subrole-multimedia"') &&
+    platformConfig.includes('slug: "multimedia"'),
+  "Multimedia Specialist/Multimedia role switching must use the stable backend sub-role id and slug.",
+);
 
-console.log("My Drafts role-switching smoke checks passed.");
+console.log("Workflow role-switching smoke checks passed.");

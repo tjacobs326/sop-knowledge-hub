@@ -57,6 +57,7 @@ import { statusBadgeDefinitions } from "../../lib/badges";
   const errorsEl = document.getElementById("drafts-errors");
   const confirmation = document.getElementById("drafts-confirmation");
   const ROLE_CONTEXT_EVENT = "sop-role-context-change";
+  const ROLE_KEY = "sopHubSelectedRole";
   const SUB_ROLE_KEY = "sopHubSelectedCreatorSubRole";
   let currentDrafts = [];
   let canArchive = false;
@@ -233,7 +234,11 @@ import { statusBadgeDefinitions } from "../../lib/badges";
   });
 
   window.addEventListener("storage", (event) => {
-    if (event.key === SUB_ROLE_KEY) loadDrafts().catch(showError);
+    if (event.key === SUB_ROLE_KEY || event.key === ROLE_KEY) {
+      activeDraftRequestId += 1;
+      clearDraftState("Refreshing drafts for the newly selected role.");
+      loadDrafts().catch(showError);
+    }
   });
 
   window.addEventListener(ROLE_CONTEXT_EVENT, (event) => {
