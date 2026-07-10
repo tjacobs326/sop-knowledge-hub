@@ -1,18 +1,8 @@
 ---
 import Layout from "../../components/Layout.astro";
 import ReviewQueue from "../../components/ReviewQueue.astro";
-import type { ReviewQueueItem, SopDraft, SopSubmission } from "../../types";
-
-// Future access note: restrict this route to SOP reviewers, publishers, and admins with Cloudflare Access.
-const initialItems: ReviewQueueItem[] = [];
-const initialSubmissions: SopSubmission[] = [];
-const initialDrafts: SopDraft[] = [];
 ---
 
 <Layout title="Review Queue" wide>
-  <ReviewQueue
-    initialItems={initialItems}
-    initialSubmissions={initialSubmissions}
-    initialDrafts={initialDrafts}
-  />
+  <ReviewQueue />
 </Layout>

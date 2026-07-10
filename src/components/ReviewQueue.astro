@@ -1,20 +1,5 @@
 ---
-import { DRAFTS_STORAGE_KEY, PUBLISHED_SOPS_STORAGE_KEY } from "../lib/drafts";
-import {
-  REVIEW_QUEUE_STORAGE_KEY,
-  SUBMISSIONS_STORAGE_KEY,
-} from "../lib/submissions";
-import { USER_STORAGE_KEY, userAccounts } from "../data/mock-users";
 import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../lib/badges";
-import type { ReviewQueueItem, SopDraft, SopSubmission } from "../types";
-
-interface Props {
-  initialItems: ReviewQueueItem[];
-  initialSubmissions: SopSubmission[];
-  initialDrafts: SopDraft[];
-}
-
-const { initialItems, initialSubmissions, initialDrafts } = Astro.props;
 
 const filters = [
   "All",
@@ -24,41 +9,29 @@ const filters = [
   "Updates",
   "Templates",
   "Urgent",
-  "Declined",
   "Approved",
   "Published",
-  "Closed",
+  "Archived",
 ];
 
 const summaryFilters = [
-  { label: "New", filter: "summary:new", statuses: ["Submitted", "Assigned"] },
-  {
-    label: "Needs Review",
-    filter: "summary:needs-review",
-    statuses: ["Under Review", "Needs More Information", "Accepted", "In Progress", "Draft Created", "In Approval"],
-  },
-  { label: "Urgent", filter: "summary:urgent", priorities: ["High", "Urgent"], tabFilter: "Urgent" },
-  { label: "Approved", filter: "summary:approved", statuses: ["Approved"], tabFilter: "Approved" },
-  { label: "Closed", filter: "summary:closed", statuses: ["Closed", "Declined", "Published"], tabFilter: "Closed" },
+  { label: "New", key: "new", filter: "summary:new" },
+  { label: "Needs Review", key: "needsReview", filter: "summary:needs-review" },
+  { label: "Urgent", key: "urgent", filter: "summary:urgent" },
+  { label: "Approved", key: "approved", filter: "summary:approved" },
+  { label: "Archived", key: "archived", filter: "summary:archived" },
+  { label: "Published", key: "published", filter: "summary:published" },
 ];
-
-function itemMatchesSummaryFilter(item: ReviewQueueItem, summary: (typeof summaryFilters)[number]) {
-  const statusMatches = summary.statuses ? summary.statuses.includes(item.status) : false;
-  const priorityMatches = summary.priorities ? summary.priorities.includes(item.priority) : false;
-  return statusMatches || priorityMatches;
-}
-
-const reviewerMembers = userAccounts.filter(
-  (user) => user.accessLevel === "Creator / Reviewer" && user.status === "Active",
-);
 ---
 
 <section class="tool-surface review-queue" aria-labelledby="review-heading">
   <div class="section-heading">
     <p class="eyebrow">Review Queue</p>
     <h1 id="review-heading">Admin Review Control Center</h1>
-    <p>Review, assign, approve, request changes, and archive SOP work from one queue.</p>
+    <p>Review, assign, approve, request changes, publish, and archive backend SOP work from one queue.</p>
   </div>
+
+  <div class="drafts-context" id="review-context" role="status">Loading review queue context...</div>
 
   <div class="stat-grid review-summary" aria-label="Review queue counts">
     {summaryFilters.map((summary) => (
@@ -66,13 +39,12 @@ const reviewerMembers = userAccounts.filter(
         class="stat-card review-summary__card"
         type="button"
         data-review-summary-filter={summary.filter}
+        data-summary-key={summary.key}
         aria-pressed="false"
         aria-label={`Show ${summary.label} review queue items`}
       >
         <span>{summary.label}</span>
-        <strong data-review-summary-count>
-          {initialItems.filter((item) => itemMatchesSummaryFilter(item, summary)).length}
-        </strong>
+        <strong data-review-summary-count>0</strong>
       </button>
     ))}
   </div>
@@ -91,153 +63,63 @@ const reviewerMembers = userAccounts.filter(
     ))}
   </div>
 
-  <div id="review-list" class="review-list" aria-live="polite"></div>
+  <div id="review-errors" class="form-errors" role="alert" hidden></div>
+  <div id="review-confirmation" class="confirmation" role="status" hidden></div>
+  <div id="review-list" class="review-list" aria-live="polite">
+    <div class="empty-state">
+      <strong>Loading review items</strong>
+      <p>Connecting to the live Cloudflare database.</p>
+    </div>
+  </div>
 </section>
 
-<script
-  is:inline
-  define:vars={{
-    initialItems,
-    initialSubmissions,
-    initialDrafts,
-    DRAFTS_STORAGE_KEY,
-    PUBLISHED_SOPS_STORAGE_KEY,
-    SUBMISSIONS_STORAGE_KEY,
-    REVIEW_QUEUE_STORAGE_KEY,
-    USER_STORAGE_KEY,
-    initialReviewerMembers: reviewerMembers,
-    summaryFilters,
-    priorityBadgeDefinitions,
-    statusBadgeDefinitions,
-  }}
->
+<script is:inline define:vars={{ summaryFilters, priorityBadgeDefinitions, statusBadgeDefinitions }}>
   const list = document.getElementById("review-list");
+  const contextEl = document.getElementById("review-context");
+  const errorsEl = document.getElementById("review-errors");
+  const confirmation = document.getElementById("review-confirmation");
   const tabs = Array.from(document.querySelectorAll("[data-review-filter]"));
   const summaryCards = Array.from(document.querySelectorAll("[data-review-summary-filter]"));
+  const SUB_ROLE_KEY = "sopHubSelectedCreatorSubRole";
   let activeFilter = "All";
-
-  const workflowStatuses = [
-    "Submitted",
-    "Assigned",
-    "Under Review",
-    "Needs More Information",
-    "Accepted",
-    "Declined",
-    "In Progress",
-    "Draft Created",
-    "In Approval",
-    "Approved",
-    "Published",
-    "Closed",
-  ];
-  let backendItems = [];
+  let queueItems = [];
+  let queueCounts = {};
+  let reviewerMembers = [];
 
   const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (character) => {
-      const replacements = {
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;",
-      };
+      const replacements = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
       return replacements[character];
     });
 
-  function readStorage(key) {
-    try {
-      return JSON.parse(localStorage.getItem(key) || "[]");
-    } catch {
-      return [];
+  function apiHeaders() {
+    const subRole = localStorage.getItem(SUB_ROLE_KEY) || "";
+    return {
+      accept: "application/json",
+      "content-type": "application/json",
+      ...(subRole ? { "x-sop-sub-role": subRole } : {}),
+    };
+  }
+
+  function selectedSubRoleQuery() {
+    const subRole = localStorage.getItem(SUB_ROLE_KEY) || "";
+    return subRole ? `?subRole=${encodeURIComponent(subRole)}` : "";
+  }
+
+  async function parseApiResponse(response) {
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data?.success === false) {
+      throw new Error(data?.error?.message || data?.error || `Request failed: ${response.status}`);
     }
+    return data.data || data;
   }
 
-  function writeStorage(key, value) {
-    localStorage.setItem(key, JSON.stringify(value));
-  }
-
-  function mergeById(...groups) {
-    const map = new Map();
-    groups.flat().forEach((item) => {
-      if (item?.id) map.set(item.id, item);
-    });
-    return Array.from(map.values());
-  }
-
-  function getItems() {
-    return backendItems;
-  }
-
-  function saveItems(items) {
-    backendItems = items;
-  }
-
-  function getSubmissions() {
-    return mergeById(initialSubmissions, readStorage(SUBMISSIONS_STORAGE_KEY));
-  }
-
-  function getDrafts() {
-    return mergeById(initialDrafts, readStorage(DRAFTS_STORAGE_KEY));
-  }
-
-  function getReviewerMembers() {
-    return mergeById(initialReviewerMembers, readStorage(USER_STORAGE_KEY))
-      .filter((user) => user.accessLevel === "Creator / Reviewer" && user.status !== "Archived")
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }
-
-  function summaryDefinition(filter) {
-    return summaryFilters.find((summary) => summary.filter === filter) || null;
-  }
-
-  function itemMatchesSummaryFilter(item, summary) {
-    const statusMatches = Array.isArray(summary.statuses)
-      ? summary.statuses.includes(item.status)
-      : false;
-    const priorityMatches = Array.isArray(summary.priorities)
-      ? summary.priorities.includes(item.priority)
-      : false;
-    return statusMatches || priorityMatches;
-  }
-
-  function renderSummaryCounts(items) {
-    summaryCards.forEach((card) => {
-      const summary = summaryDefinition(card.dataset.reviewSummaryFilter);
-      const count = summary ? items.filter((item) => itemMatchesSummaryFilter(item, summary)).length : 0;
-      const countElement = card.querySelector("[data-review-summary-count]");
-      const label = card.querySelector("span")?.textContent?.trim() || "review";
-      if (countElement) countElement.textContent = String(count);
-      card.setAttribute("aria-label", `Show ${count} ${label} review queue item${count === 1 ? "" : "s"}`);
-    });
-  }
-
-  function filterItem(item) {
-    const summary = summaryDefinition(activeFilter);
-    if (summary) return itemMatchesSummaryFilter(item, summary);
-    if (activeFilter === "All") return true;
-    if (activeFilter === "Internal Drafts") return item.source === "Internal SOP Creator";
-    if (activeFilter === "Outside Department Submissions") {
-      return item.source === "Outside Department Submission";
-    }
-    if (activeFilter === "New SOP Requests") return item.submissionType === "Request a new SOP";
-    if (activeFilter === "Updates") return item.submissionType === "Suggest an update to an existing SOP";
-    if (activeFilter === "Templates") return item.submissionType === "Request a template";
-    if (activeFilter === "Urgent") return ["High", "Urgent"].includes(item.priority);
-    return item.status === activeFilter;
-  }
-
-  function statusOptions(selected) {
-    return workflowStatuses
-      .map(
-        (status) =>
-          `<option value="${status}" ${status === selected ? "selected" : ""}>${status}</option>`,
-      )
-      .join("");
+  function badgeKey(value) {
+    return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
   }
 
   function statusBadge(status) {
-    const key = String(status || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    const badge = statusBadgeDefinitions[key] || {
+    const badge = statusBadgeDefinitions[badgeKey(status)] || {
       label: status || "New",
       className: "status-badge--new",
     };
@@ -247,8 +129,7 @@ const reviewerMembers = userAccounts.filter(
   }
 
   function priorityBadge(priority) {
-    const key = String(priority || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    const badge = priorityBadgeDefinitions[key] || {
+    const badge = priorityBadgeDefinitions[badgeKey(priority)] || {
       label: priority || "Medium",
       className: "priority-badge--medium",
     };
@@ -257,325 +138,206 @@ const reviewerMembers = userAccounts.filter(
     )}</span>`;
   }
 
+  function formatDate(value) {
+    if (!value) return "Not set";
+    const date = new Date(String(value).includes("T") ? value : `${value}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  }
+
+  function matchesSummary(item, filter) {
+    const key = badgeKey(item.status);
+    if (filter === "summary:new") return ["submitted", "assigned", "draft"].includes(key);
+    if (filter === "summary:needs-review") {
+      return [
+        "submitted",
+        "assigned",
+        "draft",
+        "under-review",
+        "in-review",
+        "needs-more-information",
+        "needs-revision",
+        "accepted",
+        "in-progress",
+        "draft-created",
+        "in-approval",
+      ].includes(key);
+    }
+    if (filter === "summary:urgent") return ["High", "Urgent"].includes(item.priority);
+    if (filter === "summary:approved") return key === "approved";
+    if (filter === "summary:published") return key === "published";
+    if (filter === "summary:archived") return ["archived", "closed", "declined"].includes(key);
+    return true;
+  }
+
+  function filterItem(item) {
+    if (activeFilter.startsWith("summary:")) return matchesSummary(item, activeFilter);
+    if (activeFilter === "All") return true;
+    if (activeFilter === "Urgent") return ["High", "Urgent"].includes(item.priority);
+    if (activeFilter === "Approved") return badgeKey(item.status) === "approved";
+    if (activeFilter === "Published") return badgeKey(item.status) === "published";
+    if (activeFilter === "Archived") return ["archived", "closed", "declined"].includes(badgeKey(item.status));
+    return item.filterGroup === activeFilter || item.source === activeFilter;
+  }
+
+  function renderSummaryCounts() {
+    summaryCards.forEach((card) => {
+      const key = card.dataset.summaryKey || "";
+      const count = Number(queueCounts[key] || 0);
+      const label = card.querySelector("span")?.textContent?.trim() || "review";
+      const countEl = card.querySelector("[data-review-summary-count]");
+      if (countEl) countEl.textContent = String(count);
+      card.setAttribute("aria-label", `Show ${count} ${label} review queue item${count === 1 ? "" : "s"}`);
+    });
+  }
+
   function assigneeOptions(selected) {
-    const members = getReviewerMembers();
     return [
       `<option value="">Unassigned</option>`,
-      ...members.map(
+      ...reviewerMembers.map(
         (member) =>
-          `<option value="${escapeHtml(member.id || member.name)}" ${
-            member.id === selected || member.name === selected ? "selected" : ""
-          }>${escapeHtml(
+          `<option value="${escapeHtml(member.id)}" ${member.id === selected ? "selected" : ""}>${escapeHtml(
             member.name,
-          )} - ${escapeHtml(member.department)}</option>`,
+          )} - ${escapeHtml(member.department || member.accessLevel || "Reviewer")}</option>`,
       ),
     ].join("");
   }
 
+  function actionButton(item, action, label, className = "button--secondary") {
+    if (!Array.isArray(item.availableActions) || !item.availableActions.includes(action)) return "";
+    return `<button class="button ${className}" type="button" data-review-action="${escapeHtml(action)}">${escapeHtml(label)}</button>`;
+  }
+
+  function renderItem(item) {
+    return `
+      <article class="review-card" data-review-id="${escapeHtml(item.id)}" data-review-type="${escapeHtml(item.itemType)}">
+        <div class="review-card__header">
+          <div>
+            <p class="eyebrow">${escapeHtml(item.source)}</p>
+            <h2>${escapeHtml(item.title)}</h2>
+          </div>
+          ${statusBadge(item.status)}
+        </div>
+        <dl class="review-meta">
+          <div><dt>Submission type</dt><dd>${escapeHtml(item.submissionType)}</dd></div>
+          <div><dt>Category</dt><dd>${escapeHtml(item.category)}</dd></div>
+          <div><dt>Department</dt><dd>${escapeHtml(item.department || "Not listed")}</dd></div>
+          <div><dt>Owner</dt><dd>${escapeHtml(item.owner || "Unassigned")}</dd></div>
+          <div><dt>Submitted by</dt><dd>${escapeHtml(item.submittedBy || "Unknown")}</dd></div>
+          <div><dt>Assigned reviewer</dt><dd>${escapeHtml(item.assignedReviewer || "Unassigned")}</dd></div>
+          <div><dt>Priority</dt><dd>${priorityBadge(item.priority)}</dd></div>
+          <div><dt>Status</dt><dd>${statusBadge(item.status)}</dd></div>
+          <div><dt>Review due</dt><dd>${escapeHtml(formatDate(item.reviewDate))}</dd></div>
+          <div><dt>Last updated</dt><dd>${escapeHtml(formatDate(item.updatedDate))}</dd></div>
+        </dl>
+        <div class="review-actions no-print">
+          <label>
+            <span>Assigned reviewer</span>
+            <select data-review-assignee>${assigneeOptions(item.assignedTo)}</select>
+          </label>
+          <label class="field--full">
+            <span>Reviewer notes / reason</span>
+            <textarea data-review-notes rows="2" placeholder="Add reviewer notes, denial reason, or instructions.">${escapeHtml(
+              item.reviewerNotes || item.denialReason || "",
+            )}</textarea>
+          </label>
+          <a class="button button--ghost" href="${escapeHtml(item.detailUrl)}">View Details</a>
+          ${
+            item.editUrl && item.availableActions?.includes("edit")
+              ? `<a class="button button--secondary" href="${escapeHtml(item.editUrl)}">Edit Draft</a>`
+              : ""
+          }
+          ${actionButton(item, "review", "Review")}
+          ${actionButton(item, "accept", "Accept")}
+          ${actionButton(item, "assign", "Assign")}
+          ${actionButton(item, "more-info", "Need Info")}
+          ${actionButton(item, "decline", "Decline", "button--danger")}
+          ${actionButton(item, "revision", "Request Changes")}
+          ${actionButton(item, "approve", "Approve")}
+          ${actionButton(item, "publish", "Publish", "button--primary")}
+          ${actionButton(item, "archive", "Archive", "button--ghost")}
+          ${actionButton(item, "convert", "Convert to SOP Draft", "button--primary")}
+        </div>
+      </article>
+    `;
+  }
+
+  function renderContext(data) {
+    const context = data.context || {};
+    const user = context.selectedUser?.name || "Selected reviewer";
+    const subRole = context.selectedSubRole?.label || "selected department";
+    if (contextEl) contextEl.textContent = `${queueItems.length} backend review item${queueItems.length === 1 ? "" : "s"} loaded for ${user} in ${subRole}.`;
+  }
+
   function render() {
-    const allItems = getItems();
-    const items = allItems.filter(filterItem);
-    renderSummaryCounts(allItems);
-
+    renderSummaryCounts();
     if (!list) return;
-
-    list.innerHTML =
-      items.length > 0
-        ? items
-            .map(
-              (item) => `
-              <article class="review-card" data-review-id="${escapeHtml(item.id)}">
-                <div class="review-card__header">
-                  <div>
-                    <p class="eyebrow">${escapeHtml(item.source)}</p>
-                    <h2>${escapeHtml(item.title)}</h2>
-                  </div>
-                  ${statusBadge(item.status)}
-                </div>
-                <dl class="review-meta">
-                  <div><dt>SOP Title</dt><dd>${escapeHtml(item.title)}</dd></div>
-                  <div><dt>Submission type</dt><dd>${escapeHtml(item.submissionType)}</dd></div>
-                  <div><dt>Submitted by</dt><dd>${escapeHtml(item.submittedBy)}</dd></div>
-                  <div><dt>Department</dt><dd>${escapeHtml(item.department || "Not listed")}</dd></div>
-                  <div><dt>Category</dt><dd>${escapeHtml(item.category)}</dd></div>
-                  <div><dt>Priority</dt><dd>${priorityBadge(item.priority)}</dd></div>
-                  <div><dt>Assigned reviewer</dt><dd>${escapeHtml(item.assignedOwner || "Unassigned")}</dd></div>
-                  <div><dt>Submitted date</dt><dd>${escapeHtml(item.createdDate)}</dd></div>
-                  <div><dt>Due date</dt><dd>${escapeHtml(item.reviewDate || "Not set")}</dd></div>
-                  <div><dt>Status</dt><dd>${statusBadge(item.status)}</dd></div>
-                </dl>
-                <div class="review-actions no-print">
-                  <label>
-                    <span>Move status</span>
-                    <select data-review-status>${statusOptions(item.status)}</select>
-                  </label>
-                  <label>
-                    <span>Assigned reviewer</span>
-                    <select data-review-assignee>${assigneeOptions(item.assignedTo || item.assignedOwner)}</select>
-                  </label>
-                  <label class="field--full">
-                    <span>Reviewer notes / reason</span>
-                    <textarea data-review-notes rows="2" placeholder="Add reviewer notes, denial reason, or instructions.">${escapeHtml(
-                      item.reviewerNotes || item.denialReason || "",
-                    )}</textarea>
-                  </label>
-                  <button class="button button--primary" type="button" data-review-action="review">Review</button>
-                  <button class="button button--secondary" type="button" data-review-action="accept">Accept</button>
-                  <button class="button button--secondary" type="button" data-review-action="assign">Assign</button>
-                  <button class="button button--secondary" type="button" data-review-action="more-info">Need Info</button>
-                  <button class="button button--danger" type="button" data-review-action="decline">Decline</button>
-                  <button class="button button--secondary" type="button" data-review-action="approve">Approve</button>
-                  <button class="button button--primary" type="button" data-review-action="publish">Publish</button>
-                  <button class="button button--secondary" type="button" data-review-action="revision">Request Changes</button>
-                  <button class="button button--ghost" type="button" data-review-action="archive">Archive</button>
-                  ${
-                    item.source === "Outside Department Submission"
-                      ? '<button class="button button--primary" type="button" data-review-action="convert">Convert to SOP Draft</button>'
-                      : ""
-                  }
-                </div>
-              </article>
-            `,
-            )
-            .join("")
-        : "<p>No review items match this filter.</p>";
+    const items = queueItems.filter(filterItem);
+    list.innerHTML = items.length
+      ? items.map(renderItem).join("")
+      : `<div class="empty-state"><strong>No review items</strong><p>No backend review records match this filter for the selected user, role, department, or sub-role.</p></div>`;
   }
 
-  async function saveBackendRequest(id, patch, action = "update") {
-    const response = await fetch("/api/sop-requests", {
+  function showError(error) {
+    if (errorsEl) {
+      errorsEl.hidden = false;
+      errorsEl.innerHTML = `<p>${escapeHtml(error instanceof Error ? error.message : "Review Queue could not load.")}</p>`;
+    }
+    if (list) {
+      list.innerHTML = `<div class="empty-state"><strong>Review Queue unavailable</strong><p>The backend queue could not be loaded. Please refresh and try again.</p></div>`;
+    }
+  }
+
+  async function loadQueue() {
+    if (errorsEl) errorsEl.hidden = true;
+    if (confirmation) confirmation.hidden = true;
+    if (list) {
+      list.innerHTML = `<div class="empty-state"><strong>Loading review items</strong><p>Connecting to the live Cloudflare database.</p></div>`;
+    }
+    const response = await fetch(`/api/review-queue${selectedSubRoleQuery()}`, {
+      headers: apiHeaders(),
+      cache: "no-store",
+    });
+    const data = await parseApiResponse(response);
+    queueItems = Array.isArray(data.items) ? data.items : [];
+    queueCounts = data.counts || {};
+    reviewerMembers = data.viewOptions?.users || [];
+    renderContext(data);
+    render();
+  }
+
+  async function runAction(card, action) {
+    const id = card.dataset.reviewId || "";
+    const itemType = card.dataset.reviewType || "";
+    const item = queueItems.find((record) => record.id === id);
+    const notesField = card.querySelector("[data-review-notes]");
+    const assigneeField = card.querySelector("[data-review-assignee]");
+    const notes = notesField instanceof HTMLTextAreaElement ? notesField.value.trim() : "";
+    const assignedTo = assigneeField instanceof HTMLSelectElement ? assigneeField.value : "";
+    const response = await fetch("/api/review-queue", {
       method: "PUT",
-      headers: { "content-type": "application/json", accept: "application/json" },
-      body: JSON.stringify({ id, action, ...patch }),
+      headers: apiHeaders(),
+      body: JSON.stringify({
+        id,
+        itemType,
+        action,
+        assignedTo,
+        notes,
+        denialReason: action === "decline" ? notes : "",
+      }),
     });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || data?.success === false) {
-      throw new Error(data?.error?.message || "Request update failed.");
+    await parseApiResponse(response);
+    if (confirmation && item) {
+      confirmation.hidden = false;
+      confirmation.innerHTML = `<strong>Review item updated.</strong><p>${escapeHtml(item.title)} was updated in the backend workflow.</p>`;
     }
-    return data.data?.request || data.request;
-  }
-
-  async function updateItem(id, patch, action = "update") {
-    const existing = getItems().find((item) => item.id === id);
-    if (existing?.backend) {
-      try {
-        const saved = await saveBackendRequest(existing.originalId || id, patch, action);
-        const normalized = normalizeBackendRequest(saved);
-        backendItems = backendItems.map((item) => (item.id === normalized.id ? normalized : item));
-        if (!backendItems.some((item) => item.id === normalized.id)) backendItems.unshift(normalized);
-        render();
-        return;
-      } catch (error) {
-        window.alert(error instanceof Error ? error.message : "The backend request could not be updated.");
-        return;
-      }
-    }
-    const items = getItems().map((item) => (item.id === id ? { ...item, ...patch } : item));
-    saveItems(items);
-    render();
-  }
-
-  function normalizeBackendRequest(request) {
-    return {
-      id: request.id,
-      originalId: request.id,
-      backend: true,
-      source: "Backend SOP Request",
-      submissionType: request.requestType || "Request a new SOP",
-      title: request.requestedTitle || "Untitled SOP Request",
-      department: request.departmentName || request.assignedDepartment || "Not listed",
-      submittedBy: request.submittedByName || request.submittedByEmail || "Unknown",
-      category: request.category || "Uncategorized",
-      priority: request.priority || "Medium",
-      status: request.status || "Submitted",
-      assignedTo: request.assignedTo || "",
-      assignedOwner: request.assignedToName || request.assignedDepartment || "Unassigned",
-      createdDate: request.createdAt ? new Date(Number(request.createdAt) * 1000).toISOString().slice(0, 10) : "",
-      reviewDate: request.desiredCompletionAt
-        ? new Date(Number(request.desiredCompletionAt) * 1000).toISOString().slice(0, 10)
-        : "",
-      reviewerNotes: request.reviewerNotes || "",
-      denialReason: request.denialReason || "",
-      draftSopId: request.draftSopId || "",
-      relatedSopId: request.relatedSopId || request.existingSopId || "",
-    };
-  }
-
-  async function hydrateBackendRequests() {
-    try {
-      const response = await fetch("/api/sop-requests", { headers: { accept: "application/json" }, cache: "no-store" });
-      if (!response.ok) return;
-      const data = await response.json();
-      const requests = data.data?.requests || data.requests || [];
-      backendItems = requests.map(normalizeBackendRequest);
-      render();
-    } catch {
-      backendItems = [];
-      render();
-    }
-  }
-
-  function slugify(value) {
-    return String(value || "")
-      .toLowerCase()
-      .replace(/&/g, " and ")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
-  }
-
-  function getPublishedUrl(draft) {
-    if (draft.sourceSlug) {
-      return `/sops/${slugify(draft.category || "")}/${draft.sourceSlug}/`;
-    }
-    return `/published/?id=${encodeURIComponent(draft.id)}`;
-  }
-
-  function savePublishedDraft(draft, publisherName) {
-    const today = new Date().toISOString().slice(0, 10);
-    const publishedAt = new Date().toISOString();
-    const sourceId = draft.sourceId || draft.id;
-    const sourceSlug = draft.sourceSlug || slugify(draft.title);
-    const publishedDraft = {
-      ...draft,
-      status: "Published",
-      updatedDate: today,
-      lastUpdated: today,
-      publishedAt,
-      publishedBy: publisherName || draft.owner,
-    };
-    const published = {
-      ...publishedDraft,
-      id: sourceId,
-      draftId: draft.id,
-      sourceId,
-      sourceSlug,
-      url: getPublishedUrl(draft),
-    };
-
-    const publishedSops = readStorage(PUBLISHED_SOPS_STORAGE_KEY).filter(
-      (record) => record.id !== published.id,
-    );
-    writeStorage(PUBLISHED_SOPS_STORAGE_KEY, [...publishedSops, published]);
-
-    const drafts = getDrafts().filter((record) => record.id !== draft.id);
-    writeStorage(DRAFTS_STORAGE_KEY, [...drafts, publishedDraft]);
-
-    return published;
-  }
-
-  function draftForReviewItem(item) {
-    if (item.source === "Internal SOP Creator") {
-      return getDrafts().find((record) => record.id === item.originalId);
-    }
-
-    const submission = getSubmissions().find((record) => record.id === item.originalId);
-    return submission ? submissionToDraft(submission) : null;
-  }
-
-  function publishReviewItem(item) {
-    const draft = draftForReviewItem(item);
-    if (!draft) {
-      updateItem(item.id, { status: "Published" });
-      return;
-    }
-
-    savePublishedDraft(draft, item.assignedOwner || draft.owner);
-    updateItem(item.id, {
-      status: "Published",
-      assignedOwner: item.assignedOwner || draft.owner,
-      category: draft.category,
-      title: draft.title,
-      originalId: draft.id,
-    });
-  }
-
-  function submissionToDraft(submission) {
-    const today = new Date().toISOString().slice(0, 10);
-    return {
-      id: `draft-from-${submission.id}`,
-      title: submission.title,
-      purpose:
-        submission.businessNeed ||
-        submission.purpose ||
-        "Purpose to be refined by the SOP owner.",
-      owner: submission.assignedOwner || "Unassigned SOP Owner",
-      category: submission.category,
-      type: submission.submissionType === "Request a template" ? "Template" : "Process",
-      tools: submission.toolOrSystem ? [submission.toolOrSystem] : [],
-      audience: [submission.department, submission.audience].filter(Boolean),
-      tags: [submission.category, submission.priority, submission.submissionType]
-        .filter(Boolean)
-        .map((value) => String(value).toLowerCase()),
-      estimatedCompletionTime: "To be estimated",
-      beforeYouBegin: submission.beforeYouBegin,
-      procedureSteps: (submission.procedureSteps || []).map((step, index) => ({
-        title: `Step ${index + 1}`,
-        instructions: step,
-      })),
-      screenshots: submission.screenshots || [],
-      troubleshootingNotes: submission.knownIssues,
-      relatedSops: submission.relatedResources || [],
-      reviewDate: submission.reviewDate || today,
-      status: "Draft",
-      version: "0.1",
-      changeSummary: "Converted from outside department submission.",
-      createdDate: today,
-      updatedDate: today,
-      originalSubmissionId: submission.id,
-    };
-  }
-
-  function convertSubmission(item) {
-    const submission = getSubmissions().find((record) => record.id === item.originalId);
-    if (!submission) return;
-
-    const draft = submissionToDraft(submission);
-    const drafts = getDrafts().filter((record) => record.id !== draft.id);
-    writeStorage(DRAFTS_STORAGE_KEY, [...drafts, draft]);
-
-    const reviewItem = {
-      id: `review-${draft.id}`,
-      source: "Internal SOP Creator",
-      submissionType: "Submit a draft SOP",
-      title: draft.title,
-      department: draft.audience[0],
-      submittedBy: draft.owner,
-      category: draft.category,
-      priority: item.priority,
-      status: "Drafting",
-      assignedOwner: draft.owner,
-      createdDate: draft.createdDate,
-      reviewDate: draft.reviewDate,
-      originalId: draft.id,
-    };
-
-    const items = getItems()
-      .map((record) => (record.id === item.id ? { ...record, status: "Drafting" } : record))
-      .filter((record) => record.id !== reviewItem.id);
-    saveItems([...items, reviewItem]);
-    render();
+    await loadQueue();
   }
 
   function setActiveFilter(filter) {
     activeFilter = filter || "All";
-    const summary = summaryDefinition(activeFilter);
-    tabs.forEach((item) =>
-      item.setAttribute(
-        "aria-selected",
-        String(
-          item.dataset.reviewFilter === activeFilter ||
-            (summary?.tabFilter && item.dataset.reviewFilter === summary.tabFilter),
-        ),
-      ),
-    );
-    summaryCards.forEach((card) =>
-      card.setAttribute(
-        "aria-pressed",
-        String(
-          card.dataset.reviewSummaryFilter === activeFilter ||
-            summaryDefinition(card.dataset.reviewSummaryFilter)?.tabFilter === activeFilter,
-        ),
-      ),
-    );
+    tabs.forEach((tab) => tab.setAttribute("aria-selected", String(tab.dataset.reviewFilter === activeFilter)));
+    summaryCards.forEach((card) => card.setAttribute("aria-pressed", String(card.dataset.reviewSummaryFilter === activeFilter)));
     render();
   }
 
@@ -587,88 +349,19 @@ const reviewerMembers = userAccounts.filter(
     card.addEventListener("click", () => setActiveFilter(card.dataset.reviewSummaryFilter));
   });
 
-  list?.addEventListener("change", (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLSelectElement)) return;
-    if (!target.hasAttribute("data-review-status")) return;
-
-    const card = target.closest("[data-review-id]");
-    if (!(card instanceof HTMLElement)) return;
-
-    const item = getItems().find((record) => record.id === card.dataset.reviewId);
-    if (!item) return;
-
-    if (target.value === "Published" && !item.backend) {
-      publishReviewItem(item);
-      return;
-    }
-
-    updateItem(card.dataset.reviewId, { status: target.value }, "update");
-  });
-
   list?.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
-
     const button = target.closest("[data-review-action]");
     if (!(button instanceof HTMLElement)) return;
-
     const card = button.closest("[data-review-id]");
     if (!(card instanceof HTMLElement)) return;
-
-    const id = card.dataset.reviewId;
-    const item = getItems().find((record) => record.id === id);
-    if (!item) return;
-    const notesField = card.querySelector("[data-review-notes]");
-    const reviewerNotes = notesField instanceof HTMLTextAreaElement ? notesField.value.trim() : "";
-
-    const action = button.dataset.reviewAction;
-    const actionStatus = {
-      accept: "Accepted",
-      decline: "Declined",
-      "more-info": "Needs More Information",
-      drafting: "In Progress",
-      review: "Under Review",
-      revision: "Needs More Information",
-      approve: "Approved",
-      publish: "Published",
-      archive: "Closed",
-    };
-
-    if (action === "assign") {
-      const assigneeSelect = card.querySelector("[data-review-assignee]");
-      const owner = assigneeSelect instanceof HTMLSelectElement ? assigneeSelect.value : "";
-      updateItem(id, { assignedTo: owner || "", assignedOwner: owner || "Unassigned", status: "Assigned", reviewerNotes }, "assign");
-      return;
-    }
-
-    if (action === "convert") {
-      if (item.backend) {
-        updateItem(id, { reviewerNotes }, "convert");
-        return;
-      }
-      convertSubmission(item);
-      return;
-    }
-
-    if (actionStatus[action] === "Published" && !item.backend) {
-      publishReviewItem(item);
-      return;
-    }
-
-    if (actionStatus[action]) {
-      updateItem(
-        id,
-        {
-          status: actionStatus[action],
-          reviewerNotes,
-          denialReason: action === "decline" ? reviewerNotes : "",
-        },
-        action,
-      );
-    }
+    runAction(card, button.dataset.reviewAction || "review").catch(showError);
   });
 
-  render();
-  hydrateBackendRequests();
+  window.addEventListener("storage", (event) => {
+    if (event.key === SUB_ROLE_KEY) loadQueue().catch(showError);
+  });
+
+  loadQueue().catch(showError);
 </script>
