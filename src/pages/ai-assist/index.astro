@@ -1,99 +1,41 @@
 ---
 import Layout from "../../components/Layout.astro";
-import { mockDrafts } from "../../data/mock-drafts";
-import { mockSubmissions } from "../../data/mock-submissions";
-import { getAllSops, getSopUrl } from "../../lib/sops";
-
-const sops = await getAllSops();
-const approvedSources = sops
-  .filter((sop) => sop.data.status === "Published" || sop.data.status === "Approved")
-  .map((sop) => ({
-    id: sop.data.id,
-    title: sop.data.title,
-    purpose: sop.data.purpose,
-    category: sop.data.category,
-    tags: sop.data.tags,
-    status: sop.data.status,
-    url: getSopUrl(sop),
-    body: sop.body,
-    sourceType: "Published SOP",
-  }));
-
-const adminOnlySources = [
-  ...mockDrafts.map((draft) => ({
-    id: draft.id,
-    title: draft.title,
-    purpose: draft.purpose,
-    category: draft.category,
-    tags: draft.tags,
-    status: draft.status,
-    url: "/drafts/",
-    body: [
-      draft.beforeYouBegin,
-      ...draft.procedureSteps.map((step) => `${step.title}: ${step.instructions}`),
-      draft.troubleshootingNotes,
-    ].join("\n"),
-    sourceType: "Draft SOP",
-  })),
-  ...mockSubmissions.map((submission) => ({
-    id: submission.id,
-    title: submission.title,
-    purpose: submission.purpose,
-    category: submission.category,
-    tags: [submission.category, submission.priority, submission.toolOrSystem],
-    status: submission.status,
-    url: "/admin/review/",
-    body: [
-      submission.businessNeed,
-      submission.beforeYouBegin,
-      ...(submission.procedureSteps || []),
-      submission.knownIssues,
-      submission.additionalNotes,
-    ].join("\n"),
-    sourceType: "Request / Review Item",
-  })),
-];
 
 const assistActions = [
   {
-    id: "generate-sop",
-    title: "Generate SOP from notes",
-    description: "Turn rough notes into a draft SOP outline that still requires human review.",
+    id: "ask",
+    title: "Ask AI Assist",
+    description: "Ask a source-grounded question about an authorized SOP.",
   },
   {
-    id: "checklist",
-    title: "Turn SOP into checklist",
-    description: "Convert source steps into a compact checklist.",
+    id: "draft-sop",
+    title: "Draft SOP",
+    description: "Turn notes and selected source material into a draft starter.",
   },
   {
-    id: "summarize",
-    title: "Summarize long SOP",
-    description: "Create a short summary grounded in the selected SOP.",
+    id: "improve-draft",
+    title: "Improve Draft",
+    description: "Tighten wording, order, and clarity without inventing facts.",
   },
   {
-    id: "clarity",
-    title: "Improve clarity",
-    description: "Rewrite notes or selected source text into clearer working language.",
+    id: "summarize-sop",
+    title: "Summarize SOP",
+    description: "Create a short summary from the selected backend SOP.",
   },
   {
-    id: "missing-steps",
-    title: "Find missing steps",
-    description: "Flag likely gaps before an SOP moves to review.",
+    id: "review-gaps",
+    title: "Review Gaps",
+    description: "Flag missing steps, owners, risks, and review needs.",
   },
   {
-    id: "suggest-tags",
-    title: "Suggest tags",
-    description: "Suggest searchable tags based on source category, tools, and wording.",
+    id: "review-comments",
+    title: "Review Comments",
+    description: "Draft review comments for an SOP, draft, or request.",
   },
   {
-    id: "duplicates",
-    title: "Detect duplicate SOPs",
-    description: "Find likely overlap with existing SOPs.",
-  },
-  {
-    id: "ask-hub",
-    title: "Ask the Knowledge Hub",
-    description: "Ask a question and answer only from allowed SOP sources.",
+    id: "suggest-taxonomy",
+    title: "Suggest Tags / Category",
+    description: "Suggest searchable tags and category signals from real source data.",
   },
 ];
 ---
@@ -104,36 +46,35 @@ const assistActions = [
       <p class="eyebrow">Controlled AI</p>
       <h1 id="ai-assist-heading">AI Assist</h1>
       <p>
-        Use source-grounded helpers for SOP drafting, cleanup, review, and discovery. AI responses
-        stay limited to approved/published SOPs unless the user is an admin.
+        Use Cloudflare Workers AI for SOP drafting, cleanup, review, and discovery. Every
+        answer is limited to the backend records available to your current role and department.
       </p>
     </div>
 
     <div class="analytics-note ai-policy" role="note">
       <strong>Source rule:</strong>
-      <span id="source-rule">
-        Normal users and creators only receive answers from approved or published SOPs.
-      </span>
+      <span id="source-rule">Loading authorized SOP sources...</span>
     </div>
 
     <div class="form-grid ai-control-panel" aria-label="AI Assist controls">
       <div class="field">
         <label for="assist-role">Using AI Assist as</label>
-        <select id="assist-role">
-          <option value="normal">Normal User</option>
-          <option value="creator">Creator / Reviewer</option>
-          <option value="admin">Admin</option>
+        <select id="assist-role" disabled>
+          <option>Loading role...</option>
         </select>
       </div>
       <div class="field">
         <label for="assist-source">Primary source</label>
-        <select id="assist-source"></select>
+        <select id="assist-source" disabled>
+          <option>Loading sources...</option>
+        </select>
       </div>
       <div class="field field--full">
         <label for="assist-notes">Notes, question, or draft text</label>
         <textarea
           id="assist-notes"
           rows="5"
+          maxlength="4000"
           placeholder="Paste notes, ask a question, or describe the SOP you want help with."
         ></textarea>
       </div>
@@ -143,7 +84,7 @@ const assistActions = [
       <h2 id="ai-actions-heading">AI Assist Actions</h2>
       <div class="quick-link-grid ai-action-grid" id="assist-actions">
         {assistActions.map((action) => (
-          <button class="quick-link quick-link--panel role-card" type="button" data-assist-action={action.id}>
+          <button class="quick-link quick-link--panel role-card" type="button" data-assist-action={action.id} disabled>
             <strong>{action.title}</strong>
             <span>{action.description}</span>
           </button>
@@ -154,39 +95,30 @@ const assistActions = [
     <section class="dashboard-section ai-output" aria-labelledby="ai-output-heading">
       <div class="section-heading">
         <h2 id="ai-output-heading">AI Assist Output</h2>
-        <p id="source-summary"></p>
+        <p id="source-summary">Select an action after the backend sources load.</p>
       </div>
       <div class="sop-content" id="assist-output" aria-live="polite">
-        <p>Select an action to generate a controlled, source-grounded result.</p>
+        <p>Loading authorized backend sources...</p>
       </div>
     </section>
   </section>
 </Layout>
 
-<script is:inline type="application/json" id="ai-approved-sources-json" set:html={JSON.stringify(approvedSources)}></script>
-<script is:inline type="application/json" id="ai-admin-sources-json" set:html={JSON.stringify(adminOnlySources)}></script>
-
 <script>
   // @ts-nocheck
-  function readJson(id, fallback) {
-    const element = document.getElementById(id);
-    if (!element?.textContent) return fallback;
-    try {
-      return JSON.parse(element.textContent);
-    } catch {
-      return fallback;
-    }
-  }
-
-  let approvedSources = readJson("ai-approved-sources-json", []);
-  const adminOnlySources = readJson("ai-admin-sources-json", []);
-  const roleSelect = document.getElementById("assist-role");
+  const SUB_ROLE_KEY = "sopHubSelectedCreatorSubRole";
   const sourceSelect = document.getElementById("assist-source");
+  const roleSelect = document.getElementById("assist-role");
   const notesInput = document.getElementById("assist-notes");
   const actions = document.getElementById("assist-actions");
   const output = document.getElementById("assist-output");
   const sourceRule = document.getElementById("source-rule");
   const sourceSummary = document.getElementById("source-summary");
+
+  let sources = [];
+  let currentUser = null;
+  let activeRequestId = 0;
+  let selectedSubRole = readSelectedSubRole();
 
   const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (character) => {
@@ -200,299 +132,264 @@ const assistActions = [
       return replacements[character];
     });
 
-  const sentenceCase = (value) => {
-    const trimmed = String(value || "").trim();
-    return trimmed ? `${trimmed.charAt(0).toUpperCase()}${trimmed.slice(1)}` : "";
+  const markdownishToHtml = (value) => {
+    const lines = String(value || "").split(/\n/);
+    const html = [];
+    let listOpen = false;
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line) {
+        if (listOpen) {
+          html.push("</ul>");
+          listOpen = false;
+        }
+        continue;
+      }
+
+      const heading = line.match(/^#{1,4}\s+(.+)/);
+      if (heading) {
+        if (listOpen) {
+          html.push("</ul>");
+          listOpen = false;
+        }
+        html.push(`<h3>${escapeHtml(heading[1])}</h3>`);
+        continue;
+      }
+
+      const bullet = line.match(/^[-*]\s+(.+)/) || line.match(/^\d+\.\s+(.+)/);
+      if (bullet) {
+        if (!listOpen) {
+          html.push("<ul>");
+          listOpen = true;
+        }
+        html.push(`<li>${escapeHtml(bullet[1])}</li>`);
+        continue;
+      }
+
+      if (listOpen) {
+        html.push("</ul>");
+        listOpen = false;
+      }
+      html.push(`<p>${escapeHtml(line)}</p>`);
+    }
+
+    if (listOpen) html.push("</ul>");
+    return html.join("");
   };
 
-  const plainWords = (value) =>
-    String(value || "")
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, " ")
-      .split(/\s+/)
-      .filter((word) => word.length > 3);
-
-  function getSourcePool() {
-    if (roleSelect instanceof HTMLSelectElement && roleSelect.value === "admin") {
-      return [...approvedSources, ...adminOnlySources];
+  function readSelectedSubRole() {
+    try {
+      return localStorage.getItem(SUB_ROLE_KEY) || "";
+    } catch {
+      return "";
     }
-    return approvedSources;
   }
 
-  function normalizeAiSource(sop) {
-    return {
-      id: sop.id,
-      title: sop.title,
-      purpose: sop.purpose || sop.summary,
-      category: sop.category,
-      tags: sop.tags,
-      status: sop.status,
-      url: sop.detailUrl || (sop.slug ? `/sops/detail/?slug=${encodeURIComponent(sop.slug)}` : `/sops/detail/?id=${encodeURIComponent(sop.id)}`),
-      body: sop.body || sop.version?.content || sop.bodyMarkdown || sop.purpose || sop.summary,
-      sourceType: ["HelpDocs", "Imported"].includes(sop.sourceType) ? "HelpDocs SOP" : "Published SOP",
+  function selectedSubRoleQuery() {
+    const value = readSelectedSubRole();
+    return value ? `?subRole=${encodeURIComponent(value)}` : "";
+  }
+
+  function apiHeaders() {
+    const headers = {
+      "content-type": "application/json",
+      "cache-control": "no-store",
     };
+    const subRole = readSelectedSubRole();
+    if (subRole) headers["x-sop-sub-role"] = subRole;
+    return headers;
   }
 
-  async function fetchAllPublishedSops() {
-    const all = [];
-    const limit = 100;
-    let offset = 0;
-    while (true) {
-      const response = await fetch(`/api/sops?limit=${limit}&offset=${offset}`);
-      if (!response.ok) throw new Error("Unable to load D1 SOPs.");
-      const payload = await response.json();
-      const records = payload.sops || payload.data?.sops || [];
-      all.push(...records);
-      if (records.length < limit) break;
-      offset += limit;
-    }
-    return all;
+  function setActionsEnabled(enabled) {
+    actions?.querySelectorAll("[data-assist-action]").forEach((button) => {
+      button.disabled = !enabled;
+    });
   }
 
-  function getSelectedSource() {
-    if (!(sourceSelect instanceof HTMLSelectElement)) return getSourcePool()[0];
-    return getSourcePool().find((source) => source.id === sourceSelect.value) || getSourcePool()[0];
+  function setOutput(html) {
+    if (output) output.innerHTML = html;
   }
 
-  function getNotes() {
-    return notesInput instanceof HTMLTextAreaElement ? notesInput.value.trim() : "";
+  function renderRoleOptions(roleOptions = []) {
+    if (!(roleSelect instanceof HTMLSelectElement)) return;
+    const selectedSubRoleLabel = currentUser?.selectedSubRole?.label;
+    roleSelect.innerHTML = roleOptions.length
+      ? roleOptions
+          .map((option) => {
+            const label = selectedSubRoleLabel ? `${option.label} - ${selectedSubRoleLabel}` : option.label;
+            return `<option value="${escapeHtml(option.id)}" selected>${escapeHtml(label)}</option>`;
+          })
+          .join("")
+      : `<option>Normal User</option>`;
   }
 
   function renderSourceOptions() {
     if (!(sourceSelect instanceof HTMLSelectElement)) return;
 
-    const pool = getSourcePool();
-    sourceSelect.innerHTML = pool
-      .map(
+    if (!sources.length) {
+      sourceSelect.innerHTML = `<option value="">No authorized SOP sources found</option>`;
+      sourceSelect.disabled = true;
+      return;
+    }
+
+    sourceSelect.innerHTML = [
+      `<option value="">Use notes only</option>`,
+      ...sources.map(
         (source) => `
           <option value="${escapeHtml(source.id)}">
-            ${escapeHtml(source.title)} (${escapeHtml(source.sourceType)})
+            ${escapeHtml(source.title)} (${escapeHtml(source.status || "SOP")})
           </option>
         `,
-      )
-      .join("");
+      ),
+    ].join("");
+    sourceSelect.disabled = false;
+  }
 
-    const isAdmin = roleSelect instanceof HTMLSelectElement && roleSelect.value === "admin";
+  function renderLoadedState(payload) {
+    sources = payload.sources || [];
+    currentUser = payload.currentUser || null;
+    renderRoleOptions(payload.roleOptions || []);
+    renderSourceOptions();
+
     if (sourceRule) {
-      sourceRule.textContent = isAdmin
-        ? "Admin mode can include published SOPs plus draft and review items."
-        : "Normal users and creators only receive answers from approved or published SOPs.";
+      sourceRule.textContent = payload.sourcePolicy || "Only authorized backend SOP records are available.";
     }
     if (sourceSummary) {
-      sourceSummary.textContent = `${pool.length} allowed source${pool.length === 1 ? "" : "s"} available for this role.`;
+      const subRole = currentUser?.selectedSubRole?.label ? ` for ${currentUser.selectedSubRole.label}` : "";
+      sourceSummary.textContent = `${sources.length} backend source${sources.length === 1 ? "" : "s"} available${subRole}.`;
+    }
+
+    setActionsEnabled(true);
+    setOutput(
+      sources.length
+        ? "<p>Select a source or use notes only, then choose an AI Assist action.</p>"
+        : "<p>No authorized SOP sources are available for this role. You can still provide notes and ask AI Assist to help identify what information is missing.</p>",
+    );
+  }
+
+  function renderError(message) {
+    setActionsEnabled(false);
+    if (sourceRule) sourceRule.textContent = "AI Assist could not load authorized backend sources.";
+    if (sourceSummary) sourceSummary.textContent = "";
+    if (sourceSelect instanceof HTMLSelectElement) {
+      sourceSelect.innerHTML = `<option value="">Sources unavailable</option>`;
+      sourceSelect.disabled = true;
+    }
+    setOutput(`<div class="form-status form-status--error">${escapeHtml(message)}</div>`);
+  }
+
+  async function loadAssistOptions() {
+    const requestId = ++activeRequestId;
+    setActionsEnabled(false);
+    setOutput("<p>Loading authorized backend sources...</p>");
+
+    try {
+      const response = await fetch(`/api/ai-assist${selectedSubRoleQuery()}`, {
+        headers: apiHeaders(),
+        cache: "no-store",
+      });
+      const payload = await response.json();
+      if (requestId !== activeRequestId) return;
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error?.message || "AI Assist sources could not be loaded.");
+      }
+      renderLoadedState(payload.data || {});
+    } catch (error) {
+      if (requestId !== activeRequestId) return;
+      renderError(error.message || "AI Assist sources could not be loaded.");
     }
   }
 
-  function bodyLines(source) {
-    return String(source?.body || source?.purpose || "")
-      .split(/\n+/)
-      .map((line) => line.replace(/^#+\s*/, "").replace(/^\d+\.\s*/, "").trim())
-      .filter(Boolean)
-      .slice(0, 8);
+  function selectedSourceId() {
+    return sourceSelect instanceof HTMLSelectElement ? sourceSelect.value : "";
   }
 
-  function sourceCard(source) {
-    return `
-      <p class="ai-source-line">
-        Source: <a href="${escapeHtml(source.url)}">${escapeHtml(source.title)}</a>
-        <span class="status-badge">${escapeHtml(source.status)}</span>
-      </p>
-    `;
+  function userNotes() {
+    return notesInput instanceof HTMLTextAreaElement ? notesInput.value.trim() : "";
   }
 
-  function generateSop(source, notes) {
-    const workingNotes = notes || source.purpose;
-    return `
-      <h3>Draft SOP Outline</h3>
-      ${sourceCard(source)}
-      <dl class="compact-meta">
-        <div><dt>Category</dt><dd>${escapeHtml(source.category)}</dd></div>
-        <div><dt>Status</dt><dd>Draft for human review</dd></div>
-      </dl>
-      <h4>Purpose</h4>
-      <p>${escapeHtml(sentenceCase(workingNotes))}</p>
-      <h4>Before You Begin</h4>
-      <ul>
-        <li>Confirm the process owner and intended audience.</li>
-        <li>Verify that the source material is approved for use.</li>
-        <li>Identify any screenshots, systems, or permissions needed.</li>
-      </ul>
-      <h4>Procedure</h4>
-      <ol>
-        <li>Document the starting condition and required information.</li>
-        <li>Complete the main process steps in order.</li>
-        <li>Validate the outcome before closing the task.</li>
-        <li>Record follow-up notes, exceptions, or escalation paths.</li>
-      </ol>
-    `;
+  function renderAssistResult(data) {
+    const source = data.source;
+    const sourceHtml = source
+      ? `<p class="ai-source-line">Source: <a href="${escapeHtml(source.url || "#")}">${escapeHtml(source.title)}</a> <span class="status-badge">${escapeHtml(source.status)}</span></p>`
+      : `<p class="ai-source-line">Source: User notes only</p>`;
+    const nextAction = data.suggestedNextAction
+      ? `<p><strong>Suggested next action:</strong> ${escapeHtml(data.suggestedNextAction)}</p>`
+      : "";
+    const limitation = data.limitation ? `<p><strong>Grounding:</strong> ${escapeHtml(data.limitation)}</p>` : "";
+
+    setOutput(`
+      ${sourceHtml}
+      <div class="ai-answer">${markdownishToHtml(data.answer || "No response was returned.")}</div>
+      ${limitation}
+      ${nextAction}
+      <div class="form-actions">
+        ${source ? `<a class="button button--secondary" href="${escapeHtml(source.url)}">Open Source</a>` : ""}
+        ${data.action === "draft-sop" ? `<a class="button button--secondary" href="/create/">Open Create SOP</a>` : ""}
+      </div>
+    `);
   }
 
-  function checklist(source) {
-    const items = bodyLines(source).slice(0, 7);
-    return `
-      <h3>Checklist</h3>
-      ${sourceCard(source)}
-      <ul class="ai-checklist">
-        ${items.map((item) => `<li><span aria-hidden="true">□</span>${escapeHtml(item)}</li>`).join("")}
-      </ul>
-    `;
-  }
+  async function runAction(action) {
+    if (!action) return;
+    const requestId = ++activeRequestId;
+    const sourceId = selectedSourceId();
+    const prompt = userNotes();
 
-  function summarize(source) {
-    return `
-      <h3>Summary</h3>
-      ${sourceCard(source)}
-      <p>${escapeHtml(source.purpose)}</p>
-      <ul>
-        <li>Category: ${escapeHtml(source.category)}</li>
-        <li>Tags: ${escapeHtml((source.tags || []).join(", ") || "No tags listed")}</li>
-        <li>Allowed source type: ${escapeHtml(source.sourceType)}</li>
-      </ul>
-    `;
-  }
+    if (!sourceId && !prompt) {
+      setOutput(`<div class="form-status form-status--error">Choose a source or enter notes before using AI Assist.</div>`);
+      return;
+    }
 
-  function improveClarity(source, notes) {
-    const text = notes || source.purpose;
-    return `
-      <h3>Clarity Pass</h3>
-      ${sourceCard(source)}
-      <p>${escapeHtml(sentenceCase(text))}</p>
-      <ul>
-        <li>Use direct action verbs.</li>
-        <li>Keep one action per step.</li>
-        <li>Name the system, owner, and expected result when they matter.</li>
-        <li>Move exceptions into troubleshooting notes.</li>
-      </ul>
-    `;
-  }
+    setActionsEnabled(false);
+    setOutput("<p>AI Assist is reviewing authorized backend data...</p>");
 
-  function missingSteps(source) {
-    return `
-      <h3>Possible Missing Steps</h3>
-      ${sourceCard(source)}
-      <ul>
-        <li>Who owns the final approval?</li>
-        <li>What information must be collected before starting?</li>
-        <li>What should the user do if the expected result does not happen?</li>
-        <li>Which screenshots or evidence should be attached?</li>
-        <li>When should the task be escalated?</li>
-      </ul>
-    `;
-  }
-
-  function suggestTags(source, notes) {
-    const candidates = new Set([...(source.tags || []), source.category]);
-    plainWords(`${notes} ${source.purpose} ${source.body}`).slice(0, 10).forEach((word) => candidates.add(word));
-    return `
-      <h3>Suggested Tags</h3>
-      ${sourceCard(source)}
-      <ul class="tag-list">
-        ${Array.from(candidates)
-          .slice(0, 12)
-          .map((tag) => `<li>${escapeHtml(tag)}</li>`)
-          .join("")}
-      </ul>
-    `;
-  }
-
-  function duplicateSops(source) {
-    const pool = getSourcePool();
-    const sourceWords = new Set([source.category, ...(source.tags || [])].map((item) => String(item).toLowerCase()));
-    const matches = pool
-      .filter((candidate) => candidate.id !== source.id)
-      .map((candidate) => {
-        const candidateWords = [candidate.category, ...(candidate.tags || [])].map((item) =>
-          String(item).toLowerCase(),
-        );
-        const score = candidateWords.filter((word) => sourceWords.has(word)).length;
-        return { candidate, score };
-      })
-      .filter((match) => match.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 5);
-
-    return `
-      <h3>Possible Duplicate or Related SOPs</h3>
-      ${sourceCard(source)}
-      ${
-        matches.length
-          ? `<ul>${matches
-              .map(
-                ({ candidate, score }) =>
-                  `<li><a href="${escapeHtml(candidate.url)}">${escapeHtml(candidate.title)}</a> - ${score} shared signal${score === 1 ? "" : "s"}</li>`,
-              )
-              .join("")}</ul>`
-          : "<p>No likely duplicates found in the allowed source set.</p>"
+    try {
+      const response = await fetch(`/api/ai-assist${selectedSubRoleQuery()}`, {
+        method: "POST",
+        headers: apiHeaders(),
+        cache: "no-store",
+        body: JSON.stringify({ action, sourceId, prompt }),
+      });
+      const payload = await response.json();
+      if (requestId !== activeRequestId) return;
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error?.message || "AI Assist could not complete that action.");
       }
-    `;
+      renderAssistResult(payload.data || {});
+    } catch (error) {
+      if (requestId !== activeRequestId) return;
+      setOutput(`<div class="form-status form-status--error">${escapeHtml(error.message || "AI Assist could not complete that action.")}</div>`);
+    } finally {
+      if (requestId === activeRequestId) setActionsEnabled(true);
+    }
   }
-
-  function askHub(source, question) {
-    const pool = getSourcePool();
-    const queryWords = plainWords(question || source.title);
-    const ranked = pool
-      .map((candidate) => {
-        const haystack = `${candidate.title} ${candidate.purpose} ${candidate.category} ${(candidate.tags || []).join(" ")} ${candidate.body}`.toLowerCase();
-        const score = queryWords.filter((word) => haystack.includes(word)).length;
-        return { candidate, score };
-      })
-      .filter((match) => match.score > 0)
-      .sort((a, b) => b.score - a.score);
-    const best = ranked[0]?.candidate || source;
-
-    return `
-      <h3>Knowledge Hub Answer</h3>
-      ${sourceCard(best)}
-      <p>${escapeHtml(best.purpose)}</p>
-      <p>This answer used only the ${escapeHtml(roleSelect instanceof HTMLSelectElement && roleSelect.value === "admin" ? "admin-allowed" : "approved/published")} source set.</p>
-    `;
-  }
-
-  function runAction(action) {
-    if (!output) return;
-
-    const source = getSelectedSource();
-    const notes = getNotes();
-    const handlers = {
-      "generate-sop": () => generateSop(source, notes),
-      checklist: () => checklist(source),
-      summarize: () => summarize(source),
-      clarity: () => improveClarity(source, notes),
-      "missing-steps": () => missingSteps(source),
-      "suggest-tags": () => suggestTags(source, notes),
-      duplicates: () => duplicateSops(source),
-      "ask-hub": () => askHub(source, notes),
-    };
-
-    output.innerHTML = handlers[action]?.() || "<p>Select an action to continue.</p>";
-  }
-
-  roleSelect?.addEventListener("change", renderSourceOptions);
 
   actions?.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
-
     const button = target.closest("[data-assist-action]");
-    if (!(button instanceof HTMLElement)) return;
-
+    if (!(button instanceof HTMLElement) || button.hasAttribute("disabled")) return;
     runAction(button.dataset.assistAction);
   });
 
-  renderSourceOptions();
-
-  async function hydrateAssistSources() {
-    try {
-      const records = await fetchAllPublishedSops();
-      const published = records.filter((sop) => sop.status === "Published").map(normalizeAiSource);
-      if (published.length) {
-        approvedSources = published;
-        renderSourceOptions();
-      }
-    } catch {
-      // Keep static approved sources when D1 is unavailable.
-    }
+  function maybeReloadForSubRoleChange() {
+    const next = readSelectedSubRole();
+    if (next === selectedSubRole) return;
+    selectedSubRole = next;
+    sources = [];
+    loadAssistOptions();
   }
 
-  hydrateAssistSources();
+  window.addEventListener("storage", (event) => {
+    if (event.key === SUB_ROLE_KEY) maybeReloadForSubRoleChange();
+  });
+  window.addEventListener("sop-role-change", maybeReloadForSubRoleChange);
+  window.addEventListener("sop-sub-role-change", maybeReloadForSubRoleChange);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) maybeReloadForSubRoleChange();
+  });
+
+  loadAssistOptions();
 </script>
