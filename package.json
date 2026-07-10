@@ -8,6 +8,7 @@
     "build": "astro build && pagefind --site dist --glob \"**/*.html\"",
     "preview": "astro preview",
     "check": "astro check",
+    "test:my-drafts-role-switching": "node scripts/my-drafts-role-switching-smoke.mjs",
     "cf:preview": "npm run build && npx wrangler pages dev dist",
     "cf:deploy:direct": "npm run build && npx wrangler pages deploy dist --project-name=sop-knowledge-hub",
     "db:migrate:local": "npx wrangler d1 migrations apply sop-knowledge-hub-db --local",
