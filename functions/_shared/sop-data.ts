@@ -53,6 +53,15 @@ function sopSelect() {
     categories.slug AS categorySlug,
     owner.id AS ownerId,
     owner.name AS owner,
+    (
+      SELECT reviewer_assignment.user_id
+      FROM sop_assignments reviewer_assignment
+      WHERE reviewer_assignment.sop_id = sops.id
+        AND reviewer_assignment.assignment_type = 'Reviewer'
+        AND reviewer_assignment.status = 'Active'
+      ORDER BY reviewer_assignment.due_at ASC, reviewer_assignment.user_id ASC
+      LIMIT 1
+    ) AS reviewerId,
     sops.owner_sub_role_id AS ownerSubRoleId,
     sub_roles.label AS ownerSubRole,
     sub_roles.department AS ownerDepartment,
@@ -102,6 +111,7 @@ export function normalizeSop(row: Record<string, unknown>) {
     categorySlug: row.categorySlug,
     ownerId: row.ownerId,
     owner: row.owner,
+    reviewerId: row.reviewerId,
     ownerSubRoleId: row.ownerSubRoleId,
     ownerSubRole: row.ownerSubRole,
     ownerDepartment: row.ownerDepartment,

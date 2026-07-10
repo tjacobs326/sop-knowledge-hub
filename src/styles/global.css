@@ -5437,6 +5437,19 @@ legend {
   box-shadow: var(--shadow-soft);
 }
 
+.drafts-context {
+  margin: var(--space-4) 0;
+  color: var(--color-muted);
+  font-weight: 700;
+}
+
+.table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
 table {
   width: 100%;
   min-width: 42rem;

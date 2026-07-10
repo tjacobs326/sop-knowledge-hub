@@ -155,6 +155,19 @@ const sopTypes = [
       .map((item) => item.trim())
       .filter(Boolean);
 
+  const arrayValue = (value) => {
+    if (Array.isArray(value)) return value.map(String).map((item) => item.trim()).filter(Boolean);
+    return splitList(value);
+  };
+
+  function normalizeDateValue(value) {
+    if (!value) return "";
+    if (typeof value === "number") return new Date(value * 1000).toISOString().slice(0, 10);
+    const raw = String(value);
+    if (/^\d+$/.test(raw)) return new Date(Number(raw) * 1000).toISOString().slice(0, 10);
+    return raw.slice(0, 10);
+  }
+
   function apiHeaders() {
     const subRole = localStorage.getItem(SUB_ROLE_KEY) || "";
     return {
@@ -240,6 +253,54 @@ const sopTypes = [
     ]
       .filter(Boolean)
       .join("\n\n");
+  }
+
+  function markdownSection(content, heading) {
+    const text = String(content || "");
+    const pattern = new RegExp(`^##\\s+${heading}\\s*$`, "im");
+    const match = text.match(pattern);
+    if (!match || match.index === undefined) return "";
+    const afterHeading = text.slice(match.index + match[0].length);
+    const nextHeading = afterHeading.search(/^##\s+/m);
+    return (nextHeading >= 0 ? afterHeading.slice(0, nextHeading) : afterHeading).trim();
+  }
+
+  function parseProcedureSteps(content, checklist) {
+    const procedure = markdownSection(content, "Procedure");
+    const steps = [];
+    let current = null;
+    procedure.split(/\r?\n/).forEach((line) => {
+      const stepMatch = line.match(/^\s*\d+\.\s+(.+?)\s*$/);
+      if (stepMatch) {
+        if (current) steps.push(current);
+        current = { title: stepMatch[1].trim(), instructions: "", note: "" };
+        return;
+      }
+      if (!current) return;
+      const cleaned = line.trim();
+      if (!cleaned) return;
+      if (/^note:/i.test(cleaned)) {
+        current.note = cleaned.replace(/^note:\s*/i, "");
+      } else {
+        current.instructions = [current.instructions, cleaned].filter(Boolean).join("\n");
+      }
+    });
+    if (current) steps.push(current);
+    if (steps.length) return steps;
+
+    const checklistSteps = String(checklist || "")
+      .split(/\r?\n/)
+      .map((item) => item.replace(/^[-*]\s*/, "").trim())
+      .filter(Boolean)
+      .map((title) => ({ title, instructions: title, note: "" }));
+    return checklistSteps.length ? checklistSteps : [{}];
+  }
+
+  function relatedSopsFromContent(content) {
+    return markdownSection(content, "Related SOPs")
+      .split(/\r?\n/)
+      .map((item) => item.replace(/^[-*]\s*/, "").trim())
+      .filter(Boolean);
   }
 
   function buildDraft(status = "Draft") {
@@ -434,27 +495,52 @@ const sopTypes = [
     }
   }
 
-  function loadEditSource() {
+  function fillFormFromSource(source) {
+    const version = source.version || {};
+    const metadata = source.metadata || version.metadata || {};
+    const content = version.content || source.bodyMarkdown || source.content || "";
+    currentSop = source.sourceId ? { id: source.sourceId } : source.id ? { id: source.id, currentVersionId: source.currentVersionId || version.id } : null;
+    setField("title", source.title);
+    setField("purpose", source.purpose || source.summary || version.purpose || version.summary);
+    setField("ownerId", source.ownerId);
+    setField("reviewerId", source.reviewerId);
+    setField("categoryId", source.categoryId);
+    setField("type", source.type || "Process");
+    setField("reviewDate", normalizeDateValue(source.reviewDate || source.reviewDueAt));
+    setField("tools", arrayValue(source.tools || metadata.tools).join(", "));
+    setField("audience", arrayValue(source.audience || metadata.audience).join(", "));
+    setField("tags", arrayValue(source.tags || metadata.tags).join(", "));
+    setField("estimatedCompletionTime", source.estimatedCompletionTime);
+    setField("beforeYouBegin", source.beforeYouBegin || version.beforeYouBegin);
+    setField("troubleshootingNotes", source.troubleshootingNotes || version.troubleshooting);
+    setField("relatedSops", arrayValue(source.relatedSops || relatedSopsFromContent(content)).join(", "));
+    setField("changeSummary", source.changeSummary || version.changeSummary);
+    setField("version", source.versionNumber || version.number || source.version || "0.1");
+    renderSteps(source.procedureSteps || parseProcedureSteps(content, source.checklist || version.checklist));
+    hasUnsavedChanges = false;
+  }
+
+  async function loadBackendEditSource(id) {
+    const response = await fetch(`/api/sops/${encodeURIComponent(id)}`, {
+      headers: apiHeaders(),
+      cache: "no-store",
+    });
+    const data = await parseApiResponse(response);
+    fillFormFromSource(data.sop || data);
+  }
+
+  async function loadEditSource() {
     const params = new URLSearchParams(window.location.search);
     if (!params.has("edit")) return;
+    const id = params.get("id");
+    if (id) {
+      await loadBackendEditSource(id);
+      return;
+    }
     try {
       const source = JSON.parse(sessionStorage.getItem(EDIT_SOP_STORAGE_KEY) || "null");
       if (!source) return;
-      currentSop = source.sourceId ? { id: source.sourceId } : source.id ? { id: source.id } : null;
-      setField("title", source.title);
-      setField("purpose", source.purpose);
-      setField("type", source.type || "Process");
-      setField("reviewDate", source.reviewDate);
-      setField("tools", (source.tools || []).join(", "));
-      setField("audience", (source.audience || []).join(", "));
-      setField("tags", (source.tags || []).join(", "));
-      setField("estimatedCompletionTime", source.estimatedCompletionTime);
-      setField("beforeYouBegin", source.beforeYouBegin);
-      setField("troubleshootingNotes", source.troubleshootingNotes);
-      setField("relatedSops", (source.relatedSops || []).join(", "));
-      setField("changeSummary", source.changeSummary);
-      setField("version", source.version || "0.1");
-      renderSteps(source.procedureSteps || [{}]);
+      fillFormFromSource(source);
     } catch {
       // If edit context is unavailable, start a clean backend draft.
     }
@@ -546,7 +632,7 @@ const sopTypes = [
   });
 
   renderSteps([{}]);
-  loadOptions().then(loadEditSource).catch((error) => {
+  loadOptions().then(() => loadEditSource()).catch((error) => {
     if (errorsEl) {
       errorsEl.hidden = false;
       errorsEl.innerHTML = `<p>${escapeHtml(error instanceof Error ? error.message : "Create SOP setup could not load.")}</p>`;

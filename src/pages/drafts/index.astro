@@ -1,11 +1,6 @@
 ---
 import Layout from "../../components/Layout.astro";
-import StatusBadge from "../../components/StatusBadge.astro";
-import { mockDrafts } from "../../data/mock-drafts";
 import { statusBadgeDefinitions } from "../../lib/badges";
-import { DRAFTS_STORAGE_KEY, EDIT_SOP_STORAGE_KEY } from "../../lib/drafts";
-
-// Future access note: restrict this route to SOP creators and reviewers with Cloudflare Access.
 ---
 
 <Layout title="My Drafts" wide>
@@ -13,13 +8,16 @@ import { DRAFTS_STORAGE_KEY, EDIT_SOP_STORAGE_KEY } from "../../lib/drafts";
     <div class="section-heading">
       <p class="eyebrow">Creators / Reviewers</p>
       <h1 id="drafts-heading">My Drafts</h1>
-      <p>Review saved SOP drafts and continue work before submitting them for review.</p>
+      <p>Review backend SOP drafts you are allowed to edit, continue, submit, preview, or archive.</p>
     </div>
 
     <div class="form-actions">
       <a class="button button--primary" href="/create/">Create SOP</a>
       <a class="button button--secondary" href="/admin/review/">Review Queue</a>
+      <a class="button button--ghost" href="/my-work/">My Work</a>
     </div>
+
+    <div class="drafts-context" id="drafts-context" role="status">Loading draft access context...</div>
 
     <div class="table-wrap" data-drafts-table>
       <table>
@@ -30,106 +28,192 @@ import { DRAFTS_STORAGE_KEY, EDIT_SOP_STORAGE_KEY } from "../../lib/drafts";
             <th scope="col">Status</th>
             <th scope="col">Owner</th>
             <th scope="col">Review Date</th>
+            <th scope="col">Assigned Reviewer</th>
+            <th scope="col">Last Updated</th>
             <th scope="col">Action</th>
           </tr>
         </thead>
         <tbody id="drafts-list">
-          {mockDrafts.map((draft) => (
-            <tr>
-              <td>{draft.title}</td>
-              <td>{draft.category}</td>
-              <td><StatusBadge status={draft.status} /></td>
-              <td>{draft.owner}</td>
-              <td>{draft.reviewDate}</td>
-              <td>
-                <button class="button button--secondary" type="button" data-edit-draft={draft.id}>
-                  Edit Draft
-                </button>
-              </td>
-            </tr>
-          ))}
+          <tr>
+            <td colspan="8">
+              <div class="empty-state empty-state--table">
+                <strong>Loading drafts</strong>
+                <p>Connecting to the live Cloudflare database.</p>
+              </div>
+            </td>
+          </tr>
         </tbody>
       </table>
     </div>
+
+    <div class="form-errors" id="drafts-errors" role="alert" hidden></div>
+    <div class="confirmation" id="drafts-confirmation" role="status" hidden></div>
   </section>
 </Layout>
 
-<script
-  is:inline
-  define:vars={{ DRAFTS_STORAGE_KEY, EDIT_SOP_STORAGE_KEY, mockDrafts, statusBadgeDefinitions }}
->
+<script is:inline define:vars={{ statusBadgeDefinitions }}>
   const list = document.getElementById("drafts-list");
-  let currentDrafts = [...mockDrafts];
+  const contextEl = document.getElementById("drafts-context");
+  const errorsEl = document.getElementById("drafts-errors");
+  const confirmation = document.getElementById("drafts-confirmation");
+  const SUB_ROLE_KEY = "sopHubSelectedCreatorSubRole";
+  let currentDrafts = [];
+  let canArchive = false;
 
   const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (character) => {
-      const replacements = {
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;",
-      };
+      const replacements = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
       return replacements[character];
     });
 
+  function apiHeaders() {
+    const subRole = localStorage.getItem(SUB_ROLE_KEY) || "";
+    return {
+      accept: "application/json",
+      "content-type": "application/json",
+      ...(subRole ? { "x-sop-sub-role": subRole } : {}),
+    };
+  }
+
+  function selectedSubRoleQuery() {
+    const subRole = localStorage.getItem(SUB_ROLE_KEY) || "";
+    return subRole ? `?subRole=${encodeURIComponent(subRole)}` : "";
+  }
+
+  async function parseApiResponse(response) {
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data?.success === false) {
+      throw new Error(data?.error?.message || data?.error || `Request failed: ${response.status}`);
+    }
+    return data.data || data;
+  }
+
   function statusBadge(status) {
-    const key = String(status || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const key = String(status || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
     const badge = statusBadgeDefinitions[key] || {
-      label: status || "New",
-      className: "status-badge--new",
+      label: status || "Draft",
+      className: "status-badge--draft",
     };
     return `<span class="badge status-badge ${escapeHtml(badge.className)}"><span class="sr-only">Status:</span>${escapeHtml(
       badge.label,
     )}</span>`;
   }
 
-  try {
-    const localDrafts = JSON.parse(localStorage.getItem(DRAFTS_STORAGE_KEY) || "[]");
-    if (Array.isArray(localDrafts) && localDrafts.length > 0 && list) {
-      currentDrafts = localDrafts;
-      list.innerHTML = localDrafts
-        .map(
-          (draft) => `
-            <tr>
-              <td>${escapeHtml(draft.title)}</td>
-              <td>${escapeHtml(draft.category)}</td>
-              <td>${statusBadge(draft.status)}</td>
-              <td>${escapeHtml(draft.owner)}</td>
-              <td>${escapeHtml(draft.reviewDate)}</td>
-              <td>
-                <button class="button button--secondary" type="button" data-edit-draft="${escapeHtml(
-                  draft.id,
-                )}">
-                  Edit Draft
-                </button>
-              </td>
-            </tr>
-          `,
-        )
-        .join("");
+  function formatDate(value) {
+    if (!value) return "Not set";
+    const date = new Date(String(value).includes("T") ? value : `${value}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  }
+
+  function emptyRow(title, message) {
+    return `<tr><td colspan="8"><div class="empty-state empty-state--table"><strong>${escapeHtml(
+      title,
+    )}</strong><p>${escapeHtml(message)}</p></div></td></tr>`;
+  }
+
+  function renderContext(data) {
+    const context = data.context || {};
+    const user = context.selectedUser?.name || "Selected creator/reviewer";
+    const subRole = context.selectedSubRole?.label || "selected department";
+    const count = Number(data.counts?.drafts || currentDrafts.length || 0);
+    if (contextEl) {
+      contextEl.textContent = `${count} editable draft${count === 1 ? "" : "s"} loaded for ${user} in ${subRole}.`;
     }
-  } catch {
-    // Keep the sample rows if local draft storage is unavailable.
+  }
+
+  function renderDrafts(data) {
+    currentDrafts = Array.isArray(data.drafts) ? data.drafts : [];
+    canArchive = Boolean(data.context?.canArchive);
+    renderContext(data);
+    if (!list) return;
+    if (!currentDrafts.length) {
+      list.innerHTML = emptyRow(
+        "No editable drafts",
+        "There are no backend drafts assigned to this user, role, department, or selected sub-role.",
+      );
+      return;
+    }
+
+    list.innerHTML = currentDrafts
+      .map(
+        (draft) => `
+          <tr>
+            <td><strong>${escapeHtml(draft.title)}</strong></td>
+            <td>${escapeHtml(draft.category)}</td>
+            <td>${statusBadge(draft.status)}</td>
+            <td>${escapeHtml(draft.owner)}</td>
+            <td>${escapeHtml(formatDate(draft.reviewDate))}</td>
+            <td>${escapeHtml(draft.assignedReviewer || "Unassigned")}</td>
+            <td>${escapeHtml(formatDate(draft.updatedDate))}</td>
+            <td>
+              <div class="table-actions">
+                <a class="button button--secondary" href="${escapeHtml(draft.editUrl)}">Edit Draft</a>
+                <a class="button button--ghost" href="${escapeHtml(draft.detailUrl)}">Preview</a>
+                ${
+                  canArchive
+                    ? `<button class="button button--danger" type="button" data-archive-draft="${escapeHtml(draft.id)}">Archive</button>`
+                    : ""
+                }
+              </div>
+            </td>
+          </tr>
+        `,
+      )
+      .join("");
+  }
+
+  function showError(error) {
+    if (errorsEl) {
+      errorsEl.hidden = false;
+      errorsEl.innerHTML = `<p>${escapeHtml(error instanceof Error ? error.message : "Drafts could not load.")}</p>`;
+    }
+    if (list) {
+      list.innerHTML = emptyRow("Drafts unavailable", "The backend draft list could not be loaded. Please refresh and try again.");
+    }
+  }
+
+  async function loadDrafts() {
+    if (errorsEl) errorsEl.hidden = true;
+    if (confirmation) confirmation.hidden = true;
+    if (list) {
+      list.innerHTML = emptyRow("Loading drafts", "Connecting to the live Cloudflare database.");
+    }
+    const response = await fetch(`/api/my-drafts${selectedSubRoleQuery()}`, {
+      headers: apiHeaders(),
+      cache: "no-store",
+    });
+    renderDrafts(await parseApiResponse(response));
+  }
+
+  async function archiveDraft(id) {
+    const draft = currentDrafts.find((item) => item.id === id);
+    if (!draft || !window.confirm(`Archive "${draft.title}"? This removes it from active draft queues.`)) return;
+    const response = await fetch(`/api/sops/${encodeURIComponent(id)}/archive`, {
+      method: "POST",
+      headers: apiHeaders(),
+      body: JSON.stringify({ notes: "Archived from My Drafts." }),
+    });
+    await parseApiResponse(response);
+    if (confirmation) {
+      confirmation.hidden = false;
+      confirmation.innerHTML = `<strong>Draft archived.</strong><p>${escapeHtml(draft.title)} was removed from active draft queues.</p>`;
+    }
+    await loadDrafts();
   }
 
   list?.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
-
-    const button = target.closest("[data-edit-draft]");
-    if (!(button instanceof HTMLElement)) return;
-
-    const draft = currentDrafts.find((item) => item.id === button.dataset.editDraft);
-    if (!draft) return;
-
-    sessionStorage.setItem(
-      EDIT_SOP_STORAGE_KEY,
-      JSON.stringify({
-        ...draft,
-        editMode: "draft",
-      }),
-    );
-    window.location.href = `/create/?edit=draft&id=${encodeURIComponent(draft.id)}`;
+    const archiveButton = target.closest("[data-archive-draft]");
+    if (archiveButton instanceof HTMLElement) {
+      archiveDraft(archiveButton.dataset.archiveDraft || "").catch(showError);
+    }
   });
+
+  window.addEventListener("storage", (event) => {
+    if (event.key === SUB_ROLE_KEY) loadDrafts().catch(showError);
+  });
+
+  loadDrafts().catch(showError);
 </script>
