@@ -428,6 +428,22 @@ function summarize(items: Array<{ status: unknown; priority: unknown }>) {
   };
 }
 
+function needsReviewStatus(status: unknown) {
+  return [
+    "submitted",
+    "assigned",
+    "draft",
+    "under-review",
+    "in-review",
+    "needs-more-information",
+    "needs-revision",
+    "accepted",
+    "in-progress",
+    "draft-created",
+    "in-approval",
+  ].includes(statusKey(status));
+}
+
 export const onRequestGet = async (context: PagesFunctionContext) => {
   const missingDb = requireDb(context.env.DB);
   if (missingDb) return missingDb;
@@ -438,6 +454,7 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
   if (resolved.response || !resolved.subRole || !resolved.user) return resolved.response;
 
   const url = new URL(context.request.url);
+  const view = optionalText(url.searchParams.get("view"), 40);
   const requestedUserId = optionalText(url.searchParams.get("userId"), 160);
   const users = await usersForSubRole(db, resolved.subRole);
   const selectedUser =
@@ -450,7 +467,8 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
     queryRequests(db, resolved.subRole, selectedUser, resolved.user),
     querySopReviews(db, resolved.subRole, selectedUser, resolved.user),
   ]);
-  const items = [...requests, ...sops].sort((a, b) => String(b.updatedDate).localeCompare(String(a.updatedDate)));
+  const allItems = [...requests, ...sops].sort((a, b) => String(b.updatedDate).localeCompare(String(a.updatedDate)));
+  const items = view === "needs-review" ? allItems.filter((item) => needsReviewStatus(item.status)) : allItems;
 
   return new Response(
     JSON.stringify({
@@ -464,7 +482,7 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
           permissions: resolved.user.permissions,
         },
         viewOptions: { users, subRoles: [resolved.subRole] },
-        counts: summarize(items),
+        counts: summarize(allItems),
         items,
       },
     }),

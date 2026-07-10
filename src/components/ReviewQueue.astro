@@ -1,6 +1,13 @@
 ---
 import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../lib/badges";
 
+interface Props {
+  mode?: "queue" | "needs-review";
+}
+
+const { mode = "queue" } = Astro.props;
+const isNeedsReviewMode = mode === "needs-review";
+
 const filters = [
   "All",
   "Internal Drafts",
@@ -22,18 +29,24 @@ const summaryFilters = [
   { label: "Archived", key: "archived", filter: "summary:archived" },
   { label: "Published", key: "published", filter: "summary:published" },
 ];
+
+const heading = isNeedsReviewMode ? "Needs Review" : "Admin Review Control Center";
+const eyebrow = isNeedsReviewMode ? "Creators / Reviewers" : "Review Queue";
+const description = isNeedsReviewMode
+  ? "Review backend SOP submissions, drafts, updates, and requests assigned to your selected department."
+  : "Review, assign, approve, request changes, publish, and archive backend SOP work from one queue.";
 ---
 
 <section class="tool-surface review-queue" aria-labelledby="review-heading">
   <div class="section-heading">
-    <p class="eyebrow">Review Queue</p>
-    <h1 id="review-heading">Admin Review Control Center</h1>
-    <p>Review, assign, approve, request changes, publish, and archive backend SOP work from one queue.</p>
+    <p class="eyebrow">{eyebrow}</p>
+    <h1 id="review-heading">{heading}</h1>
+    <p>{description}</p>
   </div>
 
   <div class="drafts-context" id="review-context" role="status">Loading review queue context...</div>
 
-  <div class="stat-grid review-summary" aria-label="Review queue counts">
+  {!isNeedsReviewMode && <div class="stat-grid review-summary" aria-label="Review queue counts">
     {summaryFilters.map((summary) => (
       <button
         class="stat-card review-summary__card"
@@ -47,9 +60,9 @@ const summaryFilters = [
         <strong data-review-summary-count>0</strong>
       </button>
     ))}
-  </div>
+  </div>}
 
-  <div class="filter-tabs no-print" role="tablist" aria-label="Review queue filters">
+  {!isNeedsReviewMode && <div class="filter-tabs no-print" role="tablist" aria-label="Review queue filters">
     {filters.map((filter, index) => (
       <button
         class="filter-tab"
@@ -61,7 +74,7 @@ const summaryFilters = [
         {filter}
       </button>
     ))}
-  </div>
+  </div>}
 
   <div id="review-errors" class="form-errors" role="alert" hidden></div>
   <div id="review-confirmation" class="confirmation" role="status" hidden></div>
@@ -73,7 +86,7 @@ const summaryFilters = [
   </div>
 </section>
 
-<script is:inline define:vars={{ summaryFilters, priorityBadgeDefinitions, statusBadgeDefinitions }}>
+<script is:inline define:vars={{ summaryFilters, priorityBadgeDefinitions, statusBadgeDefinitions, isNeedsReviewMode }}>
   const list = document.getElementById("review-list");
   const contextEl = document.getElementById("review-context");
   const errorsEl = document.getElementById("review-errors");
@@ -81,7 +94,7 @@ const summaryFilters = [
   const tabs = Array.from(document.querySelectorAll("[data-review-filter]"));
   const summaryCards = Array.from(document.querySelectorAll("[data-review-summary-filter]"));
   const SUB_ROLE_KEY = "sopHubSelectedCreatorSubRole";
-  let activeFilter = "All";
+  let activeFilter = isNeedsReviewMode ? "summary:needs-review" : "All";
   let queueItems = [];
   let queueCounts = {};
   let reviewerMembers = [];
@@ -103,7 +116,11 @@ const summaryFilters = [
 
   function selectedSubRoleQuery() {
     const subRole = localStorage.getItem(SUB_ROLE_KEY) || "";
-    return subRole ? `?subRole=${encodeURIComponent(subRole)}` : "";
+    const params = new URLSearchParams();
+    if (subRole) params.set("subRole", subRole);
+    if (isNeedsReviewMode) params.set("view", "needs-review");
+    const query = params.toString();
+    return query ? `?${query}` : "";
   }
 
   async function parseApiResponse(response) {
@@ -171,6 +188,7 @@ const summaryFilters = [
   }
 
   function filterItem(item) {
+    if (isNeedsReviewMode) return matchesSummary(item, "summary:needs-review");
     if (activeFilter.startsWith("summary:")) return matchesSummary(item, activeFilter);
     if (activeFilter === "All") return true;
     if (activeFilter === "Urgent") return ["High", "Urgent"].includes(item.priority);
@@ -266,7 +284,10 @@ const summaryFilters = [
     const context = data.context || {};
     const user = context.selectedUser?.name || "Selected reviewer";
     const subRole = context.selectedSubRole?.label || "selected department";
-    if (contextEl) contextEl.textContent = `${queueItems.length} backend review item${queueItems.length === 1 ? "" : "s"} loaded for ${user} in ${subRole}.`;
+    const visibleItems = queueItems.filter(filterItem);
+    if (contextEl) {
+      contextEl.textContent = `${visibleItems.length} backend ${isNeedsReviewMode ? "needs-review" : "review"} item${visibleItems.length === 1 ? "" : "s"} loaded for ${user} in ${subRole}.`;
+    }
   }
 
   function render() {
@@ -275,7 +296,7 @@ const summaryFilters = [
     const items = queueItems.filter(filterItem);
     list.innerHTML = items.length
       ? items.map(renderItem).join("")
-      : `<div class="empty-state"><strong>No review items</strong><p>No backend review records match this filter for the selected user, role, department, or sub-role.</p></div>`;
+      : `<div class="empty-state"><strong>No review items</strong><p>No backend review records ${isNeedsReviewMode ? "currently need your review" : "match this filter"} for the selected user, role, department, or sub-role.</p></div>`;
   }
 
   function showError(error) {
