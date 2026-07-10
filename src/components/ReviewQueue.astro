@@ -24,21 +24,22 @@ const filters = [
   "Updates",
   "Templates",
   "Urgent",
+  "Declined",
   "Approved",
   "Published",
-  "Archived",
+  "Closed",
 ];
 
 const summaryFilters = [
-  { label: "New", filter: "summary:new", statuses: ["Submitted", "Triage"] },
+  { label: "New", filter: "summary:new", statuses: ["Submitted", "Assigned"] },
   {
     label: "Needs Review",
     filter: "summary:needs-review",
-    statuses: ["In Review", "Needs More Information", "Needs Revision"],
+    statuses: ["Under Review", "Needs More Information", "Accepted", "In Progress", "Draft Created", "In Approval"],
   },
   { label: "Urgent", filter: "summary:urgent", priorities: ["High", "Urgent"], tabFilter: "Urgent" },
   { label: "Approved", filter: "summary:approved", statuses: ["Approved"], tabFilter: "Approved" },
-  { label: "Archived", filter: "summary:archived", statuses: ["Archived"], tabFilter: "Archived" },
+  { label: "Closed", filter: "summary:closed", statuses: ["Closed", "Declined", "Published"], tabFilter: "Closed" },
 ];
 
 function itemMatchesSummaryFilter(item: ReviewQueueItem, summary: (typeof summaryFilters)[number]) {
@@ -117,16 +118,19 @@ const reviewerMembers = userAccounts.filter(
 
   const workflowStatuses = [
     "Submitted",
-    "Triage",
     "Assigned",
-    "Drafting",
-    "In Review",
+    "Under Review",
     "Needs More Information",
-    "Needs Revision",
+    "Accepted",
+    "Declined",
+    "In Progress",
+    "Draft Created",
+    "In Approval",
     "Approved",
     "Published",
-    "Archived",
+    "Closed",
   ];
+  let backendItems = [];
 
   const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (character) => {
@@ -161,11 +165,11 @@ const reviewerMembers = userAccounts.filter(
   }
 
   function getItems() {
-    return mergeById(initialItems, readStorage(REVIEW_QUEUE_STORAGE_KEY));
+    return backendItems;
   }
 
   function saveItems(items) {
-    writeStorage(REVIEW_QUEUE_STORAGE_KEY, items);
+    backendItems = items;
   }
 
   function getSubmissions() {
@@ -259,7 +263,9 @@ const reviewerMembers = userAccounts.filter(
       `<option value="">Unassigned</option>`,
       ...members.map(
         (member) =>
-          `<option value="${escapeHtml(member.name)}" ${member.name === selected ? "selected" : ""}>${escapeHtml(
+          `<option value="${escapeHtml(member.id || member.name)}" ${
+            member.id === selected || member.name === selected ? "selected" : ""
+          }>${escapeHtml(
             member.name,
           )} - ${escapeHtml(member.department)}</option>`,
       ),
@@ -305,10 +311,19 @@ const reviewerMembers = userAccounts.filter(
                   </label>
                   <label>
                     <span>Assigned reviewer</span>
-                    <select data-review-assignee>${assigneeOptions(item.assignedOwner)}</select>
+                    <select data-review-assignee>${assigneeOptions(item.assignedTo || item.assignedOwner)}</select>
+                  </label>
+                  <label class="field--full">
+                    <span>Reviewer notes / reason</span>
+                    <textarea data-review-notes rows="2" placeholder="Add reviewer notes, denial reason, or instructions.">${escapeHtml(
+                      item.reviewerNotes || item.denialReason || "",
+                    )}</textarea>
                   </label>
                   <button class="button button--primary" type="button" data-review-action="review">Review</button>
+                  <button class="button button--secondary" type="button" data-review-action="accept">Accept</button>
                   <button class="button button--secondary" type="button" data-review-action="assign">Assign</button>
+                  <button class="button button--secondary" type="button" data-review-action="more-info">Need Info</button>
+                  <button class="button button--danger" type="button" data-review-action="decline">Decline</button>
                   <button class="button button--secondary" type="button" data-review-action="approve">Approve</button>
                   <button class="button button--primary" type="button" data-review-action="publish">Publish</button>
                   <button class="button button--secondary" type="button" data-review-action="revision">Request Changes</button>
@@ -326,10 +341,77 @@ const reviewerMembers = userAccounts.filter(
         : "<p>No review items match this filter.</p>";
   }
 
-  function updateItem(id, patch) {
+  async function saveBackendRequest(id, patch, action = "update") {
+    const response = await fetch("/api/sop-requests", {
+      method: "PUT",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({ id, action, ...patch }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data?.success === false) {
+      throw new Error(data?.error?.message || "Request update failed.");
+    }
+    return data.data?.request || data.request;
+  }
+
+  async function updateItem(id, patch, action = "update") {
+    const existing = getItems().find((item) => item.id === id);
+    if (existing?.backend) {
+      try {
+        const saved = await saveBackendRequest(existing.originalId || id, patch, action);
+        const normalized = normalizeBackendRequest(saved);
+        backendItems = backendItems.map((item) => (item.id === normalized.id ? normalized : item));
+        if (!backendItems.some((item) => item.id === normalized.id)) backendItems.unshift(normalized);
+        render();
+        return;
+      } catch (error) {
+        window.alert(error instanceof Error ? error.message : "The backend request could not be updated.");
+        return;
+      }
+    }
     const items = getItems().map((item) => (item.id === id ? { ...item, ...patch } : item));
     saveItems(items);
     render();
+  }
+
+  function normalizeBackendRequest(request) {
+    return {
+      id: request.id,
+      originalId: request.id,
+      backend: true,
+      source: "Backend SOP Request",
+      submissionType: request.requestType || "Request a new SOP",
+      title: request.requestedTitle || "Untitled SOP Request",
+      department: request.departmentName || request.assignedDepartment || "Not listed",
+      submittedBy: request.submittedByName || request.submittedByEmail || "Unknown",
+      category: request.category || "Uncategorized",
+      priority: request.priority || "Medium",
+      status: request.status || "Submitted",
+      assignedTo: request.assignedTo || "",
+      assignedOwner: request.assignedToName || request.assignedDepartment || "Unassigned",
+      createdDate: request.createdAt ? new Date(Number(request.createdAt) * 1000).toISOString().slice(0, 10) : "",
+      reviewDate: request.desiredCompletionAt
+        ? new Date(Number(request.desiredCompletionAt) * 1000).toISOString().slice(0, 10)
+        : "",
+      reviewerNotes: request.reviewerNotes || "",
+      denialReason: request.denialReason || "",
+      draftSopId: request.draftSopId || "",
+      relatedSopId: request.relatedSopId || request.existingSopId || "",
+    };
+  }
+
+  async function hydrateBackendRequests() {
+    try {
+      const response = await fetch("/api/sop-requests", { headers: { accept: "application/json" }, cache: "no-store" });
+      if (!response.ok) return;
+      const data = await response.json();
+      const requests = data.data?.requests || data.requests || [];
+      backendItems = requests.map(normalizeBackendRequest);
+      render();
+    } catch {
+      backendItems = [];
+      render();
+    }
   }
 
   function slugify(value) {
@@ -516,12 +598,12 @@ const reviewerMembers = userAccounts.filter(
     const item = getItems().find((record) => record.id === card.dataset.reviewId);
     if (!item) return;
 
-    if (target.value === "Published") {
+    if (target.value === "Published" && !item.backend) {
       publishReviewItem(item);
       return;
     }
 
-    updateItem(card.dataset.reviewId, { status: target.value });
+    updateItem(card.dataset.reviewId, { status: target.value }, "update");
   });
 
   list?.addEventListener("click", (event) => {
@@ -537,39 +619,56 @@ const reviewerMembers = userAccounts.filter(
     const id = card.dataset.reviewId;
     const item = getItems().find((record) => record.id === id);
     if (!item) return;
+    const notesField = card.querySelector("[data-review-notes]");
+    const reviewerNotes = notesField instanceof HTMLTextAreaElement ? notesField.value.trim() : "";
 
     const action = button.dataset.reviewAction;
     const actionStatus = {
+      accept: "Accepted",
+      decline: "Declined",
       "more-info": "Needs More Information",
-      drafting: "Drafting",
-      review: "In Review",
-      revision: "Needs Revision",
+      drafting: "In Progress",
+      review: "Under Review",
+      revision: "Needs More Information",
       approve: "Approved",
       publish: "Published",
-      archive: "Archived",
+      archive: "Closed",
     };
 
     if (action === "assign") {
       const assigneeSelect = card.querySelector("[data-review-assignee]");
       const owner = assigneeSelect instanceof HTMLSelectElement ? assigneeSelect.value : "";
-      updateItem(id, { assignedOwner: owner || "Unassigned", status: "Assigned" });
+      updateItem(id, { assignedTo: owner || "", assignedOwner: owner || "Unassigned", status: "Assigned", reviewerNotes }, "assign");
       return;
     }
 
     if (action === "convert") {
+      if (item.backend) {
+        updateItem(id, { reviewerNotes }, "convert");
+        return;
+      }
       convertSubmission(item);
       return;
     }
 
-    if (actionStatus[action] === "Published") {
+    if (actionStatus[action] === "Published" && !item.backend) {
       publishReviewItem(item);
       return;
     }
 
     if (actionStatus[action]) {
-      updateItem(id, { status: actionStatus[action] });
+      updateItem(
+        id,
+        {
+          status: actionStatus[action],
+          reviewerNotes,
+          denialReason: action === "decline" ? reviewerNotes : "",
+        },
+        action,
+      );
     }
   });
 
   render();
+  hydrateBackendRequests();
 </script>

@@ -13,7 +13,7 @@ export const roleAccessViews = [
     label: "Creators / Reviewers",
     description: "Create SOPs, manage drafts, review submissions, and handle assigned work.",
     landingPage: "/my-work/",
-    options: ["My Work", "AI Assist", "Create SOP", "Review Queue", "Needs Review"],
+    options: ["Home", "My Work", "AI Assist", "Create SOP", "Review Queue", "Needs Review"],
   },
   {
     id: "admin",

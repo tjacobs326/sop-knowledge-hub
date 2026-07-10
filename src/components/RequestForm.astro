@@ -1,10 +1,5 @@
 ---
-import { categories } from "../data/categories";
 import AppIcon from "./AppIcon.astro";
-import {
-  REVIEW_QUEUE_STORAGE_KEY,
-  SUBMISSIONS_STORAGE_KEY,
-} from "../lib/submissions";
 
 const submissionTypes = [
   "Request a new SOP",
@@ -151,8 +146,7 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
     <div class="field">
       <label for="request-category">Category</label>
       <select id="request-category" name="category" required>
-        <option value="">Select category</option>
-        {categories.map((category) => <option value={category.name}>{category.name}</option>)}
+        <option value="">Loading categories...</option>
       </select>
     </div>
     <div class="field">
@@ -247,13 +241,7 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
   </form>
 </section>
 
-<script
-  is:inline
-  define:vars={{
-    SUBMISSIONS_STORAGE_KEY,
-    REVIEW_QUEUE_STORAGE_KEY,
-  }}
->
+<script is:inline>
   const form = document.getElementById("request-form");
   const errorsEl = document.getElementById("request-errors");
   const confirmationEl = document.getElementById("request-confirmation");
@@ -262,6 +250,7 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
   const attachmentList = document.querySelector("[data-attachment-list]");
   const attachmentPasteTarget = document.querySelector("[data-attachment-paste]");
   const submitButton = form?.querySelector('button[type="submit"]');
+  const categorySelect = document.getElementById("request-category");
 
   const attachments = [];
 
@@ -296,18 +285,6 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
       element instanceof HTMLTextAreaElement
       ? element.value.trim()
       : "";
-  }
-
-  function readStorage(key) {
-    try {
-      return JSON.parse(localStorage.getItem(key) || "[]");
-    } catch {
-      return [];
-    }
-  }
-
-  function writeStorage(key, value) {
-    localStorage.setItem(key, JSON.stringify(value));
   }
 
   function formatFileSize(size) {
@@ -463,6 +440,10 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
 
   function buildSubmission() {
     const now = new Date().toISOString().slice(0, 10);
+    const selectedCategory =
+      categorySelect instanceof HTMLSelectElement
+        ? categorySelect.selectedOptions[0]
+        : null;
     return {
       id: `sub-${Date.now()}`,
       source: "Outside Department Submission",
@@ -473,7 +454,8 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
       submitterEmail: getField("submitterEmail"),
       submitterRole: getField("submitterRole"),
       bestContactMethod: getField("bestContactMethod"),
-      category: getField("category"),
+      categoryId: getField("category"),
+      category: selectedCategory?.dataset.categoryName || selectedCategory?.textContent?.trim() || "",
       toolOrSystem: getField("toolOrSystem"),
       audience: getField("audience"),
       businessNeed: getField("businessNeed"),
@@ -526,6 +508,14 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
         draftContent: draftLines,
         relatedLinks: submission.relatedResources,
         documentationLocation: submission.documentationLocation,
+        categoryId: submission.categoryId,
+        category: submission.category,
+        toolOrSystem: submission.toolOrSystem,
+        audience: submission.audience,
+        bestContactMethod: submission.bestContactMethod,
+        frequency: submission.frequency,
+        requestedSopType: submission.submissionType === "Request a template" ? "Template" : "Process",
+        requestNotes: submission.additionalNotes,
       }),
     });
 
@@ -539,6 +529,29 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
     return data?.data?.request;
   }
 
+  async function loadRequestCategories() {
+    if (!(categorySelect instanceof HTMLSelectElement)) return;
+    try {
+      const response = await fetch("/api/categories", { headers: { accept: "application/json" } });
+      if (!response.ok) throw new Error("Categories failed to load.");
+      const payload = await response.json();
+      const categories = payload.categories || payload.data?.categories || [];
+      const options = categories
+        .filter((category) => Number(category.sopCount || category.count || 0) > 0)
+        .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")))
+        .map(
+          (category) =>
+            `<option value="${escapeHtml(category.id || category.slug || category.name)}" data-category-name="${escapeHtml(
+              category.name,
+            )}">${escapeHtml(category.name)}</option>`,
+        )
+        .join("");
+      categorySelect.innerHTML = `<option value="">Select category</option>${options}`;
+    } catch {
+      categorySelect.innerHTML = `<option value="">Categories could not load</option>`;
+    }
+  }
+
   form?.addEventListener("submit", async (event) => {
     event.preventDefault();
 
@@ -550,62 +563,40 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
       submitButton.textContent = "Submitting...";
     }
 
-    let backendRequest = null;
     try {
-      backendRequest = await sendSubmissionToApi(submission);
+      const backendRequest = await sendSubmissionToApi(submission);
       if (backendRequest?.id) {
         submission.id = backendRequest.id;
       }
+      form.reset();
+      attachments.splice(0, attachments.length);
+      renderAttachments();
+      if (attachmentFileInput instanceof HTMLInputElement) {
+        attachmentFileInput.value = "";
+      }
+      confirmationEl.hidden = false;
+      confirmationEl.innerHTML = `<strong>Your SOP submission has been saved.</strong><p>Tracking ID: ${escapeHtml(
+        backendRequest?.id || submission.id,
+      )}. Status: ${escapeHtml(
+        backendRequest?.status || "Submitted",
+      )}. Routing: ${escapeHtml(
+        backendRequest?.assignedDepartment || "SOP review queue",
+      )}. The SOP team can now review, assign, accept, decline, convert, approve, and publish this request.</p>`;
+      confirmationEl.scrollIntoView({ behavior: "smooth", block: "center" });
     } catch (error) {
       if (errorsEl instanceof HTMLElement) {
         errorsEl.hidden = false;
         errorsEl.innerHTML = `<p>${escapeHtml(
           error instanceof Error
-            ? `${error.message} The request was saved locally so the current demo workflow still works.`
-            : "The request was saved locally so the current demo workflow still works.",
+            ? error.message
+            : "The request could not be saved to the backend. Please try again.",
         )}</p>`;
       }
-    }
-
-    const submissions = readStorage(SUBMISSIONS_STORAGE_KEY);
-    writeStorage(SUBMISSIONS_STORAGE_KEY, [...submissions, submission]);
-
-    const reviewItem = {
-      id: `review-${submission.id}`,
-      source: submission.source,
-      submissionType: submission.submissionType,
-      title: submission.title,
-      department: submission.department,
-      submittedBy: submission.submittedBy,
-      category: submission.category,
-      priority: submission.priority,
-      status: "Submitted",
-      assignedOwner: "",
-      createdDate: submission.createdDate,
-      reviewDate: submission.reviewDate,
-      originalId: submission.id,
-    };
-    const reviewItems = readStorage(REVIEW_QUEUE_STORAGE_KEY);
-    writeStorage(REVIEW_QUEUE_STORAGE_KEY, [...reviewItems, reviewItem]);
-
-    form.reset();
-    attachments.splice(0, attachments.length);
-    renderAttachments();
-    if (attachmentFileInput instanceof HTMLInputElement) {
-      attachmentFileInput.value = "";
-    }
-    confirmationEl.hidden = false;
-    confirmationEl.innerHTML =
-      backendRequest?.id
-        ? `<strong>Your SOP submission has been saved to D1.</strong><p>Tracking ID: ${escapeHtml(
-            backendRequest.id,
-          )}. Next steps: The SOP team will triage your submission, assign an owner, review the details, and follow up if more information is needed.</p>`
-        : "<strong>Your SOP submission has been received locally.</strong><p>Next steps: The SOP team will triage your submission, assign an owner, review the details, and follow up if more information is needed.</p>";
-    confirmationEl.scrollIntoView({ behavior: "smooth", block: "center" });
-
-    if (submitButton instanceof HTMLButtonElement) {
-      submitButton.disabled = false;
-      submitButton.textContent = "Submit SOP Request";
+    } finally {
+      if (submitButton instanceof HTMLButtonElement) {
+        submitButton.disabled = false;
+        submitButton.textContent = "Submit SOP Request";
+      }
     }
   });
 
@@ -647,4 +638,6 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
       renderAttachments();
     }, 0);
   });
+
+  loadRequestCategories();
 </script>
