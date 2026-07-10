@@ -4974,6 +4974,8 @@ legend {
 }
 
 .ticket-guide-signals li,
+.route-success,
+.route-warning,
 .route-watch,
 .route-reroute,
 .route-not-ticket,
@@ -4991,6 +4993,18 @@ legend {
   color: #071d48;
   background: #eef4ff;
   border: 1px solid rgba(69, 120, 237, 0.20);
+}
+
+.route-success {
+  color: #063f33;
+  background: #e7f8f1;
+  border: 1px solid rgba(18, 130, 102, 0.26);
+}
+
+.route-warning {
+  color: #744400;
+  background: #fff3da;
+  border: 1px solid rgba(255, 159, 47, 0.32);
 }
 
 .route-watch {
@@ -5015,6 +5029,47 @@ legend {
   color: #071d48;
   background: #eef4ff;
   border: 1px solid rgba(69, 120, 237, 0.26);
+}
+
+.ticket-guide-sop-matches {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.ticket-guide-sop-match {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.9rem;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(111, 139, 191, 0.22);
+  border-radius: 12px;
+}
+
+.ticket-guide-sop-match span,
+.ticket-guide-sop-match small {
+  color: #53627a;
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.ticket-guide-sop-match h3 {
+  margin: 0.15rem 0 0.35rem;
+}
+
+.ticket-guide-sop-match h3 a {
+  color: #071d48;
+}
+
+.ticket-guide-sop-match p {
+  margin: 0;
+}
+
+.ticket-guide-sop-match > strong {
+  white-space: nowrap;
+  color: #071d48;
+  font-size: 0.85rem;
 }
 
 .ticket-guide-support-grid {

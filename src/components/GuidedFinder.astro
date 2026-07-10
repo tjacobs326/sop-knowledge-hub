@@ -6,8 +6,8 @@ import AppIcon from "./AppIcon.astro";
   <div class="ticket-guide-hero">
     <div class="ticket-guide-hero__content">
       <p class="eyebrow">Guided Finder</p>
-      <h1 id="finder-heading">ITS Ticket Guide</h1>
-      <p>Answer a few questions and we will route the request to the right support path.</p>
+      <h1 id="finder-heading">AI Guided SOP Finder</h1>
+      <p>Answer a few simple questions and the finder will match your need to real published SOPs.</p>
     </div>
     <div class="ticket-guide-hero__visual" aria-hidden="true">
       <div class="ticket-guide-card">
@@ -35,15 +35,15 @@ import AppIcon from "./AppIcon.astro";
   </div>
 
   <div class="ticket-guide-layout">
-    <form id="ticket-guide-form" class="ticket-guide-panel" aria-label="ITS ticket routing guide">
+    <form id="ticket-guide-form" class="ticket-guide-panel" aria-label="AI Guided SOP Finder">
       <div class="ticket-guide-status" id="ticket-guide-status" role="status" aria-live="polite">
-        Loading guide...
+        Loading finder...
       </div>
 
       <div class="ticket-guide-step">
         <div>
           <span>1</span>
-          <h2>Who are you helping?</h2>
+          <h2>Which role or department best fits?</h2>
         </div>
         <div id="ticket-guide-roles" class="ticket-guide-choice-grid"></div>
       </div>
@@ -51,17 +51,17 @@ import AppIcon from "./AppIcon.astro";
       <div class="ticket-guide-step">
         <div>
           <span>2</span>
-          <h2>What kind of request is this?</h2>
+          <h2>What kind of work are you doing?</h2>
         </div>
         <div id="ticket-guide-requests" class="ticket-guide-choice-grid"></div>
       </div>
 
       <label class="ticket-guide-field" for="ticket-guide-details">
-        <span>Describe what is happening</span>
+        <span>Describe the task, system, tool, or process</span>
         <textarea
           id="ticket-guide-details"
           rows="5"
-          placeholder="Example: A Captivate activity completed, but the grade did not pass back for one student."
+          placeholder="Example: I need to copy a Brightspace course shell, update dates, or find the SOP for Cengage setup."
         ></textarea>
       </label>
 
@@ -77,7 +77,7 @@ import AppIcon from "./AppIcon.astro";
       <div class="ticket-guide-actions">
         <button class="button button--primary" type="submit">
           <AppIcon name="search" />
-          Find the right route
+          Find matching SOPs
         </button>
         <button class="button button--secondary" type="button" id="ticket-guide-reset">Reset</button>
       </div>
@@ -94,7 +94,7 @@ import AppIcon from "./AppIcon.astro";
           </svg>
         </span>
         <h2>Ready when you are</h2>
-        <p>Choose a role, choose a request type, then describe the issue. The finder will calculate the best route from the backend rules.</p>
+        <p>Choose a role, choose a work type, then describe what you need. The AI extracts search criteria, but results only come from backend SOP records.</p>
       </div>
     </aside>
   </div>
@@ -130,6 +130,7 @@ import AppIcon from "./AppIcon.astro";
     guide: null,
     role: "",
     requestType: "",
+    history: [],
   };
 
   const form = document.getElementById("ticket-guide-form");
@@ -212,7 +213,7 @@ import AppIcon from "./AppIcon.astro";
     renderScenarios(guide.scenarios || []);
     renderJourney(guide.journey || []);
     renderFaqs(guide.faqs || []);
-    setStatus("Guide loaded from SOP backend.", "ready");
+    setStatus("AI finder loaded. Results come from published SOP records only.", "ready");
   }
 
   function renderScenarios(scenarios) {
@@ -270,7 +271,7 @@ import AppIcon from "./AppIcon.astro";
     return impact;
   }
 
-  function renderResult(result) {
+  function renderRouteResult(result) {
     if (!resultEl) return;
     const nextSteps = (result.nextSteps || []).map((step) => `<li>${escapeHtml(step)}</li>`).join("");
     const signals = Object.entries(result.signals || {})
@@ -305,6 +306,61 @@ import AppIcon from "./AppIcon.astro";
     `;
   }
 
+  function renderFinderResult(data) {
+    if (!resultEl) return;
+    const criteria = data.criteria || {};
+
+    if (data.mode === "follow_up") {
+      resultEl.innerHTML = `
+        <div class="ticket-guide-result-card">
+          <div class="ticket-guide-result-card__top">
+            <span class="route-warning">More detail needed</span>
+            <strong>AI follow-up</strong>
+          </div>
+          <h2>One quick question</h2>
+          <p>${escapeHtml(data.question || "Which system, tool, or process is this about?")}</p>
+          <p>Add that answer to the description and run the finder again.</p>
+        </div>
+      `;
+      return;
+    }
+
+    const sopCards = (data.sops || [])
+      .map(
+        (sop) => `
+          <article class="ticket-guide-sop-match">
+            <div>
+              <span>${escapeHtml(sop.category || "Published SOP")}</span>
+              <h3><a href="${escapeHtml(sop.url)}">${escapeHtml(sop.title)}</a></h3>
+              <p>${escapeHtml(sop.summary || "Open this SOP to review the full process.")}</p>
+              <small>${escapeHtml([...(sop.tools || []), ...(sop.tags || [])].slice(0, 5).join(" • "))}</small>
+            </div>
+            <strong>${escapeHtml(sop.matchScore)} match</strong>
+          </article>
+        `,
+      )
+      .join("");
+
+    resultEl.innerHTML = `
+      <div class="ticket-guide-result-card">
+        <div class="ticket-guide-result-card__top">
+          <span class="${data.mode === "results" ? "route-success" : "route-warning"}">Backend SOP results</span>
+          <strong>${escapeHtml(data.model || "Workers AI")}</strong>
+        </div>
+        <h2>${data.sops?.length ? "Recommended SOPs" : "No matching SOPs found"}</h2>
+        <p>${escapeHtml(data.explanation || "The finder searched published backend SOP records.")}</p>
+        <dl>
+          <div><dt>Task intent</dt><dd>${escapeHtml(criteria.taskIntent || "Not specified")}</dd></div>
+          <div><dt>System/tool</dt><dd>${escapeHtml(criteria.systemTool || "Not specified")}</dd></div>
+          <div><dt>Category</dt><dd>${escapeHtml(criteria.category || "Not specified")}</dd></div>
+        </dl>
+        <div class="ticket-guide-sop-matches">
+          ${sopCards || `<p>No published SOP records matched yet. Try a more specific system, tool, or task name.</p>`}
+        </div>
+      </div>
+    `;
+  }
+
   async function loadGuide() {
     try {
       const response = await fetch(`/api/guides/${guideSlug}`, { headers: { accept: "application/json" } });
@@ -317,22 +373,35 @@ import AppIcon from "./AppIcon.astro";
   }
 
   async function routeRequest() {
-    setStatus("Calculating the best route...", "loading");
+    setStatus("Asking Workers AI to classify your request...", "loading");
+    const selectedRoleLabel = state.guide?.roles?.find((role) => role.roleKey === state.role)?.label || state.role;
+    const selectedRequestLabel =
+      state.guide?.requestTypes?.find((request) => request.requestKey === state.requestType)?.label || state.requestType;
+    const details = detailsEl instanceof HTMLTextAreaElement ? detailsEl.value : "";
     const payload = {
-      role: state.role,
-      requestType: state.requestType,
-      details: detailsEl instanceof HTMLTextAreaElement ? detailsEl.value : "",
-      impact: collectImpact(),
+      message: [
+        `Role or department: ${selectedRoleLabel}`,
+        `Work type: ${selectedRequestLabel}`,
+        `Details: ${details}`,
+        `Impact signals: ${Object.entries(collectImpact())
+          .filter(([, active]) => active)
+          .map(([key]) => key)
+          .join(", ") || "none"}`,
+      ].join("\n"),
+      history: state.history,
     };
-    const response = await fetch(`/api/guides/${guideSlug}/route`, {
+    const response = await fetch("/api/finder", {
       method: "POST",
       headers: { "content-type": "application/json", accept: "application/json" },
       body: JSON.stringify(payload),
     });
-    if (!response.ok) throw new Error(`Route request failed: ${response.status}`);
+    if (!response.ok) throw new Error(`Finder request failed: ${response.status}`);
     const body = await response.json();
-    renderResult(body.data?.result);
-    setStatus("Route calculated from backend rules.", "ready");
+    const result = body.data || body;
+    state.history.push({ role: "user", content: payload.message });
+    if (result.mode === "follow_up") state.history.push({ role: "assistant", content: result.question });
+    renderFinderResult(result);
+    setStatus("Finder completed. SOP results are grounded in backend records.", "ready");
   }
 
   form?.addEventListener("click", (event) => {
@@ -361,11 +430,12 @@ import AppIcon from "./AppIcon.astro";
     form?.reset();
     if (state.guide) renderGuide(state.guide);
     resultEl?.replaceChildren();
+    state.history = [];
     if (resultEl) {
       resultEl.innerHTML = `
         <div class="ticket-guide-empty">
           <h2>Ready when you are</h2>
-          <p>Choose a role, choose a request type, then describe the issue. The finder will calculate the best route from the backend rules.</p>
+          <p>Choose a role, choose a work type, then describe what you need. The finder will return published SOP records only.</p>
         </div>
       `;
     }
