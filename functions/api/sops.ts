@@ -1,5 +1,5 @@
 import { failure, roleFromRequest, cacheHeaders, readBody, optionalText, success, unixNow, type ApiRole } from "../_shared/api";
-import { requireDb, slugify } from "../_shared/admin";
+import { idFrom, requireDb, slugify } from "../_shared/admin";
 import { getAuthUser, requirePermission } from "../_shared/auth";
 import { newId, type PagesFunctionContext } from "../_shared/cloudflare";
 import { requireCreatorSubRoleSelection, resolveRequestedCreatorSubRole } from "../_shared/ownership";
@@ -81,16 +81,21 @@ interface CreateSopPayload {
   categoryId?: string;
   ownerId?: string;
   ownerTeamId?: string;
+  reviewerId?: string;
   estimatedMinutes?: number;
+  estimatedCompletionTime?: string;
   audience?: string[] | string;
   tools?: string[] | string;
   tags?: string[] | string;
+  type?: string;
+  version?: string;
   content?: string;
   beforeYouBegin?: string;
   checklist?: string;
   troubleshooting?: string;
   changeSummary?: string;
   createdBy?: string;
+  reviewDate?: string;
 }
 
 function listValue(value: unknown) {
@@ -101,6 +106,30 @@ function listValue(value: unknown) {
     .filter(Boolean);
 }
 
+function estimatedMinutesFrom(value: unknown, fallback: unknown) {
+  const numeric = Number(value || 0);
+  if (Number.isFinite(numeric) && numeric > 0) return numeric;
+  const match = String(fallback || "").match(/\d+/);
+  return match ? Number(match[0]) : null;
+}
+
+async function linkTags(db: NonNullable<PagesFunctionContext["env"]["DB"]>, sopId: string, tags: string[]) {
+  for (const tagName of tags) {
+    const name = optionalText(tagName, 120);
+    if (!name) continue;
+    const id = idFrom(name, "tag");
+    const slug = slugify(name, id);
+    await db
+      .prepare(
+        `INSERT OR IGNORE INTO tags (id, name, slug, created_at, updated_at)
+         VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+      )
+      .bind(id, name, slug)
+      .run();
+    await db.prepare("INSERT OR IGNORE INTO sop_tags (sop_id, tag_id) VALUES (?, ?)").bind(sopId, id).run();
+  }
+}
+
 export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
@@ -108,6 +137,7 @@ export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
   if (auth.response) return auth.response;
   const ownership = await requireCreatorSubRoleSelection({ request, env }, auth.user!);
   if (ownership.response) return ownership.response;
+  const selectedSubRole = ownership.subRole || (await resolveRequestedCreatorSubRole(env.DB!, request));
 
   const [payload, parseError] = await readBody<CreateSopPayload>(request);
   if (parseError) return parseError;
@@ -126,17 +156,26 @@ export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
   const slug = slugify(title, id);
   const now = unixNow();
   const nowIso = new Date(now * 1000).toISOString();
+  const version = optionalText(payload?.version || "0.1", 40) || "0.1";
+  const tags = listValue(payload?.tags);
+  const estimatedMinutes = estimatedMinutesFrom(payload?.estimatedMinutes, payload?.estimatedCompletionTime);
   const metadata = JSON.stringify({
     audience: listValue(payload?.audience),
     tools: listValue(payload?.tools),
+    tags,
   });
+  const ownerId = payload?.ownerId || auth.user?.id || null;
+  const ownerTeamId = payload?.ownerTeamId || selectedSubRole?.teamId || null;
+  const ownerSubRoleId = selectedSubRole?.id || null;
+  const type = optionalText(payload?.type || "Process", 80) || "Process";
+  const reviewDate = optionalText(payload?.reviewDate, 40) || null;
 
   await env.DB!.prepare(
     `INSERT INTO sops (
       id, title, slug, summary, purpose, category_id, owner_id, owner_user_id, owner_team_id,
       owner_sub_role_id, status, type, current_version_id, estimated_minutes, estimated_completion_time, audience,
-      is_active, created_by_user_id, source_type, visibility, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)`,
+      review_date, review_due_at, is_active, created_by_user_id, source_type, visibility, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)`,
   )
     .bind(
       id,
@@ -145,16 +184,18 @@ export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
       optionalText(payload?.summary || purpose, 1000),
       purpose,
       payload?.categoryId || null,
-      payload?.ownerId || payload?.createdBy || null,
-      payload?.ownerId || payload?.createdBy || null,
-      payload?.ownerTeamId || ownership.subRole?.teamId || null,
-      ownership.subRole?.id || null,
+      ownerId,
+      ownerId,
+      ownerTeamId,
+      ownerSubRoleId,
       "Draft",
-      "Process",
+      type,
       versionId,
-      Number(payload?.estimatedMinutes || 0) || null,
-      payload?.estimatedMinutes ? `${payload.estimatedMinutes} minutes` : null,
+      estimatedMinutes,
+      optionalText(payload?.estimatedCompletionTime, 120) || (estimatedMinutes ? `${estimatedMinutes} minutes` : null),
       listValue(payload?.audience).join("|"),
+      reviewDate,
+      reviewDate ? Math.floor(new Date(`${reviewDate}T00:00:00`).getTime() / 1000) : null,
       payload?.createdBy || auth.user?.id || null,
       "Database",
       "Internal",
@@ -164,17 +205,17 @@ export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
     .run();
 
   await env.DB!.prepare(
-    `INSERT INTO sop_versions (
-      id, sop_id, version_label, version_number, title, summary, purpose, body_markdown,
-      content, before_you_begin, checklist, troubleshooting, metadata_json, change_summary,
+      `INSERT INTO sop_versions (
+        id, sop_id, version_label, version_number, title, summary, purpose, body_markdown,
+        content, before_you_begin, checklist, troubleshooting, metadata_json, change_summary,
       status, created_by_user_id, created_by, created_at, updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
     .bind(
       versionId,
       id,
-      "0.1",
-      "0.1",
+      version,
+      version,
       title,
       optionalText(payload?.summary || purpose, 1000),
       purpose,
@@ -193,6 +234,28 @@ export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
     )
     .run();
 
+  await env.DB!
+    .prepare(
+      `INSERT OR IGNORE INTO sop_assignments (
+        id, sop_id, version_id, user_id, team_id, assignment_type, status, assigned_by_user_id, due_at
+      ) VALUES (?, ?, ?, ?, ?, 'Owner', 'Active', ?, ?)`,
+    )
+    .bind(newId("assignment"), id, versionId, ownerId, ownerTeamId, auth.user?.id || null, reviewDate)
+    .run();
+
+  if (payload?.reviewerId) {
+    await env.DB!
+      .prepare(
+        `INSERT OR IGNORE INTO sop_assignments (
+          id, sop_id, version_id, user_id, team_id, assignment_type, status, assigned_by_user_id, due_at
+        ) VALUES (?, ?, ?, ?, ?, 'Reviewer', 'Active', ?, ?)`,
+      )
+      .bind(newId("assignment"), id, versionId, payload.reviewerId, ownerTeamId, auth.user?.id || null, reviewDate)
+      .run();
+  }
+
+  await linkTags(env.DB!, id, tags);
+
   await env.DB!.prepare(
     `INSERT INTO audit_logs (id, actor_user_id, action, entity_type, entity_id, after_json, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -200,5 +263,5 @@ export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
     .bind(newId("audit"), payload?.createdBy || auth.user?.id || null, "create_draft", "sop", id, JSON.stringify({ title, versionId }), now)
     .run();
 
-  return success({ sop: { id, slug, currentVersionId: versionId } }, "SOP draft created.", 201);
+  return success({ sop: { id, slug, currentVersionId: versionId, status: "Draft" } }, "SOP draft created.", 201);
 };

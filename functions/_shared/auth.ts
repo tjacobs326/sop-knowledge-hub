@@ -1,6 +1,6 @@
 import { failure, type ApiRole } from "./api";
 import { safeJsonParse, type D1DatabaseBinding, type PagesFunctionContext } from "./cloudflare";
-import { listUserSubRoles, resolveSelectedSubRole, type CreatorSubRole } from "./ownership";
+import { listCreatorSubRoles, listUserSubRoles, resolveSelectedSubRole, selectedSubRoleFromRequest, type CreatorSubRole } from "./ownership";
 
 export type PermissionName =
   | "Search SOPs"
@@ -212,12 +212,53 @@ async function findUserByEmail(db: D1DatabaseBinding, email: string) {
     .first<UserPermissionRow>();
 }
 
+async function previewCreatorUser(request: Request, db: D1DatabaseBinding): Promise<AuthUser | null> {
+  const requested = selectedSubRoleFromRequest(request);
+  if (!requested) return null;
+
+  const subRoles = await listCreatorSubRoles(db);
+  const selected = subRoles.find((subRole) => subRole.id === requested || subRole.slug === requested);
+  if (!selected) return null;
+  const user = await db
+    .prepare(
+      `SELECT users.id, users.name, users.email, users.access_level AS accessLevel
+       FROM users
+       LEFT JOIN user_sub_roles ON user_sub_roles.user_id = users.id
+       WHERE users.status = 'Active'
+        AND COALESCE(users.is_active, 1) = 1
+        AND users.access_level IN ('Creator / Reviewer', 'Admin')
+        AND (
+          user_sub_roles.sub_role_id = ?
+          OR users.team_id = ?
+          OR users.department = ?
+        )
+       ORDER BY CASE users.access_level WHEN 'Admin' THEN 2 ELSE 1 END, users.name ASC
+       LIMIT 1`,
+    )
+    .bind(selected.id, selected.teamId || "", selected.department)
+    .first<{ id: string; name: string; email: string; accessLevel: AuthUser["accessLevel"] }>()
+    .catch(() => null);
+
+  return {
+    id: user?.id || "preview-creator-reviewer",
+    name: user?.name || "Creator / Reviewer Preview",
+    email: user?.email || "creator-reviewer-preview@example.org",
+    accessLevel: user?.accessLevel || "Creator / Reviewer",
+    role: user?.accessLevel === "Admin" ? "admin" : "creator",
+    permissions: user?.accessLevel === "Admin" ? fallbackPermissionsByRole.admin : fallbackPermissionsByRole.creator,
+    subRoles: [selected],
+    selectedSubRole: selected,
+    isLocalDev: false,
+  };
+}
+
 export async function getAuthUser(context: PagesFunctionContext): Promise<AuthUser | null> {
   const local = localDevUser(context.request);
   if (local) return local;
 
   const email = emailFromRequest(context.request);
-  if (!email || !context.env.DB) return null;
+  if (!context.env.DB) return null;
+  if (!email) return previewCreatorUser(context.request, context.env.DB);
 
   const row = await findUserByEmail(context.env.DB, email);
   if (!row) return null;

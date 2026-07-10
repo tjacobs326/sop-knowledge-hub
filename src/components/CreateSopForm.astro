@@ -1,12 +1,4 @@
 ---
-import { categories } from "../data/categories";
-import { USER_STORAGE_KEY, userAccounts } from "../data/mock-users";
-import {
-  DRAFTS_STORAGE_KEY,
-  EDIT_SOP_STORAGE_KEY,
-  PUBLISHED_SOPS_STORAGE_KEY,
-} from "../lib/drafts";
-import { REVIEW_QUEUE_STORAGE_KEY } from "../lib/submissions";
 import SopDraftPreview from "./SopDraftPreview.astro";
 
 const sopTypes = [
@@ -17,34 +9,13 @@ const sopTypes = [
   "Job Aid",
   "Decision Tree",
 ];
-
-const draftStatuses = [
-  "Draft",
-  "In Review",
-  "Needs Revision",
-  "Approved",
-  "Published",
-  "Archived",
-];
-
-const publishingUsers = [...userAccounts]
-  .filter((user) => user.status === "Active")
-  .sort((a, b) => {
-    const aCanPublish = a.accessLevel === "Creator / Reviewer";
-    const bCanPublish = b.accessLevel === "Creator / Reviewer";
-    return Number(bCanPublish) - Number(aCanPublish) || a.name.localeCompare(b.name);
-  });
 ---
 
 <section class="tool-surface" aria-labelledby="create-heading">
   <div class="section-heading">
     <p class="eyebrow">Internal Creator Workflow</p>
     <h1 id="create-heading">Create New SOP</h1>
-    <p id="create-description">Use this form to create a complete SOP draft for review and publishing.</p>
-    <div class="create-edit-actions" id="edit-cancel-actions" hidden>
-      <a class="button button--ghost" id="cancel-edit-sop" href="/search/">Cancel Editing</a>
-      <span>Return without saving changes.</span>
-    </div>
+    <p id="create-description">Create, preview, save, submit, and publish SOP drafts through the backend workflow.</p>
   </div>
 
   <form class="form-grid" id="create-sop-form" novalidate>
@@ -58,13 +29,20 @@ const publishingUsers = [...userAccounts]
     </div>
     <div class="field">
       <label for="owner">Owner</label>
-      <input id="owner" name="owner" type="text" required />
+      <select id="owner" name="ownerId" required>
+        <option value="">Loading owners...</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="reviewer">Assign Reviewer</label>
+      <select id="reviewer" name="reviewerId">
+        <option value="">Loading reviewers...</option>
+      </select>
     </div>
     <div class="field">
       <label for="category">Category</label>
-      <select id="category" name="category" required>
-        <option value="">Select category</option>
-        {categories.map((category) => <option value={category.name}>{category.name}</option>)}
+      <select id="category" name="categoryId" required>
+        <option value="">Loading categories...</option>
       </select>
     </div>
     <div class="field">
@@ -79,8 +57,9 @@ const publishingUsers = [...userAccounts]
       <input id="review-date" name="reviewDate" type="date" required />
     </div>
     <div class="field">
-      <label for="tools">Tools Used</label>
-      <input id="tools" name="tools" type="text" placeholder="Ivanti, Brightspace D2L" />
+      <label for="tools">Tools / Systems</label>
+      <input id="tools" name="tools" type="text" placeholder="Ivanti, Brightspace D2L" list="tool-options" />
+      <datalist id="tool-options"></datalist>
     </div>
     <div class="field">
       <label for="audience">Audience</label>
@@ -88,7 +67,8 @@ const publishingUsers = [...userAccounts]
     </div>
     <div class="field">
       <label for="tags">Tags</label>
-      <input id="tags" name="tags" type="text" placeholder="qa, launch, accessibility" />
+      <input id="tags" name="tags" type="text" placeholder="qa, launch, accessibility" list="tag-options" />
+      <datalist id="tag-options"></datalist>
     </div>
     <div class="field">
       <label for="estimated-time">Estimated Completion Time</label>
@@ -101,140 +81,71 @@ const publishingUsers = [...userAccounts]
 
     <fieldset class="field field--full step-builder">
       <legend>Procedure Steps</legend>
-      <div id="procedure-steps">
-        <div class="procedure-step" data-step>
-          <div class="procedure-step__header">
-            <strong>Step 1</strong>
-          </div>
-          <div class="field">
-            <label>Step title</label>
-            <input name="stepTitle" type="text" required />
-          </div>
-          <div class="field field--full">
-            <label>Step instructions</label>
-            <textarea name="stepInstructions" rows="3" required></textarea>
-          </div>
-          <div class="field">
-            <label>Optional note</label>
-            <input name="stepNote" type="text" />
-          </div>
-          <div class="field field--full">
-            <label>Step media</label>
-            <div class="screenshot-input" data-screenshot-input>
-              <input name="stepScreenshot" type="hidden" />
-              <input name="stepVideo" type="hidden" />
-              <input name="stepVideoLabel" type="hidden" />
-              <input name="stepScreenshotFile" type="file" accept="image/*,video/*" />
-              <textarea
-                class="screenshot-paste-target"
-                aria-label="Paste step media"
-                rows="3"
-                spellcheck="false"
-                data-screenshot-paste
-              >Paste a screenshot here or upload an image or video file.</textarea>
-              <figure class="screenshot-preview" data-screenshot-preview hidden>
-                <img alt="Step screenshot preview" data-screenshot-image />
-                <video controls data-screenshot-video hidden></video>
-                <figcaption>
-                  <button class="button button--ghost" type="button" data-remove-screenshot>
-                    Remove Media
-                  </button>
-                </figcaption>
-              </figure>
-            </div>
-          </div>
-        </div>
-      </div>
+      <div id="procedure-steps"></div>
       <button class="button button--secondary" id="add-step" type="button">Add Step</button>
     </fieldset>
 
-    <div class="field field--full">
-      <label for="screenshots">Screenshots</label>
-      <textarea id="screenshots" name="screenshots" rows="2" placeholder="/images/screenshots/example-placeholder.svg"></textarea>
-    </div>
     <div class="field field--full">
       <label for="troubleshooting-notes">Troubleshooting Notes</label>
       <textarea id="troubleshooting-notes" name="troubleshootingNotes" rows="3"></textarea>
     </div>
     <div class="field">
-      <label for="related-sops">Related SOPs</label>
-      <input id="related-sops" name="relatedSops" type="text" placeholder="Submit a New Ivanti Ticket" />
+      <label for="related-sops">Related SOPs or Links</label>
+      <input id="related-sops" name="relatedSops" type="text" placeholder="Submit a New Ivanti Ticket, https://..." />
     </div>
     <div class="field">
       <label for="change-summary">Change Summary</label>
       <input id="change-summary" name="changeSummary" type="text" />
     </div>
     <div class="field">
-      <label for="draft-status">Draft Status</label>
-      <select id="draft-status" name="status">
-        {draftStatuses.map((status) => <option value={status}>{status}</option>)}
-      </select>
-    </div>
-    <div class="field">
       <label for="version">Version</label>
       <input id="version" name="version" type="text" value="0.1" />
     </div>
     <div class="field">
-      <label for="publishing-account">Publishing Account</label>
-      <select id="publishing-account" name="publishingAccount">
-        {publishingUsers.map((user) => (
-          <option value={user.email}>{user.name} - {user.accessLevel}</option>
-        ))}
-      </select>
+      <label for="workflow-notes">Workflow Notes</label>
+      <input id="workflow-notes" name="workflowNotes" type="text" placeholder="Reviewer instructions or approval notes" />
     </div>
+
     <div class="field publish-permission" id="publish-permission" role="status"></div>
-    <div class="form-actions field--full">
-      <button class="button button--primary" id="preview-sop" type="button">Preview SOP</button>
-    </div>
     <div class="form-errors field--full" id="create-errors" role="alert" hidden></div>
+    <div class="confirmation field--full" id="create-confirmation" role="status" hidden></div>
+
+    <div class="form-actions field--full">
+      <button class="button button--secondary" id="save-draft" type="button" data-create-action="save">Save Draft</button>
+      <button class="button button--primary" id="preview-sop" type="button" data-create-action="preview">Preview</button>
+      <button class="button button--primary" id="submit-review" type="button" data-create-action="submit">Submit for Review</button>
+      <button class="button button--primary" id="publish-sop" type="button" data-create-action="publish" hidden>Publish</button>
+      <button class="button button--secondary" id="approve-sop" type="button" data-create-action="approve" hidden>Approve</button>
+      <button class="button button--secondary" id="request-changes" type="button" data-create-action="changes" hidden>Request Changes</button>
+      <button class="button button--danger" id="reject-sop" type="button" data-create-action="reject" hidden>Reject</button>
+      <a class="button button--ghost" id="cancel-create" href="/my-work/">Cancel</a>
+    </div>
   </form>
 </section>
 
 <SopDraftPreview />
 
-<script is:inline id="publishing-users-data" type="application/json" set:html={JSON.stringify(publishingUsers)} />
-
-<script
-  is:inline
-  define:vars={{
-    DRAFTS_STORAGE_KEY,
-    EDIT_SOP_STORAGE_KEY,
-    PUBLISHED_SOPS_STORAGE_KEY,
-    REVIEW_QUEUE_STORAGE_KEY,
-    USER_STORAGE_KEY,
-  }}
->
+<script>
+  // @ts-nocheck
   const form = document.getElementById("create-sop-form");
-  const createHeading = document.getElementById("create-heading");
-  const createDescription = document.getElementById("create-description");
-  const editCancelActions = document.getElementById("edit-cancel-actions");
-  const cancelEditLink = document.getElementById("cancel-edit-sop");
   const errorsEl = document.getElementById("create-errors");
-  const addStepButton = document.getElementById("add-step");
-  const stepContainer = document.getElementById("procedure-steps");
-  const previewButton = document.getElementById("preview-sop");
-  const publishButton = document.getElementById("publish-sop");
-  const publishingAccount = document.getElementById("publishing-account");
-  const publishingUsersData = document.getElementById("publishing-users-data");
-  const publishingUsersSeed = JSON.parse(publishingUsersData?.textContent || "[]");
-  const publishPermission = document.getElementById("publish-permission");
-  const preview = document.getElementById("draft-preview");
   const confirmation = document.getElementById("create-confirmation");
-
-  let currentDraft = null;
-  let editingDraftId = "";
-  let editingCreatedDate = "";
-  let editingSource = null;
+  const stepContainer = document.getElementById("procedure-steps");
+  const publishPermission = document.getElementById("publish-permission");
+  const publishButton = document.getElementById("publish-sop");
+  const approveButton = document.getElementById("approve-sop");
+  const changesButton = document.getElementById("request-changes");
+  const rejectButton = document.getElementById("reject-sop");
+  const cancelLink = document.getElementById("cancel-create");
+  const SUB_ROLE_KEY = "sopHubSelectedCreatorSubRole";
+  const EDIT_SOP_STORAGE_KEY = "sopHubEditSop";
+  let options = { currentUser: null, categories: [], users: [], reviewers: [], tags: [] };
+  let currentSop = null;
+  let hasUnsavedChanges = false;
 
   const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (character) => {
-      const replacements = {
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;",
-      };
+      const replacements = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
       return replacements[character];
     });
 
@@ -244,28 +155,13 @@ const publishingUsers = [...userAccounts]
       .map((item) => item.trim())
       .filter(Boolean);
 
-  const slugify = (value) =>
-    String(value)
-      .toLowerCase()
-      .trim()
-      .replace(/&/g, "and")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
-
-  function getPublishedSopUrl(source) {
-    if (!source?.sourceSlug) return "/search/";
-
-    return `/sops/${slugify(source.category || "")}/${source.sourceSlug}/`;
-  }
-
-  function showCancelEditAction(href, label = "Cancel Editing") {
-    if (cancelEditLink instanceof HTMLAnchorElement) {
-      cancelEditLink.href = href;
-      cancelEditLink.textContent = label;
-    }
-    if (editCancelActions instanceof HTMLElement) {
-      editCancelActions.hidden = false;
-    }
+  function apiHeaders() {
+    const subRole = localStorage.getItem(SUB_ROLE_KEY) || "";
+    return {
+      accept: "application/json",
+      "content-type": "application/json",
+      ...(subRole ? { "x-sop-sub-role": subRole } : {}),
+    };
   }
 
   function getField(name) {
@@ -288,207 +184,6 @@ const publishingUsers = [...userAccounts]
     }
   }
 
-  function collectSteps() {
-    return Array.from(document.querySelectorAll("[data-step]"))
-      .map((step) => {
-        const title = step.querySelector('[name="stepTitle"]')?.value.trim() ?? "";
-        const instructions = step.querySelector('[name="stepInstructions"]')?.value.trim() ?? "";
-        const note = step.querySelector('[name="stepNote"]')?.value.trim() ?? "";
-        const screenshot = step.querySelector('[name="stepScreenshot"]')?.value.trim() ?? "";
-        const video = step.querySelector('[name="stepVideo"]')?.value.trim() ?? "";
-        const videoLabel = step.querySelector('[name="stepVideoLabel"]')?.value.trim() ?? "";
-        return { title, instructions, note, screenshot, video, videoLabel };
-      })
-      .filter((step) => step.title || step.instructions);
-  }
-
-  function getStepFromElement(element) {
-    return element instanceof HTMLElement ? element.closest("[data-step]") : null;
-  }
-
-  function setPasteTargetMessage(pasteTarget, message) {
-    if (pasteTarget instanceof HTMLTextAreaElement) {
-      pasteTarget.value = message;
-    } else if (pasteTarget instanceof HTMLElement) {
-      pasteTarget.textContent = message;
-    }
-  }
-
-  function updateStepScreenshotPreview(step) {
-    if (!(step instanceof HTMLElement)) return;
-
-    const screenshotInput = step.querySelector('[name="stepScreenshot"]');
-    const videoInput = step.querySelector('[name="stepVideo"]');
-    const videoLabelInput = step.querySelector('[name="stepVideoLabel"]');
-    const preview = step.querySelector("[data-screenshot-preview]");
-    const image = step.querySelector("[data-screenshot-image]");
-    const video = step.querySelector("[data-screenshot-video]");
-    const pasteTarget = step.querySelector("[data-screenshot-paste]");
-    const screenshot =
-      screenshotInput instanceof HTMLInputElement ? screenshotInput.value.trim() : "";
-    const videoSource = videoInput instanceof HTMLInputElement ? videoInput.value.trim() : "";
-    const videoLabel =
-      videoLabelInput instanceof HTMLInputElement ? videoLabelInput.value.trim() : "Step video";
-
-    if (
-      !(preview instanceof HTMLElement) ||
-      !(image instanceof HTMLImageElement) ||
-      !(video instanceof HTMLVideoElement)
-    ) {
-      return;
-    }
-
-    if (screenshot) {
-      image.src = screenshot;
-      image.hidden = false;
-      video.hidden = true;
-      video.removeAttribute("src");
-      preview.hidden = false;
-      setPasteTargetMessage(
-        pasteTarget,
-        "Screenshot added. Paste a replacement here or upload a new file.",
-      );
-    } else if (videoSource) {
-      video.src = videoSource;
-      video.hidden = false;
-      image.hidden = true;
-      image.removeAttribute("src");
-      preview.hidden = false;
-      setPasteTargetMessage(
-        pasteTarget,
-        `${videoLabel} added. Upload a replacement image or video file.`,
-      );
-    } else {
-      image.removeAttribute("src");
-      image.hidden = false;
-      video.removeAttribute("src");
-      video.hidden = true;
-      preview.hidden = true;
-      setPasteTargetMessage(
-        pasteTarget,
-        "Paste a screenshot here or upload an image or video file.",
-      );
-    }
-  }
-
-  function setStepMedia(step, { screenshot = "", video = "", videoLabel = "" }) {
-    if (!(step instanceof HTMLElement)) return;
-
-    const screenshotInput = step.querySelector('[name="stepScreenshot"]');
-    const videoInput = step.querySelector('[name="stepVideo"]');
-    const videoLabelInput = step.querySelector('[name="stepVideoLabel"]');
-    if (screenshotInput instanceof HTMLInputElement) {
-      screenshotInput.value = screenshot;
-    }
-    if (videoInput instanceof HTMLInputElement) {
-      videoInput.value = video;
-    }
-    if (videoLabelInput instanceof HTMLInputElement) {
-      videoLabelInput.value = videoLabel;
-    }
-    updateStepScreenshotPreview(step);
-  }
-
-  function setStepScreenshot(step, value) {
-    setStepMedia(step, { screenshot: value });
-  }
-
-  function setStepVideo(step, value, label) {
-    setStepMedia(step, { video: value, videoLabel: label });
-  }
-
-  function readFileAsDataUrl(file) {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.addEventListener("load", () => {
-        resolve(typeof reader.result === "string" ? reader.result : "");
-      });
-      reader.readAsDataURL(file);
-    });
-  }
-
-  async function uploadMediaFile(file, purpose = "SOP Step") {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("purpose", purpose);
-    formData.append("entityType", "sop");
-
-    try {
-      const response = await fetch("/api/media", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await response.json();
-      const uploaded = data.uploaded?.[0];
-      if (response.ok && uploaded?.url) {
-        return uploaded.url;
-      }
-    } catch {
-      // Static local previews do not have the Cloudflare media API.
-    }
-
-    return readFileAsDataUrl(file);
-  }
-
-  async function readVideoFile(file, step) {
-    if (!file.type.startsWith("video/")) return;
-
-    const value = await uploadMediaFile(file, "SOP Step");
-    setStepVideo(step, value, file.name || "Step video");
-    if (errorsEl) {
-      errorsEl.hidden = true;
-      errorsEl.innerHTML = "";
-    }
-  }
-
-  function readStepMediaFile(file, step) {
-    if (file.type.startsWith("image/")) {
-      readImageFile(file, step);
-      return;
-    }
-    if (file.type.startsWith("video/")) {
-      readVideoFile(file, step);
-      return;
-    }
-
-    if (errorsEl) {
-      errorsEl.hidden = false;
-      errorsEl.innerHTML = "<p>Please choose an image or video file for this step.</p>";
-    }
-  }
-
-  function getClipboardMediaFile(clipboardData) {
-    const files = Array.from(clipboardData?.files || []);
-    const file = files.find((item) =>
-      item.type.startsWith("image/") || item.type.startsWith("video/"),
-    );
-    if (file) return file;
-
-    const items = Array.from(clipboardData?.items || []);
-    const mediaItem = items.find((item) =>
-      item.kind === "file" &&
-      (item.type.startsWith("image/") || item.type.startsWith("video/")),
-    );
-    return mediaItem?.getAsFile() || null;
-  }
-
-  async function readImageFile(file, step) {
-    if (!file.type.startsWith("image/")) {
-      if (errorsEl) {
-        errorsEl.hidden = false;
-        errorsEl.innerHTML = "<p>Please choose or paste an image file for the step screenshot.</p>";
-      }
-      return;
-    }
-
-    const value = await uploadMediaFile(file, "SOP Step");
-    setStepScreenshot(step, value);
-    if (errorsEl) {
-      errorsEl.hidden = true;
-      errorsEl.innerHTML = "";
-    }
-  }
-
   function createStepElement(step = {}, index = 1) {
     const wrapper = document.createElement("div");
     wrapper.className = "procedure-step";
@@ -500,163 +195,66 @@ const publishingUsers = [...userAccounts]
       </div>
       <div class="field">
         <label>Step title</label>
-        <input name="stepTitle" type="text" required />
+        <input name="stepTitle" type="text" required value="${escapeHtml(step.title || "")}" />
       </div>
       <div class="field field--full">
         <label>Step instructions</label>
-        <textarea name="stepInstructions" rows="3" required></textarea>
+        <textarea name="stepInstructions" rows="3" required>${escapeHtml(step.instructions || "")}</textarea>
       </div>
       <div class="field">
         <label>Optional note</label>
-        <input name="stepNote" type="text" />
-      </div>
-      <div class="field field--full">
-        <label>Step screenshot</label>
-        <div class="screenshot-input" data-screenshot-input>
-          <input name="stepScreenshot" type="hidden" />
-          <input name="stepVideo" type="hidden" />
-          <input name="stepVideoLabel" type="hidden" />
-          <input name="stepScreenshotFile" type="file" accept="image/*,video/*" />
-          <textarea
-            class="screenshot-paste-target"
-            aria-label="Paste step media"
-            rows="3"
-            spellcheck="false"
-            data-screenshot-paste
-          >Paste a screenshot here or upload an image or video file.</textarea>
-          <figure class="screenshot-preview" data-screenshot-preview hidden>
-            <img alt="Step screenshot preview" data-screenshot-image />
-            <video controls data-screenshot-video hidden></video>
-            <figcaption>
-              <button class="button button--ghost" type="button" data-remove-screenshot>
-                Remove Media
-              </button>
-            </figcaption>
-          </figure>
-        </div>
+        <input name="stepNote" type="text" value="${escapeHtml(step.note || "")}" />
       </div>
     `;
-
-    wrapper.querySelector('[name="stepTitle"]').value = step.title || "";
-    wrapper.querySelector('[name="stepInstructions"]').value = step.instructions || "";
-    wrapper.querySelector('[name="stepNote"]').value = step.note || "";
-    wrapper.querySelector('[name="stepScreenshot"]').value = step.screenshot || "";
-    wrapper.querySelector('[name="stepVideo"]').value = step.video || "";
-    wrapper.querySelector('[name="stepVideoLabel"]').value = step.videoLabel || "";
-    updateStepScreenshotPreview(wrapper);
-
     return wrapper;
   }
 
-  function renderSteps(steps) {
+  function renderSteps(steps = [{}]) {
     if (!stepContainer) return;
-
-    const safeSteps = Array.isArray(steps) && steps.length > 0 ? steps : [{}];
     stepContainer.innerHTML = "";
-    safeSteps.forEach((step, index) => {
-      stepContainer.append(createStepElement(step, index + 1));
-    });
+    const safeSteps = Array.isArray(steps) && steps.length ? steps : [{}];
+    safeSteps.forEach((step, index) => stepContainer.append(createStepElement(step, index + 1)));
   }
 
-  function loadEditSource() {
-    const params = new URLSearchParams(window.location.search);
-    if (!params.has("edit")) return;
-
-    let source = null;
-    try {
-      source = JSON.parse(sessionStorage.getItem(EDIT_SOP_STORAGE_KEY) || "null");
-    } catch {
-      source = null;
-    }
-
-    if (!source && params.get("edit") === "draft") {
-      const draftId = params.get("id");
-      const draft = readStorage(DRAFTS_STORAGE_KEY).find((item) => item.id === draftId);
-      if (draft) {
-        source = {
-          ...draft,
-          editMode: "draft",
-        };
-      }
-    }
-
-    if (!source) {
-      if (createHeading) createHeading.textContent = "Edit Published SOP";
-      if (createDescription) {
-        createDescription.textContent =
-          "Open an SOP and use its Edit Published SOP button to prefill this draft editor.";
-      }
-      showCancelEditAction("/search/");
-      return;
-    }
-
-    const isDraftEdit = source.editMode === "draft";
-    editingSource = isDraftEdit ? null : source;
-    editingDraftId = isDraftEdit ? source.id || "" : "";
-    editingCreatedDate = isDraftEdit ? source.createdDate || "" : "";
-
-    if (createHeading) {
-      createHeading.textContent = isDraftEdit ? "Edit SOP Draft" : "Edit Published SOP";
-    }
-    if (createDescription) {
-      createDescription.textContent = isDraftEdit
-        ? `Continue editing "${source.title}". Saving will update this draft in My Drafts.`
-        : `Create a reviewed draft update for "${source.sourceTitle || source.title}". The published SOP stays unchanged until the revised draft is approved.`;
-    }
-    showCancelEditAction(isDraftEdit ? "/drafts/" : getPublishedSopUrl(source));
-
-    setField("title", source.title);
-    setField("purpose", source.purpose);
-    setField("owner", source.owner);
-    setField("category", source.category);
-    setField("type", source.type);
-    setField("reviewDate", source.reviewDate);
-    setField("tools", (source.tools || []).join(", "));
-    setField("audience", (source.audience || []).join(", "));
-    setField("tags", (source.tags || []).join(", "));
-    setField("estimatedCompletionTime", source.estimatedCompletionTime);
-    setField("beforeYouBegin", source.beforeYouBegin);
-    setField("screenshots", (source.screenshots || []).join("\n"));
-    setField("troubleshootingNotes", source.troubleshootingNotes);
-    setField("relatedSops", (source.relatedSops || []).join(", "));
-    setField("changeSummary", source.changeSummary);
-    setField("status", isDraftEdit ? source.status || "Draft" : "Draft");
-    setField("version", source.version);
-    renderSteps(source.procedureSteps);
+  function collectSteps() {
+    return Array.from(document.querySelectorAll("[data-step]"))
+      .map((step) => ({
+        title: step.querySelector('[name="stepTitle"]')?.value.trim() || "",
+        instructions: step.querySelector('[name="stepInstructions"]')?.value.trim() || "",
+        note: step.querySelector('[name="stepNote"]')?.value.trim() || "",
+      }))
+      .filter((step) => step.title || step.instructions);
   }
 
-  function validateDraft(draft) {
-    const errors = [];
-
-    if (!draft.title) errors.push("SOP Title is required.");
-    if (!draft.purpose) errors.push("Purpose is required.");
-    if (!draft.owner) errors.push("Owner is required.");
-    if (!draft.category) errors.push("Category is required.");
-    if (!draft.type) errors.push("SOP Type is required.");
-    if (!draft.reviewDate) errors.push("Review Date is required.");
-    if (!draft.procedureSteps.length) errors.push("At least one procedure step is required.");
-    if (draft.procedureSteps.some((step) => !step.title || !step.instructions)) {
-      errors.push("Each procedure step needs a title and instructions.");
-    }
-
-    if (errorsEl) {
-      errorsEl.hidden = errors.length === 0;
-      errorsEl.innerHTML = errors.map((error) => `<p>${escapeHtml(error)}</p>`).join("");
-    }
-
-    return errors.length === 0;
+  function contentMarkdown(draft) {
+    return [
+      `## Purpose\n\n${draft.purpose}`,
+      draft.beforeYouBegin ? `## Before You Begin\n\n${draft.beforeYouBegin}` : "",
+      draft.procedureSteps.length
+        ? `## Procedure\n\n${draft.procedureSteps
+            .map((step, index) => `${index + 1}. ${step.title}\n   ${step.instructions}${step.note ? `\n   Note: ${step.note}` : ""}`)
+            .join("\n\n")}`
+        : "",
+      draft.troubleshootingNotes ? `## Troubleshooting / Notes\n\n${draft.troubleshootingNotes}` : "",
+      draft.relatedSops.length ? `## Related SOPs\n\n${draft.relatedSops.map((item) => `- ${item}`).join("\n")}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n");
   }
 
-  function buildDraft(statusOverride) {
-    const today = new Date().toISOString().slice(0, 10);
-    const title = getField("title");
-
-    return {
-      id: editingDraftId || `draft-${slugify(title || "untitled")}-${Date.now()}`,
-      title,
+  function buildDraft(status = "Draft") {
+    const category = options.categories.find((item) => item.id === getField("categoryId"));
+    const owner = options.users.find((item) => item.id === getField("ownerId"));
+    const draft = {
+      id: currentSop?.id || "",
+      title: getField("title"),
       purpose: getField("purpose"),
-      owner: getField("owner"),
-      category: getField("category"),
+      summary: getField("purpose"),
+      ownerId: getField("ownerId"),
+      owner: owner?.name || "",
+      reviewerId: getField("reviewerId"),
+      categoryId: getField("categoryId"),
+      category: category?.name || "",
       type: getField("type"),
       tools: splitList(getField("tools")),
       audience: splitList(getField("audience")),
@@ -664,29 +262,43 @@ const publishingUsers = [...userAccounts]
       estimatedCompletionTime: getField("estimatedCompletionTime"),
       beforeYouBegin: getField("beforeYouBegin"),
       procedureSteps: collectSteps(),
-      screenshots: splitList(getField("screenshots")),
       troubleshootingNotes: getField("troubleshootingNotes"),
       relatedSops: splitList(getField("relatedSops")),
+      changeSummary: getField("changeSummary") || "Draft saved from Create SOP.",
       reviewDate: getField("reviewDate"),
-      status: statusOverride || getField("status") || "Draft",
       version: getField("version") || "0.1",
-      changeSummary: getField("changeSummary") || "Initial draft created.",
-      createdDate: editingCreatedDate || today,
-      updatedDate: today,
-      sourceId: editingSource?.sourceId,
-      sourceSlug: editingSource?.sourceSlug,
-      sourceTitle: editingSource?.sourceTitle,
+      status,
     };
+    return { ...draft, content: contentMarkdown(draft), checklist: draft.procedureSteps.map((step) => step.title).join("\n") };
+  }
+
+  function validateDraft(draft, action = "save") {
+    const errors = [];
+    if (!draft.title) errors.push("SOP Title is required.");
+    if (!draft.purpose) errors.push("Purpose is required.");
+    if (!draft.ownerId) errors.push("Owner is required.");
+    if (!draft.categoryId) errors.push("Category is required.");
+    if (!draft.type) errors.push("SOP Type is required.");
+    if (!draft.reviewDate) errors.push("Review Date is required.");
+    if (!draft.procedureSteps.length) errors.push("At least one procedure step is required.");
+    if (draft.procedureSteps.some((step) => !step.title || !step.instructions)) {
+      errors.push("Each procedure step needs a title and instructions.");
+    }
+    if (action === "publish" && (!draft.purpose || !draft.procedureSteps.length || !draft.categoryId)) {
+      errors.push("Complete the title, purpose, category, and procedure before publishing.");
+    }
+    if (errorsEl) {
+      errorsEl.hidden = errors.length === 0;
+      errorsEl.innerHTML = errors.map((error) => `<p>${escapeHtml(error)}</p>`).join("");
+    }
+    return errors.length === 0;
   }
 
   function renderPreview(draft) {
     document.getElementById("preview-title").textContent = draft.title;
     document.getElementById("preview-purpose").textContent = draft.purpose;
-    document.getElementById("preview-before").textContent =
-      draft.beforeYouBegin || "No before-you-begin notes entered.";
-    document.getElementById("preview-notes").textContent =
-      draft.troubleshootingNotes || "No troubleshooting notes entered.";
-
+    document.getElementById("preview-before").textContent = draft.beforeYouBegin || "No before-you-begin notes entered.";
+    document.getElementById("preview-notes").textContent = draft.troubleshootingNotes || "No troubleshooting notes entered.";
     document.getElementById("preview-meta").innerHTML = [
       ["Owner", draft.owner],
       ["Category", draft.category],
@@ -699,347 +311,245 @@ const publishingUsers = [...userAccounts]
     ]
       .map(([label, value]) => `<div><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`)
       .join("");
-
     document.getElementById("preview-steps").innerHTML = draft.procedureSteps
-      .map(
-        (step) => `
-          <li>
-            <h4>${escapeHtml(step.title)}</h4>
-            <p>${escapeHtml(step.instructions)}</p>
-            ${step.note ? `<p><strong>Note:</strong> ${escapeHtml(step.note)}</p>` : ""}
-            ${
-              step.screenshot
-                ? `<figure class="step-screenshot"><img src="${escapeHtml(step.screenshot)}" alt="Screenshot for ${escapeHtml(step.title)}" /><figcaption>Step screenshot</figcaption></figure>`
-                : ""
-            }
-            ${
-              step.video
-                ? `<figure class="step-screenshot"><video controls src="${escapeHtml(step.video)}"></video><figcaption>${escapeHtml(step.videoLabel || "Step video")}</figcaption></figure>`
-                : ""
-            }
-          </li>
-        `,
-      )
+      .map((step) => `<li><h4>${escapeHtml(step.title)}</h4><p>${escapeHtml(step.instructions)}</p>${step.note ? `<p><strong>Note:</strong> ${escapeHtml(step.note)}</p>` : ""}</li>`)
       .join("");
-
-    document.getElementById("preview-related").innerHTML =
-      draft.relatedSops.length > 0
-        ? draft.relatedSops.map((item) => `<li>${escapeHtml(item)}</li>`).join("")
-        : "<li>No related SOPs entered.</li>";
-
+    document.getElementById("preview-related").innerHTML = draft.relatedSops.length
+      ? draft.relatedSops.map((item) => `<li>${escapeHtml(item)}</li>`).join("")
+      : "<li>No related SOPs entered.</li>";
+    const preview = document.getElementById("draft-preview");
     preview.hidden = false;
     preview.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  function readStorage(key) {
-    try {
-      return JSON.parse(localStorage.getItem(key) || "[]");
-    } catch {
-      return [];
+  function showConfirmation(message) {
+    if (!confirmation) return;
+    confirmation.hidden = false;
+    confirmation.innerHTML = message;
+    confirmation.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  async function parseApiResponse(response) {
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data?.success === false) {
+      throw new Error(data?.error?.message || data?.error || `Request failed: ${response.status}`);
     }
+    return data.data || data;
   }
 
-  function writeStorage(key, value) {
-    localStorage.setItem(key, JSON.stringify(value));
-  }
-
-  function mergeById(...groups) {
-    const map = new Map();
-    groups.flat().forEach((item) => {
-      if (item?.id) map.set(item.id, item);
-    });
-    return Array.from(map.values());
-  }
-
-  function getPublishingUsers() {
-    return mergeById(publishingUsersSeed, readStorage(USER_STORAGE_KEY))
-      .filter((user) => user.status === "Active")
-      .sort((a, b) => {
-        const aCanPublish = a.accessLevel === "Creator / Reviewer";
-        const bCanPublish = b.accessLevel === "Creator / Reviewer";
-        return Number(bCanPublish) - Number(aCanPublish) || a.name.localeCompare(b.name);
-      });
-  }
-
-  function renderPublishingAccounts() {
-    if (!(publishingAccount instanceof HTMLSelectElement)) return;
-
-    const selected = publishingAccount.value;
-    const users = getPublishingUsers();
-    publishingAccount.innerHTML = users
-      .map(
-        (user) =>
-          `<option value="${escapeHtml(user.email)}">${escapeHtml(user.name)} - ${escapeHtml(
-            user.accessLevel,
-          )}</option>`,
-      )
-      .join("");
-    if (users.some((user) => user.email === selected)) {
-      publishingAccount.value = selected;
-    }
-  }
-
-  function getSelectedPublisher() {
-    const email =
-      publishingAccount instanceof HTMLSelectElement ? publishingAccount.value : "";
-    return getPublishingUsers().find((user) => user.email === email) || null;
-  }
-
-  function canPublish(user) {
-    return user?.accessLevel === "Creator / Reviewer" && user.status === "Active";
-  }
-
-  function updatePublishCapability() {
-    const publisher = getSelectedPublisher();
-    const allowed = canPublish(publisher);
-
-    if (publishButton instanceof HTMLButtonElement) {
-      publishButton.disabled = !allowed;
-      publishButton.title = allowed
-        ? "Publish this SOP"
-        : "Only active Creator / Reviewer accounts can publish SOPs.";
-    }
-    if (publishPermission instanceof HTMLElement) {
-      publishPermission.innerHTML = allowed
-        ? `<strong>Publish enabled:</strong> ${escapeHtml(publisher.name)} can publish SOPs.`
-        : "<strong>Publish disabled:</strong> only active Creator / Reviewer accounts can publish SOPs.";
-    }
-  }
-
-  function upsertReviewItem(draft, status = "Published") {
-    const reviewItem = {
-      id: `review-${draft.id}`,
-      source: "Internal SOP Creator",
-      submissionType: "Submit a draft SOP",
+  async function saveDraft(status = "Draft") {
+    const draft = buildDraft(status);
+    if (!validateDraft(draft, "save")) return null;
+    const body = {
       title: draft.title,
-      department: draft.audience[0],
-      submittedBy: draft.owner,
-      category: draft.category,
-      priority: "Medium",
-      status,
-      assignedOwner: draft.owner,
-      createdDate: draft.createdDate,
+      summary: draft.summary,
+      purpose: draft.purpose,
+      categoryId: draft.categoryId,
+      ownerId: draft.ownerId,
+      reviewerId: draft.reviewerId,
+      type: draft.type,
+      version: draft.version,
+      audience: draft.audience,
+      tools: draft.tools,
+      tags: draft.tags,
+      estimatedCompletionTime: draft.estimatedCompletionTime,
+      content: draft.content,
+      beforeYouBegin: draft.beforeYouBegin,
+      checklist: draft.checklist,
+      troubleshooting: draft.troubleshootingNotes,
+      changeSummary: draft.changeSummary,
       reviewDate: draft.reviewDate,
-      originalId: draft.id,
     };
-    const reviewItems = readStorage(REVIEW_QUEUE_STORAGE_KEY).filter(
-      (item) => item.id !== reviewItem.id,
-    );
-    writeStorage(REVIEW_QUEUE_STORAGE_KEY, [...reviewItems, reviewItem]);
+    const response = currentSop?.id
+      ? await fetch(`/api/sops/${encodeURIComponent(currentSop.id)}`, {
+          method: "PUT",
+          headers: apiHeaders(),
+          body: JSON.stringify(body),
+        })
+      : await fetch("/api/sops", {
+          method: "POST",
+          headers: apiHeaders(),
+          body: JSON.stringify(body),
+        });
+    const data = await parseApiResponse(response);
+    currentSop = data.sop || currentSop;
+    hasUnsavedChanges = false;
+    return currentSop;
   }
 
-  function savePublishedSop(draft, publisher) {
-    const publishedAt = new Date().toISOString();
-    const sourceId = editingSource?.sourceId || draft.sourceId || draft.id;
-    const sourceSlug = editingSource?.sourceSlug || draft.sourceSlug || slugify(draft.title);
-    const url = editingSource?.sourceId
-      ? getPublishedSopUrl(editingSource)
-      : `/published/?id=${encodeURIComponent(draft.id)}`;
-    const published = {
-      ...draft,
-      id: sourceId,
-      draftId: draft.id,
-      sourceId,
-      sourceSlug,
-      status: "Published",
-      lastUpdated: draft.updatedDate,
-      publishedAt,
-      publishedBy: publisher.name,
-      publishedByEmail: publisher.email,
-      url,
-    };
-
-    const publishedSops = readStorage(PUBLISHED_SOPS_STORAGE_KEY).filter(
-      (item) => item.id !== published.id,
-    );
-    writeStorage(PUBLISHED_SOPS_STORAGE_KEY, [...publishedSops, published]);
-    return published;
+  async function workflow(action, notes) {
+    if (!currentSop?.id) {
+      const saved = await saveDraft(action === "publish" ? "Published" : "Draft");
+      if (!saved) return null;
+    }
+    const endpoint =
+      action === "submit"
+        ? "submit-review"
+        : action === "changes"
+          ? "request-changes"
+          : action === "reject"
+            ? "archive"
+            : action;
+    const response = await fetch(`/api/sops/${encodeURIComponent(currentSop.id)}/${endpoint}`, {
+      method: "POST",
+      headers: apiHeaders(),
+      body: JSON.stringify({ notes: notes || getField("workflowNotes") || endpoint }),
+    });
+    return parseApiResponse(response);
   }
 
-  function storeDraft(draft, submitForReview) {
-    const drafts = readStorage(DRAFTS_STORAGE_KEY).filter((item) => item.id !== draft.id);
-    writeStorage(DRAFTS_STORAGE_KEY, [...drafts, draft]);
+  function populateSelect(selectId, items, placeholder, labelFn) {
+    const select = document.getElementById(selectId);
+    if (!(select instanceof HTMLSelectElement)) return;
+    const current = select.value;
+    select.innerHTML = `<option value="">${escapeHtml(placeholder)}</option>${items
+      .map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(labelFn(item))}</option>`)
+      .join("")}`;
+    if (items.some((item) => item.id === current)) select.value = current;
+  }
 
-    if (submitForReview) {
-      upsertReviewItem(draft, "In Review");
+  async function loadOptions() {
+    const response = await fetch("/api/create-options", { headers: apiHeaders(), cache: "no-store" });
+    options = await parseApiResponse(response);
+    populateSelect("category", options.categories || [], "Select category", (item) => item.name);
+    populateSelect("owner", options.users || [], "Select owner", (item) => `${item.name} - ${item.department || item.accessLevel}`);
+    populateSelect("reviewer", options.reviewers || [], "Optional reviewer", (item) => `${item.name} - ${item.department || item.accessLevel}`);
+    const currentUser = options.currentUser;
+    if (currentUser?.id) setField("ownerId", currentUser.id);
+    const tagList = document.getElementById("tag-options");
+    if (tagList) tagList.innerHTML = (options.tags || []).map((tag) => `<option value="${escapeHtml(tag.name)}"></option>`).join("");
+
+    const permissions = new Set(currentUser?.permissions || []);
+    const canPublish = currentUser?.role === "admin" || permissions.has("Publish SOPs");
+    const canApprove = currentUser?.role === "admin" || permissions.has("Approve SOPs");
+    const canRequestChanges = currentUser?.role === "admin" || permissions.has("Request Changes");
+    if (publishButton) publishButton.hidden = !canPublish;
+    if (approveButton) approveButton.hidden = !canApprove;
+    if (changesButton) changesButton.hidden = !canRequestChanges;
+    if (rejectButton) rejectButton.hidden = !canRequestChanges;
+    if (publishPermission) {
+      publishPermission.innerHTML = canPublish
+        ? `<strong>Publish enabled:</strong> ${escapeHtml(currentUser?.name || "This user")} has publish permission.`
+        : "<strong>Publish disabled:</strong> publish permission is required.";
     }
   }
 
-  addStepButton?.addEventListener("click", () => {
-    if (!stepContainer) return;
+  function loadEditSource() {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has("edit")) return;
+    try {
+      const source = JSON.parse(sessionStorage.getItem(EDIT_SOP_STORAGE_KEY) || "null");
+      if (!source) return;
+      currentSop = source.sourceId ? { id: source.sourceId } : source.id ? { id: source.id } : null;
+      setField("title", source.title);
+      setField("purpose", source.purpose);
+      setField("type", source.type || "Process");
+      setField("reviewDate", source.reviewDate);
+      setField("tools", (source.tools || []).join(", "));
+      setField("audience", (source.audience || []).join(", "));
+      setField("tags", (source.tags || []).join(", "));
+      setField("estimatedCompletionTime", source.estimatedCompletionTime);
+      setField("beforeYouBegin", source.beforeYouBegin);
+      setField("troubleshootingNotes", source.troubleshootingNotes);
+      setField("relatedSops", (source.relatedSops || []).join(", "));
+      setField("changeSummary", source.changeSummary);
+      setField("version", source.version || "0.1");
+      renderSteps(source.procedureSteps || [{}]);
+    } catch {
+      // If edit context is unavailable, start a clean backend draft.
+    }
+  }
 
-    const stepCount = stepContainer.querySelectorAll("[data-step]").length + 1;
-    stepContainer.append(createStepElement({}, stepCount));
+  form?.addEventListener("input", () => {
+    hasUnsavedChanges = true;
   });
 
-  stepContainer?.addEventListener("click", (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLElement)) return;
-
-    if (target.matches("[data-remove-step]")) {
-      target.closest("[data-step]")?.remove();
-    }
-
-    if (target.matches("[data-remove-screenshot]")) {
-      const step = getStepFromElement(target);
-      setStepMedia(step, {});
-      const fileInput = step?.querySelector('[name="stepScreenshotFile"]');
-      if (fileInput instanceof HTMLInputElement) {
-        fileInput.value = "";
-      }
-    }
+  window.addEventListener("beforeunload", (event) => {
+    if (!hasUnsavedChanges) return;
+    event.preventDefault();
+    event.returnValue = "";
   });
 
-  stepContainer?.addEventListener("change", (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLInputElement) || target.name !== "stepScreenshotFile") return;
-
-    const file = target.files?.[0];
-    if (file) {
-      readStepMediaFile(file, getStepFromElement(target));
-    }
-  });
-
-  stepContainer?.addEventListener("keydown", (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLElement) || !target.closest("[data-screenshot-paste]")) return;
-
-    const isPasteShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v";
-    const isNavigationKey = ["Tab", "Escape"].includes(event.key);
-    if (!isPasteShortcut && !isNavigationKey) {
+  cancelLink?.addEventListener("click", (event) => {
+    if (hasUnsavedChanges && !window.confirm("Discard unsaved SOP changes?")) {
       event.preventDefault();
     }
   });
 
-  stepContainer?.addEventListener("input", (event) => {
+  document.getElementById("add-step")?.addEventListener("click", () => {
+    const count = stepContainer?.querySelectorAll("[data-step]").length || 0;
+    stepContainer?.append(createStepElement({}, count + 1));
+    hasUnsavedChanges = true;
+  });
+
+  stepContainer?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (target instanceof HTMLElement && target.matches("[data-remove-step]")) {
+      target.closest("[data-step]")?.remove();
+      hasUnsavedChanges = true;
+    }
+  });
+
+  document.addEventListener("click", async (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
-
-    const pasteTarget = target.closest("[data-screenshot-paste]");
-    if (pasteTarget instanceof HTMLElement) {
-      updateStepScreenshotPreview(getStepFromElement(pasteTarget));
-    }
-  });
-
-  stepContainer?.addEventListener("paste", (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLElement) || !target.closest("[data-screenshot-paste]")) return;
-
-    event.preventDefault();
-    const file = getClipboardMediaFile(event.clipboardData);
-    if (!file) {
-      updateStepScreenshotPreview(getStepFromElement(target));
-      if (errorsEl) {
-        errorsEl.hidden = false;
-        errorsEl.innerHTML = "<p>Please paste an image or video file for the step media.</p>";
-      }
-      return;
-    }
-
-    readStepMediaFile(file, getStepFromElement(target));
-  });
-
-  cancelEditLink?.addEventListener("click", () => {
-    try {
-      sessionStorage.removeItem(EDIT_SOP_STORAGE_KEY);
-    } catch {
-      // Navigation is enough if storage is unavailable.
-    }
-  });
-
-  previewButton?.addEventListener("click", () => {
-    const draft = buildDraft();
-    if (!validateDraft(draft)) return;
-
-    currentDraft = draft;
-    confirmation.hidden = true;
-    renderPreview(draft);
-    updatePublishCapability();
-  });
-
-  document.addEventListener("click", (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLElement)) return;
-
-    const actionButton = target.closest("[data-draft-action]");
+    const actionButton = target.closest("[data-create-action], [data-draft-action]");
     if (!(actionButton instanceof HTMLElement)) return;
+    const action = actionButton.dataset.createAction || actionButton.dataset.draftAction;
+    const draft = buildDraft(action === "publish" ? "Published" : action === "submit" ? "In Review" : "Draft");
 
-    const action = actionButton.dataset.draftAction;
-
-    if (action === "clear") {
-      form?.reset();
-      preview.hidden = true;
-      confirmation.hidden = true;
-      currentDraft = null;
-      updatePublishCapability();
-      return;
-    }
-
-    if (!currentDraft) {
-      const draft = buildDraft(
-        action === "publish" ? "Published" : action === "submit" ? "In Review" : "Draft",
-      );
-      if (!validateDraft(draft)) return;
-      currentDraft = draft;
-      renderPreview(draft);
-    }
-
-    if (action === "publish") {
-      const publisher = getSelectedPublisher();
-      if (!canPublish(publisher)) {
-        if (errorsEl) {
-          errorsEl.hidden = false;
-          errorsEl.innerHTML =
-            "<p>Only active Creator / Reviewer accounts can publish SOPs. Choose a creator/reviewer account before publishing.</p>";
-        }
-        updatePublishCapability();
+    try {
+      if (action === "preview") {
+        if (!validateDraft(draft, "preview")) return;
+        renderPreview(draft);
         return;
       }
-
-      const publishedDraft = {
-        ...currentDraft,
-        status: "Published",
-        updatedDate: new Date().toISOString().slice(0, 10),
-        publishedBy: publisher.name,
-        publishedByEmail: publisher.email,
-      };
-      const published = savePublishedSop(publishedDraft, publisher);
-      storeDraft(publishedDraft, false);
-      upsertReviewItem(publishedDraft, "Published");
-      currentDraft = publishedDraft;
-
+      if (action === "clear") {
+        if (hasUnsavedChanges && !window.confirm("Clear the form without saving?")) return;
+        form?.reset();
+        currentSop = null;
+        hasUnsavedChanges = false;
+        renderSteps([{}]);
+        return;
+      }
+      if (action === "save") {
+        const saved = await saveDraft("Draft");
+        if (saved) showConfirmation(`<strong>Draft saved.</strong><p>SOP ID: ${escapeHtml(saved.id)}. It is now available to backend My Work and draft workflows.</p>`);
+        return;
+      }
+      if (action === "submit") {
+        const saved = await saveDraft("Draft");
+        if (!saved) return;
+        await workflow("submit", "Submitted for review from Create SOP.");
+        showConfirmation("<strong>SOP submitted for review.</strong><p>It is now routed to the backend review workflow and assignments.</p>");
+        return;
+      }
+      if (action === "publish") {
+        if (!validateDraft(draft, "publish")) return;
+        const saved = await saveDraft("Draft");
+        if (!saved) return;
+        await workflow("publish", "Published from Create SOP.");
+        showConfirmation("<strong>SOP published.</strong><p>It will appear in Search SOPs, Categories, Home counts, and role/sub-role SOP lists.</p>");
+        return;
+      }
+      if (action === "approve" || action === "changes" || action === "reject") {
+        await workflow(action, getField("workflowNotes"));
+        const label = action === "approve" ? "approved" : action === "changes" ? "sent back for changes" : "rejected and archived";
+        showConfirmation(`<strong>SOP ${label}.</strong><p>The backend workflow status has been updated.</p>`);
+      }
+    } catch (error) {
       if (errorsEl) {
-        errorsEl.hidden = true;
-        errorsEl.innerHTML = "";
+        errorsEl.hidden = false;
+        errorsEl.innerHTML = `<p>${escapeHtml(error instanceof Error ? error.message : "The SOP action failed.")}</p>`;
       }
-      if (confirmation) {
-        confirmation.hidden = false;
-        confirmation.innerHTML = `<strong>Your SOP has been published.</strong><p>Published by ${escapeHtml(
-          publisher.name,
-        )}. <a href="${escapeHtml(published.url)}">View the published SOP</a>.</p>`;
-      }
-      return;
-    }
-
-    const draftToStore = {
-      ...currentDraft,
-      status: action === "submit" ? "In Review" : currentDraft.status || getField("status") || "Draft",
-      updatedDate: new Date().toISOString().slice(0, 10),
-    };
-
-    storeDraft(draftToStore, action === "submit");
-
-    if (confirmation) {
-      confirmation.hidden = false;
-      confirmation.innerHTML =
-        action === "submit"
-          ? "<strong>Your SOP draft has been submitted for review.</strong><p>Next steps: A reviewer will verify the content, request revisions if needed, and publish the SOP once approved.</p>"
-          : "<strong>Your SOP draft has been saved.</strong>";
     }
   });
 
-  renderPublishingAccounts();
-  updatePublishCapability();
-  publishingAccount?.addEventListener("change", updatePublishCapability);
-  loadEditSource();
+  renderSteps([{}]);
+  loadOptions().then(loadEditSource).catch((error) => {
+    if (errorsEl) {
+      errorsEl.hidden = false;
+      errorsEl.innerHTML = `<p>${escapeHtml(error instanceof Error ? error.message : "Create SOP setup could not load.")}</p>`;
+    }
+  });
 </script>

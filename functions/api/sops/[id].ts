@@ -49,7 +49,17 @@ interface UpdateSopPayload {
   ownerId?: string;
   ownerTeamId?: string;
   estimatedMinutes?: number;
+  estimatedCompletionTime?: string;
   audience?: string[] | string;
+  tools?: string[] | string;
+  tags?: string[] | string;
+  type?: string;
+  content?: string;
+  beforeYouBegin?: string;
+  checklist?: string;
+  troubleshooting?: string;
+  changeSummary?: string;
+  reviewDate?: string;
   reviewDueAt?: number | string;
   actorUserId?: string;
 }
@@ -73,6 +83,7 @@ export const onRequestPut = async (context: PagesFunctionContext) => {
   if (!existing) return failure("NOT_FOUND", "SOP not found.", 404);
   const ownership = await requireSopOwnership(context, auth.user!, id);
   if (ownership.response) return ownership.response;
+  const selectedSubRole = ownership.subRole || (await resolveRequestedCreatorSubRole(context.env.DB!, context.request));
 
   const [payload, parseError] = await readBody<UpdateSopPayload>(context.request);
   if (parseError) return parseError;
@@ -83,18 +94,28 @@ export const onRequestPut = async (context: PagesFunctionContext) => {
   const purpose = optionalText(payload?.purpose || existing.purpose, 4000);
   const summary = optionalText(payload?.summary || existing.summary || purpose, 1000);
   const audience = listValue(payload?.audience).join("|") || (Array.isArray(existing.audience) ? existing.audience.join("|") : "");
+  const tools = listValue(payload?.tools);
+  const metadata = JSON.stringify({
+    audience: listValue(payload?.audience),
+    tools,
+    tags: listValue(payload?.tags),
+  });
+  const content = optionalText(payload?.content || existing.bodyMarkdown || purpose, 50000);
+  const estimatedMinutes = Number(payload?.estimatedMinutes || existing.estimatedMinutes || 0) || null;
   const reviewDueAt =
     typeof payload?.reviewDueAt === "number"
       ? payload.reviewDueAt
       : payload?.reviewDueAt
         ? Math.floor(new Date(String(payload.reviewDueAt)).getTime() / 1000)
+        : payload?.reviewDate
+          ? Math.floor(new Date(`${String(payload.reviewDate)}T00:00:00`).getTime() / 1000)
         : null;
 
   await context.env.DB!.prepare(
     `UPDATE sops
      SET title = ?, summary = ?, purpose = ?, category_id = ?, owner_id = ?, owner_user_id = ?,
          owner_team_id = ?, owner_sub_role_id = ?, estimated_minutes = ?, estimated_completion_time = ?, audience = ?,
-         review_due_at = COALESCE(?, review_due_at), updated_at = ?
+         type = ?, review_date = COALESCE(?, review_date), review_due_at = COALESCE(?, review_due_at), updated_at = ?
      WHERE id = ?`,
   )
     .bind(
@@ -104,16 +125,45 @@ export const onRequestPut = async (context: PagesFunctionContext) => {
       payload?.categoryId || existing.categoryId || null,
       payload?.ownerId || existing.ownerId || null,
       payload?.ownerId || existing.ownerId || null,
-      payload?.ownerTeamId || ownership.subRole?.teamId || null,
-      ownership.subRole?.id || existing.ownerSubRoleId || null,
-      Number(payload?.estimatedMinutes || existing.estimatedMinutes || 0) || null,
-      payload?.estimatedMinutes ? `${payload.estimatedMinutes} minutes` : existing.estimatedCompletionTime || null,
+      payload?.ownerTeamId || selectedSubRole?.teamId || null,
+      selectedSubRole?.id || existing.ownerSubRoleId || null,
+      estimatedMinutes,
+      optionalText(payload?.estimatedCompletionTime, 120) || (estimatedMinutes ? `${estimatedMinutes} minutes` : existing.estimatedCompletionTime || null),
       audience,
+      optionalText(payload?.type || existing.type || "Process", 80),
+      optionalText(payload?.reviewDate, 40) || null,
       Number.isFinite(reviewDueAt) ? reviewDueAt : null,
       nowIso,
       id,
     )
     .run();
+
+  if (existing.currentVersionId) {
+    await context.env.DB!.prepare(
+      `UPDATE sop_versions
+       SET title = ?, summary = ?, purpose = ?, body_markdown = ?, content = ?,
+           before_you_begin = COALESCE(?, before_you_begin),
+           checklist = COALESCE(?, checklist),
+           troubleshooting = COALESCE(?, troubleshooting),
+           metadata_json = ?, change_summary = COALESCE(?, change_summary), updated_at = ?
+       WHERE id = ?`,
+    )
+      .bind(
+        title,
+        summary,
+        purpose,
+        content,
+        content,
+        optionalText(payload?.beforeYouBegin, 4000) || null,
+        optionalText(payload?.checklist, 8000) || null,
+        optionalText(payload?.troubleshooting, 8000) || null,
+        metadata,
+        optionalText(payload?.changeSummary, 2000) || null,
+        now,
+        existing.currentVersionId,
+      )
+      .run();
+  }
 
   await context.env.DB!.prepare(
     `INSERT INTO audit_logs (id, actor_user_id, action, entity_type, entity_id, after_json, details, created_at)
