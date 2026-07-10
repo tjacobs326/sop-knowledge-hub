@@ -545,13 +545,18 @@ const resources = [
     return renderCategoryIconSvg(category);
   }
 
+  function displayCategoryName(name) {
+    return String(name || "Uncategorized").replace(/^\s*\d+\.\s*/, "");
+  }
+
   function renderCategoryCard(category) {
     const count = Number(category.sopCount || category.count || 0);
+    const displayName = displayCategoryName(category.name);
     return `
       <a class="category-card" href="${escapeHtml(category.detailUrl)}" style="--card-accent: ${escapeHtml(category.color)}">
         <div class="category-card__header">
           <span class="category-card__icon" aria-hidden="true">${renderCategoryIcon(category)}</span>
-          <h2 class="category-card__title">${escapeHtml(category.name)}</h2>
+          <h2 class="category-card__title">${escapeHtml(displayName)}</h2>
         </div>
         <p>${escapeHtml(category.description)}</p>
         <div class="category-card__footer">
