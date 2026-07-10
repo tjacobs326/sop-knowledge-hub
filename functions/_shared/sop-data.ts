@@ -415,7 +415,60 @@ export async function listCategories(db: D1DatabaseBinding, filters: CategoryFil
     )
     .bind(...values)
     .all<Record<string, unknown>>();
-  return result.results || [];
+  const categories = result.results || [];
+  if (!categories.length) return categories;
+
+  const categoryIds = categories.map((category) => String(category.id || "")).filter(Boolean);
+  if (!categoryIds.length) return categories;
+
+  const relatedValues: unknown[] = [publishedStatus, ...categoryIds];
+  const relatedOwnerSubRoleClause = filters.ownerSubRoleId ? "AND sops.owner_sub_role_id = ?" : "";
+  if (filters.ownerSubRoleId) relatedValues.push(filters.ownerSubRoleId);
+
+  const placeholders = categoryIds.map(() => "?").join(", ");
+  const related = await db
+    .prepare(
+      `SELECT
+        sops.id,
+        sops.title,
+        sops.slug,
+        sops.category_id AS categoryId,
+        COALESCE(sops.summary, sops.purpose) AS summary,
+        sops.updated_at AS updatedAt
+       FROM sops
+       WHERE sops.status = ?
+        AND COALESCE(sops.is_active, 1) = 1
+        AND sops.category_id IN (${placeholders})
+        ${relatedOwnerSubRoleClause}
+       ORDER BY sops.category_id ASC, sops.updated_at DESC, sops.title ASC`,
+    )
+    .bind(...relatedValues)
+    .all<Record<string, unknown>>();
+
+  const relatedByCategory = new Map<string, Array<Record<string, unknown>>>();
+  (related.results || []).forEach((sop) => {
+    const categoryId = String(sop.categoryId || "");
+    const bucket = relatedByCategory.get(categoryId) || [];
+    if (bucket.length < 3) {
+      bucket.push({
+        id: sop.id,
+        title: sop.title,
+        slug: sop.slug,
+        summary: sop.summary,
+        updatedAt: sop.updatedAt,
+        detailUrl: sop.slug
+          ? `/sops/detail/?slug=${encodeURIComponent(String(sop.slug))}`
+          : `/sops/detail/?id=${encodeURIComponent(String(sop.id || ""))}`,
+      });
+      relatedByCategory.set(categoryId, bucket);
+    }
+  });
+
+  return categories.map((category) => ({
+    ...category,
+    detailUrl: `/categories/detail/?slug=${encodeURIComponent(String(category.slug || ""))}`,
+    relatedSops: relatedByCategory.get(String(category.id || "")) || [],
+  }));
 }
 
 export async function listTags(db: D1DatabaseBinding) {

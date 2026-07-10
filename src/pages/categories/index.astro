@@ -1,11 +1,6 @@
 ---
 import Layout from "../../components/Layout.astro";
 import AppIcon from "../../components/AppIcon.astro";
-import CategoryCard from "../../components/CategoryCard.astro";
-import { getAllSops, getCategoryCounts } from "../../lib/sops";
-
-const sops = await getAllSops();
-const categoryCounts = getCategoryCounts(sops);
 ---
 
 <Layout title="Categories" wide>
@@ -14,50 +9,32 @@ const categoryCounts = getCategoryCounts(sops);
       <div class="categories-hero__content">
         <p class="eyebrow">Browse SOPs</p>
         <h1 id="categories-heading">Categories</h1>
-        <p>
-          Explore SOPs by category to quickly find the processes, guides, and templates you need.
-        </p>
+        <p>Browse live SOP categories from the knowledge hub database.</p>
       </div>
       <div class="categories-hero__visual" aria-hidden="true">
         <div class="categories-visual">
           <span class="categories-visual__spark categories-visual__spark--one">+</span>
           <span class="categories-visual__spark categories-visual__spark--two">+</span>
           <div class="categories-visual__orbit"></div>
-          <div class="categories-visual__folder">
-            <span></span>
-          </div>
+          <div class="categories-visual__folder"><span></span></div>
           <div class="categories-visual__paper categories-visual__paper--one"></div>
           <div class="categories-visual__paper categories-visual__paper--two"></div>
-          <span class="categories-visual__tile categories-visual__tile--book">
-            <AppIcon name="d2l" />
-          </span>
-          <span class="categories-visual__tile categories-visual__tile--users">
-            <AppIcon name="users" />
-          </span>
-          <span class="categories-visual__tile categories-visual__tile--qa">
-            <AppIcon name="qa" />
-          </span>
-          <span class="categories-visual__tile categories-visual__tile--list">
-            <AppIcon name="review" />
-          </span>
+          <span class="categories-visual__tile categories-visual__tile--book"><AppIcon name="d2l" /></span>
+          <span class="categories-visual__tile categories-visual__tile--users"><AppIcon name="users" /></span>
+          <span class="categories-visual__tile categories-visual__tile--qa"><AppIcon name="qa" /></span>
+          <span class="categories-visual__tile categories-visual__tile--list"><AppIcon name="review" /></span>
           <div class="categories-visual__plant"><span></span><span></span><span></span></div>
         </div>
       </div>
     </div>
-    <div class="category-grid category-grid--directory" id="category-directory-grid">
-      {
-        categoryCounts.map((category) => (
-          <CategoryCard
-            name={category.name}
-            slug={category.slug}
-            description={category.description}
-            icon={category.icon}
-            color={category.color}
-            count={category.count}
-          />
-        ))
-      }
+
+    <p class="result-count" id="category-directory-count">Loading categories from the database...</p>
+    <div class="empty-state empty-state--search" id="category-directory-empty" hidden>
+      <strong>No categories available</strong>
+      <p>No published SOP categories are available for the Normal User view yet.</p>
     </div>
+    <div class="category-grid category-grid--directory" id="category-directory-grid" aria-live="polite"></div>
+
     <aside class="category-request-callout" aria-labelledby="category-request-heading">
       <span class="category-request-callout__icon" aria-hidden="true">
         <AppIcon name="search" />
@@ -78,8 +55,16 @@ const categoryCounts = getCategoryCounts(sops);
   import { renderCategoryIconSvg } from "../../lib/category-icons";
 
   const grid = document.getElementById("category-directory-grid");
+  const countEl = document.getElementById("category-directory-count");
+  const emptyEl = document.getElementById("category-directory-empty");
+  const ROLE_KEY = "sopHubSelectedRole";
+  const SUB_ROLE_KEY = "sopHubSelectedCreatorSubRole";
+  const ROLE_CONTEXT_EVENT = "sop-role-context-change";
+  const MAX_VISIBLE_CATEGORIES = 12;
+  const LOW_VALUE_CATEGORY_NAMES = new Set(["archive", "uncategorized"]);
 
   type ApiCategory = {
+    id?: string;
     name?: string;
     slug?: string;
     description?: string;
@@ -87,6 +72,8 @@ const categoryCounts = getCategoryCounts(sops);
     color?: string;
     sopCount?: number;
     count?: number;
+    detailUrl?: string;
+    relatedSops?: Array<{ title?: string; detailUrl?: string; slug?: string; id?: string }>;
   };
 
   const escapeHtml = (value: unknown) =>
@@ -101,41 +88,124 @@ const categoryCounts = getCategoryCounts(sops);
       return replacements[character];
     });
 
+  function selectedCreatorSubRole() {
+    return localStorage.getItem(ROLE_KEY) === "creator" ? localStorage.getItem(SUB_ROLE_KEY) || "" : "";
+  }
+
+  function fetchHeaders() {
+    const selectedSubRole = selectedCreatorSubRole();
+    return {
+      accept: "application/json",
+      ...(selectedSubRole ? { "x-sop-sub-role": selectedSubRole } : {}),
+    };
+  }
+
   function categoryUrl(category: ApiCategory) {
-    return `/categories/detail/?slug=${encodeURIComponent(category.slug || "")}`;
+    return category.detailUrl || `/categories/detail/?slug=${encodeURIComponent(category.slug || "")}`;
+  }
+
+  function sopUrl(sop: { detailUrl?: string; slug?: string; id?: string }) {
+    if (sop.detailUrl) return sop.detailUrl;
+    if (sop.slug) return `/sops/detail/?slug=${encodeURIComponent(sop.slug)}`;
+    return `/sops/detail/?id=${encodeURIComponent(String(sop.id || ""))}`;
+  }
+
+  function meaningfulCategories(categories: ApiCategory[]) {
+    const realCategories = categories.filter((category) => Number(category.sopCount || category.count || 0) > 0);
+    const preferred = realCategories.filter(
+      (category) => !LOW_VALUE_CATEGORY_NAMES.has(String(category.name || "").trim().toLowerCase()),
+    );
+    const pool = preferred.length ? preferred : realCategories;
+    return pool
+      .sort((a, b) => {
+        const countSort = Number(b.sopCount || b.count || 0) - Number(a.sopCount || a.count || 0);
+        return countSort || String(a.name || "").localeCompare(String(b.name || ""));
+      })
+      .slice(0, MAX_VISIBLE_CATEGORIES);
+  }
+
+  function renderRelatedSops(category: ApiCategory) {
+    const related = Array.isArray(category.relatedSops) ? category.relatedSops.slice(0, 3) : [];
+    if (!related.length) return "";
+    return `
+      <ul class="category-card__related" aria-label="Related SOPs">
+        ${related
+          .map(
+            (sop) => `
+              <li><span aria-hidden="true">-</span><a href="${escapeHtml(sopUrl(sop))}">${escapeHtml(
+                sop.title || "Untitled SOP",
+              )}</a></li>
+            `,
+          )
+          .join("")}
+      </ul>
+    `;
   }
 
   function renderCategory(category: ApiCategory) {
     const count = Number(category.sopCount || category.count || 0);
+    const url = categoryUrl(category);
     return `
-      <a class="category-card" href="${escapeHtml(categoryUrl(category))}" style="--card-accent: ${escapeHtml(
+      <article class="category-card" style="--card-accent: ${escapeHtml(
         category.color || "#f8fafc",
       )}">
         <div class="category-card__header">
           <span class="category-card__icon" aria-hidden="true">${renderCategoryIconSvg(category)}</span>
-          <h2 class="category-card__title">${escapeHtml(category.name || "Uncategorized")}</h2>
+          <h2 class="category-card__title"><a href="${escapeHtml(url)}">${escapeHtml(category.name || "Uncategorized")}</a></h2>
         </div>
-        <p>${escapeHtml(category.description || "Browse SOPs in this category.")}</p>
+        <p>${escapeHtml(category.description || "Browse related SOPs and guidance.")}</p>
+        ${renderRelatedSops(category)}
         <div class="category-card__footer">
           <span class="category-card__count">${count} ${count === 1 ? "SOP" : "SOPs"}</span>
+          <a class="category-card__open" href="${escapeHtml(url)}">View SOPs</a>
         </div>
-      </a>
+      </article>
     `;
   }
 
-  async function hydrateCategories() {
+  function setEmpty(message: string) {
+    if (grid) grid.innerHTML = "";
+    if (countEl) countEl.textContent = message;
+    if (emptyEl instanceof HTMLElement) emptyEl.hidden = false;
+  }
+
+  async function loadCategories() {
     if (!grid) return;
+    if (countEl) countEl.textContent = "Loading categories from the database...";
+    if (emptyEl instanceof HTMLElement) emptyEl.hidden = true;
+    grid.innerHTML = "";
+
     try {
-      const response = await fetch("/api/categories");
-      if (!response.ok) return;
+      const selectedSubRole = selectedCreatorSubRole();
+      const response = await fetch("/api/categories", {
+        cache: selectedSubRole ? "no-store" : "default",
+        headers: fetchHeaders(),
+      });
+      if (!response.ok) throw new Error("Category request failed.");
       const payload = await response.json();
       const categories = payload.categories || payload.data?.categories || [];
-      if (!categories.length) return;
-      grid.innerHTML = categories.map(renderCategory).join("");
+      const visibleCategories = meaningfulCategories(categories);
+
+      if (!visibleCategories.length) {
+        setEmpty("0 categories found");
+        return;
+      }
+
+      grid.innerHTML = visibleCategories.map(renderCategory).join("");
+      if (countEl) {
+        countEl.textContent = `${visibleCategories.length} ${visibleCategories.length === 1 ? "category" : "categories"} shown`;
+      }
     } catch {
-      // Keep the static Markdown category list if D1 is unavailable.
+      setEmpty("Categories could not load from the database.");
     }
   }
 
-  hydrateCategories();
+  loadCategories();
+
+  window.addEventListener(ROLE_CONTEXT_EVENT, (event) => {
+    const detail = event instanceof CustomEvent ? event.detail || {} : {};
+    if (detail.previousSubRole !== detail.subRole || detail.previousRole !== detail.role) {
+      loadCategories();
+    }
+  });
 </script>

@@ -17,7 +17,7 @@ export function getSopUrl(sop: SopEntry) {
 }
 
 export function getCategoryUrl(slug: string) {
-  return `/categories/${slug}/`;
+  return `/categories/detail/?slug=${encodeURIComponent(slug)}`;
 }
 
 export function getSopsByCategory(sops: SopEntry[], categoryName: string) {

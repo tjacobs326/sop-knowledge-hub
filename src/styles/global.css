@@ -2074,6 +2074,38 @@ textarea {
   margin: 0.5rem 0;
 }
 
+.category-card__title a,
+.category-card__related a,
+.category-card__open {
+  color: var(--color-ink);
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.16em;
+}
+
+.category-card__related {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0;
+  margin: 0.75rem 0 0;
+  list-style: none;
+}
+
+.category-card__related li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.4rem;
+  align-items: start;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.category-card__open {
+  margin-left: auto;
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+
 .sop-card {
   display: flex;
   min-height: 100%;
