@@ -8,11 +8,14 @@ import {
 } from "../../_shared/admin";
 import { requirePermission } from "../../_shared/auth";
 import { jsonResponse, type D1DatabaseBinding, type PagesFunctionContext } from "../../_shared/cloudflare";
+import { getActiveDepartment } from "../../_shared/departments";
 
 interface UserPayload {
   id?: string;
   name?: string;
   email?: string;
+  departmentId?: string;
+  teamId?: string;
   department?: string;
   title?: string;
   accessLevel?: AccessLevel;
@@ -37,7 +40,9 @@ function usersSelect() {
     users.id,
     users.name,
     users.email,
-    users.department,
+    COALESCE(teams.name, users.department) AS department,
+    users.team_id AS departmentId,
+    users.team_id AS teamId,
     users.title,
     users.access_level AS accessLevel,
     users.status,
@@ -46,7 +51,8 @@ function usersSelect() {
     users.created_at AS createdAt,
     users.updated_at AS updatedAt
   FROM users
-  LEFT JOIN roles ON roles.id = users.role_id`;
+  LEFT JOIN roles ON roles.id = users.role_id
+  LEFT JOIN teams ON teams.id = users.team_id`;
 }
 
 function rolesSelect() {
@@ -174,18 +180,30 @@ async function saveUser(request: Request, db: D1DatabaseBinding, isUpdate: boole
   const status = statuses.has(String(payload?.status)) ? String(payload?.status) : "Active";
   const id = payload?.id || idFrom(email, "user");
   const role = await roleForAccessLevel(db, accessLevel);
+  const departmentId = String(payload?.departmentId || payload?.teamId || "").trim();
+  const department = await getActiveDepartment(db, departmentId);
+  if (!department) {
+    return jsonResponse(
+      {
+        error: "Select an active department from the list.",
+        fields: { departmentId: "Select an active department." },
+      },
+      400,
+    );
+  }
 
   if (isUpdate) {
     await db.prepare(
       `UPDATE users
-       SET name = ?, email = ?, department = ?, title = ?, access_level = ?, role_id = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+       SET name = ?, email = ?, department = ?, title = ?, team_id = ?, access_level = ?, role_id = ?, status = ?, updated_at = CURRENT_TIMESTAMP
        WHERE id = ?`,
     )
       .bind(
         name,
         email,
-        String(payload?.department || ""),
+        department.name,
         String(payload?.title || ""),
+        department.id,
         accessLevel,
         role?.id || null,
         status,
@@ -194,15 +212,16 @@ async function saveUser(request: Request, db: D1DatabaseBinding, isUpdate: boole
       .run();
   } else {
     await db.prepare(
-      `INSERT INTO users (id, name, email, department, title, access_level, role_id, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+      `INSERT INTO users (id, name, email, department, title, team_id, access_level, role_id, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
     )
       .bind(
         id,
         name,
         email,
-        String(payload?.department || ""),
+        department.name,
         String(payload?.title || ""),
+        department.id,
         accessLevel,
         role?.id || null,
         status,

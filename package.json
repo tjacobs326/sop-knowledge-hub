@@ -10,6 +10,7 @@
     "check": "astro check",
     "test:role-switching": "node scripts/my-drafts-role-switching-smoke.mjs",
     "test:my-drafts-role-switching": "npm run test:role-switching",
+    "test:admin-departments": "node scripts/admin-departments-smoke.mjs",
     "cf:preview": "npm run build && npx wrangler pages dev dist",
     "cf:deploy:direct": "npm run build && npx wrangler pages deploy dist --project-name=sop-knowledge-hub",
     "db:migrate:local": "npx wrangler d1 migrations apply sop-knowledge-hub-db --local",

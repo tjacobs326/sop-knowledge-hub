@@ -139,7 +139,10 @@ const accessLevels = ["Normal User", "Creator / Reviewer", "Admin"];
         </div>
         <div class="field">
           <label for="user-department">Department</label>
-          <input id="user-department" name="department" type="text" required />
+          <select id="user-department" name="departmentId" required disabled aria-describedby="user-department-status">
+            <option value="">Loading departments...</option>
+          </select>
+          <small id="user-department-status" role="status">Loading active departments from Cloudflare D1.</small>
         </div>
         <div class="field">
           <label for="user-access-level">Level of access</label>
@@ -165,7 +168,7 @@ const accessLevels = ["Normal User", "Creator / Reviewer", "Admin"];
           ))}
         </fieldset>
         <div class="form-actions field--full">
-          <button class="button button--primary" type="submit">Save User</button>
+          <button class="button button--primary" type="submit" id="save-user" disabled>Save User</button>
           <button class="button button--danger" type="button" id="delete-user">
             Remove User
           </button>
@@ -189,11 +192,16 @@ const accessLevels = ["Normal User", "Creator / Reviewer", "Admin"];
   const userEditor = document.getElementById("user-editor");
   const userEditorHeading = document.getElementById("user-editor-heading");
   const createUserButton = document.getElementById("create-user");
+  const saveUserButton = document.getElementById("save-user");
+  const departmentSelect = document.getElementById("user-department");
+  const departmentStatus = document.getElementById("user-department-status");
   const deleteUserButton = document.getElementById("delete-user");
   const cancelUserButton = document.getElementById("cancel-user-edit");
   const userConfirmation = document.getElementById("user-confirmation");
   let roleCache = [];
   let userCache = [];
+  let departmentCache = [];
+  let departmentsLoaded = false;
 
   const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (character) => {
@@ -229,16 +237,102 @@ const accessLevels = ["Normal User", "Creator / Reviewer", "Admin"];
       ...user,
       accessLevel: user.accessLevel || "Normal User",
       department: user.department || "",
+      departmentId: user.departmentId || user.teamId || "",
+      teamId: user.teamId || user.departmentId || "",
       permissions: Array.isArray(user.permissions) ? user.permissions : [],
       roleIds: Array.isArray(user.roleIds) ? user.roleIds : user.roleId ? [user.roleId] : [],
     };
   }
 
+  function normalizeBackendDepartment(department) {
+    return {
+      ...department,
+      id: department.id || "",
+      name: department.name || "",
+      status: department.status || "Active",
+    };
+  }
+
+  function validDepartmentIds() {
+    return new Set(departmentCache.map((department) => department.id).filter(Boolean));
+  }
+
+  function selectedAccessLevelRequiresDepartment() {
+    return ["Normal User", "Creator / Reviewer", "Admin"].includes(getUserField("accessLevel") || "Normal User");
+  }
+
+  function selectedDepartmentIsValid() {
+    if (!(departmentSelect instanceof HTMLSelectElement)) return false;
+    if (!selectedAccessLevelRequiresDepartment()) return true;
+    return validDepartmentIds().has(departmentSelect.value);
+  }
+
+  function updateUserSaveState() {
+    if (saveUserButton instanceof HTMLButtonElement) {
+      saveUserButton.disabled = !departmentsLoaded || !selectedDepartmentIsValid();
+    }
+  }
+
+  function renderDepartmentOptions(selectedId = "") {
+    if (!(departmentSelect instanceof HTMLSelectElement)) return;
+
+    if (!departmentsLoaded) {
+      departmentSelect.innerHTML = `<option value="">Loading departments...</option>`;
+      departmentSelect.disabled = true;
+      updateUserSaveState();
+      return;
+    }
+
+    departmentSelect.disabled = false;
+    const selectedStillValid = departmentCache.some((department) => department.id === selectedId);
+    departmentSelect.innerHTML = [
+      `<option value="">Select a department.</option>`,
+      ...departmentCache.map(
+        (department) =>
+          `<option value="${escapeHtml(department.id)}" ${department.id === selectedId ? "selected" : ""}>${escapeHtml(
+            department.name,
+          )}</option>`,
+      ),
+    ].join("");
+    departmentSelect.value = selectedStillValid ? selectedId : "";
+    if (departmentStatus) {
+      departmentStatus.textContent = departmentCache.length
+        ? `${departmentCache.length} active department${departmentCache.length === 1 ? "" : "s"} loaded.`
+        : "No active departments are available.";
+    }
+    updateUserSaveState();
+  }
+
+  async function loadDepartments() {
+    departmentsLoaded = false;
+    renderDepartmentOptions("");
+    try {
+      const response = await fetch("/api/admin/departments", { cache: "no-store" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data?.error || "Departments could not load from Cloudflare D1.");
+      if (!Array.isArray(data.departments)) throw new Error("Department data was not returned by D1.");
+      departmentCache = data.departments.map(normalizeBackendDepartment).filter((department) => department.id && department.name);
+      departmentsLoaded = true;
+      renderDepartmentOptions(getUserField("departmentId"));
+    } catch (error) {
+      departmentCache = [];
+      departmentsLoaded = false;
+      if (departmentSelect instanceof HTMLSelectElement) {
+        departmentSelect.innerHTML = `<option value="">Departments unavailable</option>`;
+        departmentSelect.disabled = true;
+      }
+      if (departmentStatus) {
+        departmentStatus.textContent = error instanceof Error ? error.message : "Departments could not load from Cloudflare D1.";
+      }
+      updateUserSaveState();
+    }
+  }
+
   async function loadBackendUsers() {
     try {
-      const response = await fetch("/api/admin/users");
-      if (!response.ok) throw new Error("User data could not load from D1.");
-      const data = await response.json();
+      const [usersResponse] = await Promise.all([fetch("/api/admin/users"), loadDepartments()]);
+      if (!usersResponse.ok) throw new Error("User data could not load from D1.");
+      const data = await usersResponse.json();
       if (!Array.isArray(data.users) || !Array.isArray(data.roles)) {
         throw new Error("User and role data was not returned by D1.");
       }
@@ -280,8 +374,8 @@ const accessLevels = ["Normal User", "Creator / Reviewer", "Admin"];
       headers: { "content-type": "application/json" },
       body: JSON.stringify(user),
     });
-    if (!response.ok) throw new Error("User could not be saved to D1.");
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data?.error || "User could not be saved to D1.");
     if (data.user) {
       const normalized = normalizeBackendUser(data.user);
       userCache = existingId
@@ -471,10 +565,11 @@ const accessLevels = ["Normal User", "Creator / Reviewer", "Admin"];
     setUserField("id", "");
     setUserField("name", "");
     setUserField("email", "");
-    setUserField("department", "");
+    renderDepartmentOptions("");
     setUserField("accessLevel", "Normal User");
     setUserField("status", "Active");
     setUserPermissions(permissionsForAccessLevel("Normal User"));
+    updateUserSaveState();
 
     if (userEditorHeading) userEditorHeading.textContent = "Add User";
     if (deleteUserButton instanceof HTMLButtonElement) deleteUserButton.hidden = true;
@@ -490,10 +585,11 @@ const accessLevels = ["Normal User", "Creator / Reviewer", "Admin"];
     setUserField("id", user.id);
     setUserField("name", user.name);
     setUserField("email", user.email);
-    setUserField("department", user.department);
+    renderDepartmentOptions(user.departmentId || "");
     setUserField("accessLevel", user.accessLevel);
     setUserField("status", user.status || "Active");
     setUserPermissions(user.permissions || permissionsForAccessLevel(user.accessLevel));
+    updateUserSaveState();
 
     if (userEditorHeading) userEditorHeading.textContent = `Edit ${user.name}`;
     if (deleteUserButton instanceof HTMLButtonElement) deleteUserButton.hidden = false;
@@ -539,7 +635,10 @@ const accessLevels = ["Normal User", "Creator / Reviewer", "Admin"];
     if (!(target instanceof HTMLSelectElement)) return;
 
     setUserPermissions(permissionsForAccessLevel(target.value));
+    updateUserSaveState();
   });
+
+  departmentSelect?.addEventListener("change", updateUserSaveState);
 
   editor?.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -593,12 +692,23 @@ const accessLevels = ["Normal User", "Creator / Reviewer", "Admin"];
     const existingUser = readUsers().find((user) => user.id === existingId);
     const accessLevel = getUserField("accessLevel");
     const role = readRoles().find((item) => item.accessLevel === accessLevel);
+    const departmentId = getUserField("departmentId");
+    if (!validDepartmentIds().has(departmentId)) {
+      if (userConfirmation) {
+        userConfirmation.hidden = false;
+        userConfirmation.innerHTML =
+          "<strong>Select a department.</strong><p>Choose an active department from the list before saving this account.</p>";
+      }
+      updateUserSaveState();
+      return;
+    }
     const updated = {
       ...existingUser,
       id: existingId || userIdFromEmail(getUserField("email")),
       name: getUserField("name"),
       email: getUserField("email"),
-      department: getUserField("department"),
+      departmentId,
+      teamId: departmentId,
       accessLevel,
       roleIds: role ? [role.id] : existingUser?.roleIds || [],
       teamIds: existingUser?.teamIds || [],
