@@ -2,7 +2,6 @@
 import Layout from "../components/Layout.astro";
 import AppIcon from "../components/AppIcon.astro";
 import HeroIllustrationIcon from "../components/HeroIllustrationIcon.astro";
-import { auditLogs, reviews, searchLogs, sopRequests, userAccounts } from "../data/mock-platform";
 import { formatDate } from "../lib/dates";
 import { renderCategoryIconSvg } from "../lib/category-icons";
 import { getAllSops, getCategoryCounts, getSopUrl } from "../lib/sops";
@@ -29,24 +28,11 @@ type DashboardCard = {
   status?: string;
 };
 
-const normalUser = userAccounts.find((user) => user.accessLevel === "Normal User") ?? userAccounts[0];
-const creatorUser = userAccounts.find((user) => user.accessLevel === "Creator / Reviewer") ?? userAccounts[0];
-const adminUser = userAccounts.find((user) => user.accessLevel === "Admin") ?? userAccounts[0];
-const today = new Date("2026-07-06T00:00:00Z");
-const openRequestStatuses = new Set(["Submitted", "Triage", "Assigned", "In Review"]);
-const pendingReviewStatuses = new Set(["Submitted", "Triage", "Assigned", "In Review", "Needs Revision"]);
-const openRequests = sopRequests.filter((request) => openRequestStatuses.has(request.status));
-const pendingReviews = reviews.filter((review) => pendingReviewStatuses.has(review.status));
-const urgentItems = [...reviews, ...sopRequests].filter((item) => ["High", "Urgent"].includes(item.priority));
-const overdueReviews = reviews.filter((review) => new Date(`${review.dueDate}T00:00:00Z`) < today && review.status !== "Approved");
-const assignedToCreator = reviews.filter((review) => review.assignedReviewerUserId === creatorUser.id);
-const needsCreatorReview = assignedToCreator.filter((review) => pendingReviewStatuses.has(review.status));
-const recentlyViewedLog =
-  [...searchLogs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] ?? null;
-const recentlyViewedSop =
-  sops.find((sop) => sop.data.id === recentlyViewedLog?.clickedSopId) ?? recentlyUpdated[0];
+const recentlyViewedSop = recentlyUpdated[0];
 const popularSop =
-  sops.find((sop) => sop.data.id === searchLogs.find((log) => log.clickedSopId)?.clickedSopId) ?? recentlyUpdated[0];
+  [...sops]
+    .filter((sop) => sop.data.status === "Published")
+    .sort((a, b) => b.data.lastUpdated.localeCompare(a.data.lastUpdated))[0] ?? recentlyUpdated[0];
 const recentlyUpdatedSop = recentlyUpdated[0];
 const contentHealth = Math.round((totalPublished / Math.max(sops.length, 1)) * 100);
 
@@ -58,7 +44,7 @@ const dashboardConfigs: Record<DashboardRole, { title: string; cards: DashboardC
         href: recentlyViewedSop ? getSopUrl(recentlyViewedSop) : "/search/",
         label: "Recently Viewed",
         value: recentlyViewedSop?.data.title ?? "No recent SOP",
-        description: recentlyViewedLog ? `Last viewed ${formatDate(recentlyViewedLog.createdAt)}` : "Open an SOP to start your history.",
+        description: "Open SOPs from the database to start your history.",
         icon: "document",
         iconSvg: renderCategoryIconSvg({ name: recentlyViewedSop?.data.category ?? "document" }),
         tone: "standard",
@@ -66,8 +52,8 @@ const dashboardConfigs: Record<DashboardRole, { title: string; cards: DashboardC
       {
         href: "/search/?saved=true",
         label: "Saved SOPs",
-        value: "4",
-        description: `${normalUser.name} has saved SOPs for quick reference.`,
+        value: "Saved",
+        description: "Saved SOPs will appear when the backend stores user-specific saves.",
         icon: "tags",
         iconSvg: renderCategoryIconSvg({ icon: "saved" }),
         tone: "standard",
@@ -76,7 +62,7 @@ const dashboardConfigs: Record<DashboardRole, { title: string; cards: DashboardC
         href: popularSop ? getSopUrl(popularSop) : "/search/",
         label: "Popular This Week",
         value: popularSop?.data.title ?? "Browse SOPs",
-        description: "Most viewed published SOP in current sample data.",
+        description: "Published SOP surfaced from the knowledge hub data.",
         icon: "analytics",
         iconSvg: renderCategoryIconSvg({ name: popularSop?.data.category ?? "analytics" }),
         tone: "success",
@@ -117,16 +103,16 @@ const dashboardConfigs: Record<DashboardRole, { title: string; cards: DashboardC
       {
         href: "/my-work/",
         label: "Assigned to Me",
-        value: String(assignedToCreator.length || 3),
-        description: "Active SOP tasks waiting on your update.",
+        value: "My Work",
+        description: "Open My Work for backend-assigned SOP tasks.",
         icon: "work",
         tone: "standard",
       },
       {
         href: "/admin/needs-review/",
         label: "Needs My Review",
-        value: String(needsCreatorReview.length || 2),
-        description: "SOPs ready for your approval pass.",
+        value: "Review",
+        description: "Open Needs Review for backend-assigned review items.",
         icon: "review",
         tone: "urgent",
         status: "Action needed",
@@ -134,16 +120,16 @@ const dashboardConfigs: Record<DashboardRole, { title: string; cards: DashboardC
       {
         href: "/drafts/",
         label: "My Drafts",
-        value: "4",
-        description: "Draft SOPs saved but not submitted.",
+        value: "Drafts",
+        description: "Open editable drafts assigned to your selected department.",
         icon: "drafts",
         tone: "standard",
       },
       {
         href: "/my-work/",
         label: "Overdue Reviews",
-        value: String(overdueReviews.length || 1),
-        description: "Past due review that needs attention.",
+        value: "Due",
+        description: "Overdue review counts load on the My Work dashboard.",
         icon: "needsReview",
         tone: "danger",
         status: "Past due",
@@ -151,8 +137,8 @@ const dashboardConfigs: Record<DashboardRole, { title: string; cards: DashboardC
       {
         href: "/submit/",
         label: "Open Requests",
-        value: String(openRequests.length || 5),
-        description: "Submitted requests still in progress.",
+        value: "Requests",
+        description: "Submitted requests route through backend review queues.",
         icon: "submit",
         tone: "warning",
         status: "Open",
@@ -160,7 +146,7 @@ const dashboardConfigs: Record<DashboardRole, { title: string; cards: DashboardC
       {
         href: recentlyViewedSop ? getSopUrl(recentlyViewedSop) : "/search/",
         label: "Recently Viewed",
-        value: recentlyViewedSop?.data.title ?? "Course QA",
+        value: recentlyViewedSop?.data.title ?? "Browse SOPs",
         description: "Last opened SOP from your history.",
         icon: "search",
         tone: "standard",
@@ -173,8 +159,8 @@ const dashboardConfigs: Record<DashboardRole, { title: string; cards: DashboardC
       {
         href: "/admin/review/",
         label: "Pending Reviews",
-        value: String(pendingReviews.length),
-        description: "Review items awaiting admin or reviewer action.",
+        value: "Queue",
+        description: "Open the backend review queue for pending items.",
         icon: "review",
         tone: "urgent",
         status: "Queue",
@@ -182,8 +168,8 @@ const dashboardConfigs: Record<DashboardRole, { title: string; cards: DashboardC
       {
         href: "/admin/review/",
         label: "Urgent Items",
-        value: String(urgentItems.length),
-        description: "High-priority requests and reviews across the hub.",
+        value: "Urgent",
+        description: "Urgent backend items appear in the review queue.",
         icon: "needsReview",
         tone: "danger",
         status: "Priority",
@@ -191,8 +177,8 @@ const dashboardConfigs: Record<DashboardRole, { title: string; cards: DashboardC
       {
         href: "/admin/needs-review/",
         label: "Past-Due SOP Reviews",
-        value: String(overdueReviews.length),
-        description: "Published or queued items past their review date.",
+        value: "Review",
+        description: "Past-due backend review items appear in Needs Review.",
         icon: "qa",
         tone: "danger",
         status: "Past due",
@@ -200,8 +186,8 @@ const dashboardConfigs: Record<DashboardRole, { title: string; cards: DashboardC
       {
         href: "/submit/",
         label: "Open Requests",
-        value: String(openRequests.length),
-        description: "Requests still moving through intake or review.",
+        value: "Requests",
+        description: "Requests are stored and routed through the backend workflow.",
         icon: "submit",
         tone: "warning",
         status: "Open",
@@ -217,8 +203,8 @@ const dashboardConfigs: Record<DashboardRole, { title: string; cards: DashboardC
       {
         href: "/admin/users/",
         label: "Recent Admin Activity",
-        value: auditLogs[0]?.action ?? "No activity",
-        description: auditLogs[0] ? `${auditLogs[0].actorName}: ${auditLogs[0].summary}` : `No recent activity for ${adminUser.name}.`,
+        value: "Activity",
+        description: "Admin activity should be reviewed from backend audit logs.",
         icon: "settings",
         tone: "standard",
       },

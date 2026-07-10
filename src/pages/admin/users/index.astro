@@ -1,14 +1,28 @@
 ---
 import Layout from "../../../components/Layout.astro";
-import {
-  USER_STORAGE_KEY,
-  accessLevels,
-  permissionOptions,
-  roles,
-  userAccounts,
-} from "../../../data/mock-users";
 
 // Future access note: restrict this route to admins with Cloudflare Access.
+const permissionOptions = [
+  "Search SOPs",
+  "Use Guided Finder",
+  "Browse Categories",
+  "Submit Requests",
+  "Create SOPs",
+  "Edit Drafts",
+  "Review SOPs",
+  "Request Changes",
+  "Approve SOPs",
+  "Publish SOPs",
+  "Archive SOPs",
+  "Manage Users",
+  "Manage Categories",
+  "Manage Tags",
+  "View Analytics",
+  "Upload Media",
+  "Manage Media",
+  "Settings",
+];
+const accessLevels = ["Normal User", "Creator / Reviewer", "Admin"];
 ---
 
 <Layout title="Users" wide>
@@ -20,13 +34,7 @@ import {
     </div>
 
     <div class="quick-link-grid" id="role-list">
-      {roles.map((role) => (
-        <button class="quick-link quick-link--panel role-card" type="button" data-edit-role={role.id}>
-          <strong>{role.name}</strong>
-          <span>{role.description}</span>
-          <small>{role.accessGroup}</small>
-        </button>
-      ))}
+      <p class="empty-state">Loading roles from Cloudflare D1...</p>
     </div>
 
     <form class="form-grid" id="role-editor" hidden>
@@ -75,25 +83,19 @@ import {
       <div class="stat-grid user-summary" id="user-summary" aria-label="User account summary">
         <article class="stat-card">
           <span>Total users</span>
-          <strong id="total-users">{userAccounts.length}</strong>
+          <strong id="total-users">0</strong>
         </article>
         <article class="stat-card">
           <span>Admins</span>
-          <strong id="total-admins">
-            {userAccounts.filter((user) => user.accessLevel === "Admin").length}
-          </strong>
+          <strong id="total-admins">0</strong>
         </article>
         <article class="stat-card">
           <span>Creators / Reviewers</span>
-          <strong id="total-creators">
-            {userAccounts.filter((user) => user.accessLevel === "Creator / Reviewer").length}
-          </strong>
+          <strong id="total-creators">0</strong>
         </article>
         <article class="stat-card">
           <span>Normal users</span>
-          <strong id="total-normal-users">
-            {userAccounts.filter((user) => user.accessLevel === "Normal User").length}
-          </strong>
+          <strong id="total-normal-users">0</strong>
         </article>
       </div>
 
@@ -117,21 +119,9 @@ import {
             </tr>
           </thead>
           <tbody id="user-account-list">
-            {userAccounts.map((user) => (
-              <tr data-edit-user={user.id} tabindex="0">
-                <td>{user.name}</td>
-                <td>{user.email}</td>
-                <td>{user.department}</td>
-                <td>{user.accessLevel}</td>
-                <td>{user.permissions.join(", ")}</td>
-                <td>{user.status}</td>
-                <td>
-                  <button class="button button--secondary" type="button" data-edit-user={user.id}>
-                    Edit User
-                  </button>
-                </td>
-              </tr>
-            ))}
+            <tr>
+              <td colspan="7">Loading users from Cloudflare D1...</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -189,8 +179,7 @@ import {
   </section>
 </Layout>
 
-<script is:inline define:vars={{ initialRoles: roles, initialUsers: userAccounts, USER_STORAGE_KEY }}>
-  const ROLE_STORAGE_KEY = "sopHubAdminRoles";
+<script is:inline>
   const roleList = document.getElementById("role-list");
   const editor = document.getElementById("role-editor");
   const editorHeading = document.getElementById("role-editor-heading");
@@ -203,9 +192,8 @@ import {
   const deleteUserButton = document.getElementById("delete-user");
   const cancelUserButton = document.getElementById("cancel-user-edit");
   const userConfirmation = document.getElementById("user-confirmation");
-  let roleCache = [...initialRoles];
-  let userCache = [...initialUsers];
-  let backendEnabled = false;
+  let roleCache = [];
+  let userCache = [];
 
   const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (character) => {
@@ -220,39 +208,11 @@ import {
     });
 
   function readRoles() {
-    if (backendEnabled) return roleCache;
-
-    try {
-      const stored = JSON.parse(localStorage.getItem(ROLE_STORAGE_KEY) || "null");
-      roleCache = Array.isArray(stored) && stored.length > 0 ? stored : initialRoles;
-      return roleCache;
-    } catch {
-      roleCache = initialRoles;
-      return roleCache;
-    }
-  }
-
-  function writeRoles(roles) {
-    roleCache = roles;
-    localStorage.setItem(ROLE_STORAGE_KEY, JSON.stringify(roles));
+    return roleCache;
   }
 
   function readUsers() {
-    if (backendEnabled) return userCache;
-
-    try {
-      const stored = JSON.parse(localStorage.getItem(USER_STORAGE_KEY) || "null");
-      userCache = Array.isArray(stored) && stored.length > 0 ? stored : initialUsers;
-      return userCache;
-    } catch {
-      userCache = initialUsers;
-      return userCache;
-    }
-  }
-
-  function writeUsers(users) {
-    userCache = users;
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(users));
+    return userCache;
   }
 
   function normalizeBackendRole(role) {
@@ -277,22 +237,29 @@ import {
   async function loadBackendUsers() {
     try {
       const response = await fetch("/api/admin/users");
-      if (!response.ok) return;
+      if (!response.ok) throw new Error("User data could not load from D1.");
       const data = await response.json();
-      if (!Array.isArray(data.users) || !Array.isArray(data.roles)) return;
-      backendEnabled = true;
+      if (!Array.isArray(data.users) || !Array.isArray(data.roles)) {
+        throw new Error("User and role data was not returned by D1.");
+      }
       roleCache = data.roles.map(normalizeBackendRole);
       userCache = data.users.map(normalizeBackendUser);
       renderRoles();
       renderUsers();
-    } catch {
-      backendEnabled = false;
+    } catch (error) {
+      if (roleList) roleList.innerHTML = `<p class="empty-state">${escapeHtml(error.message || "Roles could not load from Cloudflare D1.")}</p>`;
+      if (userList) {
+        userList.innerHTML = `
+          <tr>
+            <td colspan="7">${escapeHtml(error.message || "Users could not load from Cloudflare D1.")}</td>
+          </tr>
+        `;
+      }
+      updateUserSummary([]);
     }
   }
 
   async function saveBackendRole(role) {
-    if (!backendEnabled) return false;
-
     const response = await fetch("/api/admin/users?type=role", {
       method: "PUT",
       headers: { "content-type": "application/json" },
@@ -308,8 +275,6 @@ import {
   }
 
   async function saveBackendUser(user, existingId) {
-    if (!backendEnabled) return false;
-
     const response = await fetch("/api/admin/users", {
       method: existingId ? "PUT" : "POST",
       headers: { "content-type": "application/json" },
@@ -328,8 +293,6 @@ import {
   }
 
   async function deleteBackendUser(userId) {
-    if (!backendEnabled) return false;
-
     const response = await fetch(`/api/admin/users?id=${encodeURIComponent(userId)}`, {
       method: "DELETE",
     });
@@ -594,10 +557,6 @@ import {
       updatedAt: new Date().toISOString(),
     };
 
-    const roles = readRoles().map((role) => (role.id === roleId ? updated : role));
-    writeRoles(roles);
-    renderRoles();
-
     if (confirmation) {
       confirmation.hidden = false;
       confirmation.innerHTML = "<strong>Saving role...</strong>";
@@ -608,15 +567,14 @@ import {
       if (editorHeading) editorHeading.textContent = `Edit ${updated.name}`;
       if (confirmation) {
         confirmation.hidden = false;
-        confirmation.innerHTML = backendEnabled
-          ? "<strong>Role saved.</strong><p>This user role configuration is saved in Cloudflare D1.</p>"
-          : "<strong>Role saved.</strong><p>This user role configuration is saved in this browser.</p>";
+        confirmation.innerHTML =
+          "<strong>Role saved.</strong><p>This user role configuration is saved in Cloudflare D1.</p>";
       }
     } catch {
       if (confirmation) {
         confirmation.hidden = false;
         confirmation.innerHTML =
-          "<strong>Saved locally only.</strong><p>The Cloudflare D1 role update failed, so this browser copy was kept.</p>";
+          "<strong>Role was not saved.</strong><p>The Cloudflare D1 role update failed. Please try again.</p>";
       }
     }
   });
@@ -664,9 +622,6 @@ import {
       return;
     }
 
-    users = existingId ? users.map((user) => (user.id === existingId ? updated : user)) : [...users, updated];
-    writeUsers(users);
-    renderUsers();
     if (userConfirmation) {
       userConfirmation.hidden = false;
       userConfirmation.innerHTML = "<strong>Saving user...</strong>";
@@ -680,15 +635,14 @@ import {
       if (deleteUserButton instanceof HTMLButtonElement) deleteUserButton.hidden = false;
       if (userConfirmation) {
         userConfirmation.hidden = false;
-        userConfirmation.innerHTML = backendEnabled
-          ? "<strong>User saved.</strong><p>This account and permission update is saved in Cloudflare D1.</p>"
-          : "<strong>User saved.</strong><p>This account and permission update is saved in this browser.</p>";
+        userConfirmation.innerHTML =
+          "<strong>User saved.</strong><p>This account and permission update is saved in Cloudflare D1.</p>";
       }
     } catch {
       if (userConfirmation) {
         userConfirmation.hidden = false;
         userConfirmation.innerHTML =
-          "<strong>Saved locally only.</strong><p>The Cloudflare D1 user update failed, so this browser copy was kept.</p>";
+          "<strong>User was not saved.</strong><p>The Cloudflare D1 user update failed. Please try again.</p>";
       }
     }
   });
@@ -704,7 +658,7 @@ import {
     try {
       await deleteBackendUser(userId);
       const users = readUsers().filter((user) => user.id !== userId);
-      writeUsers(users);
+      userCache = users;
       renderUsers();
 
       if (userEditor instanceof HTMLFormElement) {
@@ -727,7 +681,5 @@ import {
     }
   });
 
-  renderRoles();
-  renderUsers();
   loadBackendUsers();
 </script>

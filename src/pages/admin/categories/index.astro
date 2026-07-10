@@ -1,6 +1,5 @@
 ---
 import Layout from "../../../components/Layout.astro";
-import { categories } from "../../../data/categories";
 
 // Future access note: restrict this route to admins with Cloudflare Access.
 ---
@@ -29,17 +28,9 @@ import { categories } from "../../../data/categories";
           </tr>
         </thead>
         <tbody id="admin-category-list">
-          {categories.map((category) => (
-            <tr data-edit-category={category.slug} tabindex="0">
-              <td>{category.name}</td>
-              <td>{category.description}</td>
-              <td>
-                <button class="button button--secondary" type="button" data-edit-category={category.slug}>
-                  Edit Category
-                </button>
-              </td>
-            </tr>
-          ))}
+          <tr>
+            <td colspan="3">Loading categories from Cloudflare D1...</td>
+          </tr>
         </tbody>
       </table>
     </div>
@@ -78,8 +69,7 @@ import { categories } from "../../../data/categories";
   </section>
 </Layout>
 
-<script is:inline define:vars={{ initialCategories: categories }}>
-  const CATEGORY_ADMIN_STORAGE_KEY = "sopHubAdminCategories";
+<script is:inline>
   const list = document.getElementById("admin-category-list");
   const editor = document.getElementById("category-editor");
   const editorHeading = document.getElementById("category-editor-heading");
@@ -87,8 +77,7 @@ import { categories } from "../../../data/categories";
   const deleteButton = document.getElementById("delete-category");
   const cancelButton = document.getElementById("cancel-category-edit");
   const confirmation = document.getElementById("category-confirmation");
-  let categoryCache = [...initialCategories];
-  let backendEnabled = false;
+  let categoryCache = [];
 
   const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (character) => {
@@ -111,40 +100,29 @@ import { categories } from "../../../data/categories";
       .replace(/^-+|-+$/g, "");
 
   function readCategories() {
-    if (backendEnabled) return categoryCache;
-
-    try {
-      const stored = JSON.parse(localStorage.getItem(CATEGORY_ADMIN_STORAGE_KEY) || "null");
-      categoryCache = Array.isArray(stored) && stored.length > 0 ? stored : initialCategories;
-      return categoryCache;
-    } catch {
-      categoryCache = initialCategories;
-      return categoryCache;
-    }
-  }
-
-  function writeCategories(value) {
-    categoryCache = value;
-    localStorage.setItem(CATEGORY_ADMIN_STORAGE_KEY, JSON.stringify(value));
+    return categoryCache;
   }
 
   async function loadBackendCategories() {
     try {
       const response = await fetch("/api/admin/categories");
-      if (!response.ok) return;
+      if (!response.ok) throw new Error("Category data could not load from D1.");
       const data = await response.json();
-      if (!Array.isArray(data.categories)) return;
-      backendEnabled = true;
+      if (!Array.isArray(data.categories)) throw new Error("Category data was not returned by D1.");
       categoryCache = data.categories;
       renderCategories();
-    } catch {
-      backendEnabled = false;
+    } catch (error) {
+      if (list) {
+        list.innerHTML = `
+          <tr>
+            <td colspan="3">${escapeHtml(error.message || "Categories could not load from Cloudflare D1.")}</td>
+          </tr>
+        `;
+      }
     }
   }
 
   async function saveBackendCategory(category, originalSlug) {
-    if (!backendEnabled) return false;
-
     const response = await fetch("/api/admin/categories", {
       method: originalSlug ? "PUT" : "POST",
       headers: { "content-type": "application/json" },
@@ -162,8 +140,6 @@ import { categories } from "../../../data/categories";
   }
 
   async function deleteBackendCategory(slug) {
-    if (!backendEnabled) return false;
-
     const response = await fetch(`/api/admin/categories?slug=${encodeURIComponent(slug)}`, {
       method: "DELETE",
     });
@@ -315,12 +291,6 @@ import { categories } from "../../../data/categories";
       return;
     }
 
-    categories = originalSlug
-      ? categories.map((category) => (category.slug === originalSlug ? updated : category))
-      : [...categories, updated];
-    writeCategories(categories);
-    renderCategories();
-
     if (confirmation) {
       confirmation.hidden = false;
       confirmation.innerHTML = "<strong>Saving category...</strong>";
@@ -334,15 +304,14 @@ import { categories } from "../../../data/categories";
 
       if (confirmation) {
         confirmation.hidden = false;
-        confirmation.innerHTML = backendEnabled
-          ? "<strong>Category saved.</strong><p>This admin category change is saved in Cloudflare D1.</p>"
-          : "<strong>Category saved.</strong><p>This admin category change is saved in this browser.</p>";
+        confirmation.innerHTML =
+          "<strong>Category saved.</strong><p>This admin category change is saved in Cloudflare D1.</p>";
       }
-    } catch (error) {
+    } catch {
       if (confirmation) {
         confirmation.hidden = false;
         confirmation.innerHTML =
-          "<strong>Saved locally only.</strong><p>The Cloudflare D1 update failed, so this browser copy was kept.</p>";
+          "<strong>Category was not saved.</strong><p>The Cloudflare D1 update failed. Please try again.</p>";
       }
     }
   });
@@ -360,7 +329,7 @@ import { categories } from "../../../data/categories";
     try {
       await deleteBackendCategory(originalSlug);
       const categories = readCategories().filter((category) => category.slug !== originalSlug);
-      writeCategories(categories);
+      categoryCache = categories;
       renderCategories();
 
       if (editor instanceof HTMLFormElement) {
@@ -383,6 +352,5 @@ import { categories } from "../../../data/categories";
     }
   });
 
-  renderCategories();
   loadBackendCategories();
 </script>

@@ -1,24 +1,7 @@
 ---
 import Layout from "../../../components/Layout.astro";
-import { tags as platformTags } from "../../../data/mock-platform";
-import { getAllSops } from "../../../lib/sops";
 
 // Future access note: restrict this route to admins with Cloudflare Access.
-const sops = await getAllSops();
-const tagCounts = new Map<string, number>();
-sops.forEach((sop) => {
-  sop.data.tags.forEach((tag) => tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1));
-});
-const tags = [...tagCounts.entries()]
-  .sort((a, b) => a[0].localeCompare(b[0]))
-  .map(([name, usageCount]) => ({
-    ...platformTags.find((tag) => tag.name === name),
-    name,
-    usageCount,
-    status: platformTags.find((tag) => tag.name === name)?.status ?? "Active",
-    notes: platformTags.find((tag) => tag.name === name)?.notes ?? "",
-  }));
-
 const statusOptions = ["Active", "Needs Review", "Deprecated"];
 ---
 
@@ -48,19 +31,9 @@ const statusOptions = ["Active", "Needs Review", "Deprecated"];
           </tr>
         </thead>
         <tbody id="admin-tag-list">
-          {tags.map((tag) => (
-            <tr data-edit-tag={tag.name} tabindex="0">
-              <td>{tag.name}</td>
-              <td>{tag.usageCount}</td>
-              <td>{tag.status}</td>
-              <td>{tag.notes || "No notes yet"}</td>
-              <td>
-                <button class="button button--secondary" type="button" data-edit-tag={tag.name}>
-                  Edit Tag
-                </button>
-              </td>
-            </tr>
-          ))}
+          <tr>
+            <td colspan="5">Loading tags from Cloudflare D1...</td>
+          </tr>
         </tbody>
       </table>
     </div>
@@ -100,8 +73,7 @@ const statusOptions = ["Active", "Needs Review", "Deprecated"];
   </section>
 </Layout>
 
-<script is:inline define:vars={{ initialTags: tags }}>
-  const TAG_ADMIN_STORAGE_KEY = "sopHubAdminTags";
+<script is:inline>
   const list = document.getElementById("admin-tag-list");
   const editor = document.getElementById("tag-editor");
   const editorHeading = document.getElementById("tag-editor-heading");
@@ -109,8 +81,7 @@ const statusOptions = ["Active", "Needs Review", "Deprecated"];
   const deleteButton = document.getElementById("delete-tag");
   const cancelButton = document.getElementById("cancel-tag-edit");
   const confirmation = document.getElementById("tag-confirmation");
-  let tagCache = [...initialTags];
-  let backendEnabled = false;
+  let tagCache = [];
 
   const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (character) => {
@@ -125,40 +96,29 @@ const statusOptions = ["Active", "Needs Review", "Deprecated"];
     });
 
   function readTags() {
-    if (backendEnabled) return tagCache;
-
-    try {
-      const stored = JSON.parse(localStorage.getItem(TAG_ADMIN_STORAGE_KEY) || "null");
-      tagCache = Array.isArray(stored) && stored.length > 0 ? stored : initialTags;
-      return tagCache;
-    } catch {
-      tagCache = initialTags;
-      return tagCache;
-    }
-  }
-
-  function writeTags(tags) {
-    tagCache = tags;
-    localStorage.setItem(TAG_ADMIN_STORAGE_KEY, JSON.stringify(tags));
+    return tagCache;
   }
 
   async function loadBackendTags() {
     try {
       const response = await fetch("/api/admin/tags");
-      if (!response.ok) return;
+      if (!response.ok) throw new Error("Tag data could not load from D1.");
       const data = await response.json();
-      if (!Array.isArray(data.tags)) return;
-      backendEnabled = true;
+      if (!Array.isArray(data.tags)) throw new Error("Tag data was not returned by D1.");
       tagCache = data.tags;
       renderTags();
-    } catch {
-      backendEnabled = false;
+    } catch (error) {
+      if (list) {
+        list.innerHTML = `
+          <tr>
+            <td colspan="5">${escapeHtml(error.message || "Tags could not load from Cloudflare D1.")}</td>
+          </tr>
+        `;
+      }
     }
   }
 
   async function saveBackendTag(tag, originalName) {
-    if (!backendEnabled) return false;
-
     const response = await fetch("/api/admin/tags", {
       method: originalName ? "PUT" : "POST",
       headers: { "content-type": "application/json" },
@@ -176,8 +136,6 @@ const statusOptions = ["Active", "Needs Review", "Deprecated"];
   }
 
   async function deleteBackendTag(name) {
-    if (!backendEnabled) return false;
-
     const response = await fetch(`/api/admin/tags?name=${encodeURIComponent(name)}`, {
       method: "DELETE",
     });
@@ -331,11 +289,6 @@ const statusOptions = ["Active", "Needs Review", "Deprecated"];
       return;
     }
 
-    tags = originalName
-      ? tags.map((tag) => (tag.name === originalName ? updated : tag))
-      : [...tags, updated];
-    writeTags(tags);
-    renderTags();
     if (confirmation) {
       confirmation.hidden = false;
       confirmation.innerHTML = "<strong>Saving tag...</strong>";
@@ -349,15 +302,14 @@ const statusOptions = ["Active", "Needs Review", "Deprecated"];
       if (deleteButton instanceof HTMLButtonElement) deleteButton.hidden = false;
       if (confirmation) {
         confirmation.hidden = false;
-        confirmation.innerHTML = backendEnabled
-          ? "<strong>Tag saved.</strong><p>This admin tag change is saved in Cloudflare D1.</p>"
-          : "<strong>Tag saved.</strong><p>This admin tag change is saved in this browser.</p>";
+        confirmation.innerHTML =
+          "<strong>Tag saved.</strong><p>This admin tag change is saved in Cloudflare D1.</p>";
       }
     } catch {
       if (confirmation) {
         confirmation.hidden = false;
         confirmation.innerHTML =
-          "<strong>Saved locally only.</strong><p>The Cloudflare D1 update failed, so this browser copy was kept.</p>";
+          "<strong>Tag was not saved.</strong><p>The Cloudflare D1 update failed. Please try again.</p>";
       }
     }
   });
@@ -375,7 +327,7 @@ const statusOptions = ["Active", "Needs Review", "Deprecated"];
     try {
       await deleteBackendTag(originalName);
       const tags = readTags().filter((tag) => tag.name !== originalName);
-      writeTags(tags);
+      tagCache = tags;
       renderTags();
 
       if (editor instanceof HTMLFormElement) {
@@ -398,6 +350,5 @@ const statusOptions = ["Active", "Needs Review", "Deprecated"];
     }
   });
 
-  renderTags();
   loadBackendTags();
 </script>
