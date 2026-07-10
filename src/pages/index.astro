@@ -2,7 +2,6 @@
 import Layout from "../components/Layout.astro";
 import AppIcon from "../components/AppIcon.astro";
 import HeroIllustrationIcon from "../components/HeroIllustrationIcon.astro";
-import CategoryCard from "../components/CategoryCard.astro";
 import { auditLogs, reviews, searchLogs, sopRequests, userAccounts } from "../data/mock-platform";
 import { formatDate } from "../lib/dates";
 import { renderCategoryIconSvg } from "../lib/category-icons";
@@ -243,15 +242,6 @@ const resources = [
   ["mailto:sop-support@organization.edu", "Contact SOP Support", "Get help from our team.", "all"],
 ];
 
-const categoryIconByName: Record<string, string> = {
-  "QA Processes": "qa",
-  "Brightspace D2L": "d2l",
-  Templates: "template",
-  "Course Builds": "course",
-  "Ivanti / Ticketing System": "ticket",
-  "AI Tools": "ai",
-  Troubleshooting: "troubleshooting",
-};
 ---
 
 <Layout title="SOP Knowledge Hub" wide>
@@ -388,18 +378,7 @@ const categoryIconByName: Record<string, string> = {
           <a href="/categories/">View all categories -></a>
         </div>
         <div class="category-grid dashboard-category-grid" id="home-category-grid">
-          {
-            categoryCounts.slice(0, 5).map((category) => (
-              <CategoryCard
-                name={category.name}
-                slug={category.slug}
-                description={category.description}
-                icon={category.icon}
-                color={category.color}
-                count={category.count}
-              />
-            ))
-          }
+          <p class="empty-state">Loading categories from the database...</p>
         </div>
       </section>
 
@@ -567,6 +546,7 @@ const categoryIconByName: Record<string, string> = {
   }
 
   function renderCategoryCard(category) {
+    const count = Number(category.sopCount || category.count || 0);
     return `
       <a class="category-card" href="${escapeHtml(category.detailUrl)}" style="--card-accent: ${escapeHtml(category.color)}">
         <div class="category-card__header">
@@ -575,10 +555,34 @@ const categoryIconByName: Record<string, string> = {
         </div>
         <p>${escapeHtml(category.description)}</p>
         <div class="category-card__footer">
-          <span class="category-card__count">${escapeHtml(category.sopCount)} ${category.sopCount === 1 ? "SOP" : "SOPs"}</span>
+          <span class="category-card__count">${escapeHtml(count)} ${count === 1 ? "SOP" : "SOPs"}</span>
         </div>
       </a>
     `;
+  }
+
+  function renderCategoryLoading() {
+    const categoryGrid = document.getElementById("home-category-grid");
+    if (categoryGrid) {
+      categoryGrid.innerHTML = `<p class="empty-state">Loading categories from the database...</p>`;
+    }
+  }
+
+  function renderCategoryEmpty() {
+    const categoryGrid = document.getElementById("home-category-grid");
+    if (categoryGrid) {
+      categoryGrid.innerHTML = `<p class="empty-state">No published SOP categories are available for this role.</p>`;
+    }
+  }
+
+  function renderCategoryGrid(categories) {
+    const categoryGrid = document.getElementById("home-category-grid");
+    if (!categoryGrid) return;
+    if (!categories.length) {
+      renderCategoryEmpty();
+      return;
+    }
+    categoryGrid.innerHTML = categories.slice(0, 5).map(renderCategoryCard).join("");
   }
 
   function renderRecentRow(sop) {
@@ -609,6 +613,7 @@ const categoryIconByName: Record<string, string> = {
 
     if (clearPrevious) {
       setText("home-published-count", "...");
+      renderCategoryLoading();
     }
 
     try {
@@ -627,10 +632,7 @@ const categoryIconByName: Record<string, string> = {
       setText("home-tag-count", tagCount);
       setText("home-last-updated", formatDateClient(latest?.updatedAt));
 
-      const categoryGrid = document.getElementById("home-category-grid");
-      if (categoryGrid && categories.length) {
-        categoryGrid.innerHTML = categories.slice(0, 5).map(renderCategoryCard).join("");
-      }
+      renderCategoryGrid(categories);
 
       const recentTable = document.getElementById("home-recent-sops");
       if (recentTable && recentSops.length) {
@@ -639,6 +641,7 @@ const categoryIconByName: Record<string, string> = {
     } catch {
       if (requestedSubRole) {
         setText("home-published-count", "0");
+        renderCategoryEmpty();
       }
       // Keep the static dashboard snapshot as the fallback when D1 is unavailable.
     }

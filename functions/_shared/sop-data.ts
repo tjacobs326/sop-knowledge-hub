@@ -272,7 +272,15 @@ export async function getSopBySlug(db: D1DatabaseBinding, slug: string, publicOn
   return row ? normalizeSop(row) : null;
 }
 
-export async function listCategories(db: D1DatabaseBinding) {
+interface CategoryFilters {
+  ownerSubRoleId?: string;
+}
+
+export async function listCategories(db: D1DatabaseBinding, filters: CategoryFilters = {}) {
+  const values: unknown[] = [publishedStatus];
+  const ownerSubRoleClause = filters.ownerSubRoleId ? "AND sops.owner_sub_role_id = ?" : "";
+  if (filters.ownerSubRoleId) values.push(filters.ownerSubRoleId);
+
   const result = await db
     .prepare(
       `SELECT
@@ -288,11 +296,13 @@ export async function listCategories(db: D1DatabaseBinding) {
       LEFT JOIN sops ON sops.category_id = categories.id
         AND sops.status = ?
         AND COALESCE(sops.is_active, 1) = 1
+        ${ownerSubRoleClause}
       WHERE COALESCE(categories.is_active, 1) = 1
       GROUP BY categories.id
+      HAVING sopCount > 0
       ORDER BY categories.sort_order ASC, categories.name ASC`,
     )
-    .bind(publishedStatus)
+    .bind(...values)
     .all<Record<string, unknown>>();
   return result.results || [];
 }
