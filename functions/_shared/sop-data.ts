@@ -192,10 +192,29 @@ function addFilters(filters: SopFilters) {
 
   if (filters.search) {
     where.push(
-      `(sops.title LIKE ? OR sops.purpose LIKE ? OR sops.summary LIKE ? OR versions.body_markdown LIKE ? OR versions.content LIKE ?)`,
+      `(sops.title LIKE ?
+        OR sops.purpose LIKE ?
+        OR sops.summary LIKE ?
+        OR versions.title LIKE ?
+        OR versions.summary LIKE ?
+        OR versions.body_markdown LIKE ?
+        OR versions.content LIKE ?
+        OR versions.before_you_begin LIKE ?
+        OR versions.checklist LIKE ?
+        OR versions.troubleshooting LIKE ?
+        OR versions.metadata_json LIKE ?
+        OR categories.name LIKE ?
+        OR categories.slug LIKE ?
+        OR owner.name LIKE ?
+        OR EXISTS (
+          SELECT 1 FROM sop_tags search_st
+          JOIN tags search_tags ON search_tags.id = search_st.tag_id
+          WHERE search_st.sop_id = sops.id
+          AND (search_tags.name LIKE ? OR search_tags.slug LIKE ?)
+        ))`,
     );
     const q = `%${filters.search}%`;
-    values.push(q, q, q, q, q);
+    values.push(q, q, q, q, q, q, q, q, q, q, q, q, q, q, q, q);
   }
 
   return { where, values };
@@ -243,6 +262,98 @@ export async function countSops(db: D1DatabaseBinding, filters: SopFilters = {})
     .bind(...values)
     .first<{ total: number }>();
   return Number(result?.total || 0);
+}
+
+function uniqueSorted(values: string[]) {
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+}
+
+function addPublicFacetFilters(filters: Pick<SopFilters, "ownerSubRoleId"> = {}) {
+  const where = ["sops.status = ?", "COALESCE(sops.is_active, 1) = 1"];
+  const values: unknown[] = [publishedStatus];
+  if (filters.ownerSubRoleId) {
+    where.push("sops.owner_sub_role_id = ?");
+    values.push(filters.ownerSubRoleId);
+  }
+  return { where, values };
+}
+
+export async function listSopFacets(db: D1DatabaseBinding, filters: Pick<SopFilters, "ownerSubRoleId"> = {}) {
+  const { where, values } = addPublicFacetFilters(filters);
+  const whereSql = `WHERE ${where.join(" AND ")}`;
+
+  const [categories, owners, statuses, tags, metadataRows] = await Promise.all([
+    db
+      .prepare(
+        `SELECT DISTINCT categories.name AS value
+         FROM sops
+         JOIN categories ON categories.id = sops.category_id
+         ${whereSql}
+         ORDER BY categories.name ASC`,
+      )
+      .bind(...values)
+      .all<{ value: string }>(),
+    db
+      .prepare(
+        `SELECT DISTINCT owner.name AS value
+         FROM sops
+         LEFT JOIN users owner ON owner.id = COALESCE(sops.owner_id, sops.owner_user_id)
+         ${whereSql}
+         AND owner.name IS NOT NULL
+         ORDER BY owner.name ASC`,
+      )
+      .bind(...values)
+      .all<{ value: string }>(),
+    db
+      .prepare(
+        `SELECT DISTINCT sops.status AS value
+         FROM sops
+         ${whereSql}
+         ORDER BY sops.status ASC`,
+      )
+      .bind(...values)
+      .all<{ value: string }>(),
+    db
+      .prepare(
+        `SELECT DISTINCT tags.name AS value
+         FROM sops
+         JOIN sop_tags ON sop_tags.sop_id = sops.id
+         JOIN tags ON tags.id = sop_tags.tag_id
+         ${whereSql}
+         AND COALESCE(tags.is_active, 1) = 1
+         ORDER BY tags.name ASC`,
+      )
+      .bind(...values)
+      .all<{ value: string }>(),
+    db
+      .prepare(
+        `SELECT versions.metadata_json AS metadataJson
+         FROM sops
+         LEFT JOIN sop_versions versions ON versions.id = sops.current_version_id
+         ${whereSql}`,
+      )
+      .bind(...values)
+      .all<{ metadataJson: string }>(),
+  ]);
+
+  const tools = uniqueSorted(
+    (metadataRows.results || []).flatMap((row) => {
+      const metadata = safeJsonParse<Record<string, unknown>>(String(row.metadataJson || "{}"), {});
+      if (Array.isArray(metadata.tools)) return metadata.tools.map(String);
+      return String(metadata.tools || "")
+        .split(/[\n,|]/)
+        .map((tool) => tool.trim())
+        .filter(Boolean);
+    }),
+  );
+
+  return {
+    categories: uniqueSorted((categories.results || []).map((row) => String(row.value || ""))),
+    tools,
+    owners: uniqueSorted((owners.results || []).map((row) => String(row.value || ""))),
+    statuses: uniqueSorted((statuses.results || []).map((row) => String(row.value || ""))),
+    tags: uniqueSorted((tags.results || []).map((row) => String(row.value || ""))),
+  };
 }
 
 export async function getSopById(db: D1DatabaseBinding, id: string, publicOnly = true) {

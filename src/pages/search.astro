@@ -1,27 +1,6 @@
 ---
 import Layout from "../components/Layout.astro";
 import AppIcon from "../components/AppIcon.astro";
-import SopCard from "../components/SopCard.astro";
-import { PUBLISHED_SOPS_STORAGE_KEY } from "../lib/drafts";
-import { getAllSops, getSopUrl } from "../lib/sops";
-import { uniqueSorted } from "../lib/search";
-
-const sops = await getAllSops();
-const initialQuery = Astro.url.searchParams.get("q") ?? "";
-const categories = uniqueSorted(sops.map((sop) => sop.data.category));
-const tools = uniqueSorted(sops.flatMap((sop) => sop.data.tools));
-const owners = uniqueSorted(sops.map((sop) => sop.data.owner));
-const statuses = uniqueSorted(sops.map((sop) => sop.data.status));
-const tags = uniqueSorted(sops.flatMap((sop) => sop.data.tags));
-const recentlyViewedSop = sops.find((sop) => sop.data.id === "sop-ivanti-submit-ticket") ?? sops[0];
-const popularSop = sops.find((sop) => sop.data.category === "QA Processes") ?? sops[1] ?? sops[0];
-const popularSearches = [
-  "D2L course copy",
-  "Ivanti ticket",
-  "Course QA checklist",
-  "New employee onboarding",
-  "Gradebook export",
-];
 ---
 
 <Layout title="Search SOPs" wide>
@@ -112,13 +91,12 @@ const popularSearches = [
           <label for="search-query">Search</label>
           <div class="search-query-row">
             <span aria-hidden="true"><AppIcon name="search" /></span>
-            <input
-              id="search-query"
-              type="search"
-              value={initialQuery}
-              autocomplete="off"
-              placeholder="Search by title, tag, tool, owner, category, or keyword..."
-            />
+              <input
+                id="search-query"
+                type="search"
+                autocomplete="off"
+                placeholder="Search by title, tag, tool, owner, category, or keyword..."
+              />
             <button class="button button--ghost search-tips-button" type="button">
               <AppIcon name="ai" />
               Search tips
@@ -132,7 +110,6 @@ const popularSearches = [
               <span aria-hidden="true"><AppIcon name="categories" /></span>
               <select id="filter-category">
                 <option value="">All categories</option>
-                {categories.map((category) => <option value={category}>{category}</option>)}
               </select>
             </div>
           </div>
@@ -142,7 +119,6 @@ const popularSearches = [
               <span aria-hidden="true"><AppIcon name="settings" /></span>
               <select id="filter-tool">
                 <option value="">All tools</option>
-                {tools.map((tool) => <option value={tool}>{tool}</option>)}
               </select>
             </div>
           </div>
@@ -152,7 +128,6 @@ const popularSearches = [
               <span aria-hidden="true"><AppIcon name="users" /></span>
               <select id="filter-owner">
                 <option value="">All owners</option>
-                {owners.map((owner) => <option value={owner}>{owner}</option>)}
               </select>
             </div>
           </div>
@@ -162,7 +137,6 @@ const popularSearches = [
               <span aria-hidden="true"><AppIcon name="qa" /></span>
               <select id="filter-status">
                 <option value="">All statuses</option>
-                {statuses.map((status) => <option value={status}>{status}</option>)}
               </select>
             </div>
           </div>
@@ -172,7 +146,6 @@ const popularSearches = [
               <span aria-hidden="true"><AppIcon name="tags" /></span>
               <select id="filter-tag">
                 <option value="">All tags</option>
-                {tags.map((tag) => <option value={tag}>{tag}</option>)}
               </select>
             </div>
           </div>
@@ -206,55 +179,6 @@ const popularSearches = [
           </div>
         </div>
       </form>
-      <div class="popular-searches" aria-label="Popular searches">
-        <strong><AppIcon name="analytics" /> Popular searches</strong>
-        <div class="popular-searches__pills">
-          {
-            popularSearches.map((searchTerm) => (
-              <a href={`/search/?q=${encodeURIComponent(searchTerm)}`}>
-                <AppIcon name="search" />
-                {searchTerm}
-              </a>
-            ))
-          }
-        </div>
-        <a class="popular-searches__view-all" href="/admin/analytics/">View all</a>
-      </div>
-    </div>
-
-    <div class="search-helper-grid no-print" aria-label="Search shortcuts">
-      <a class="search-helper-card" href={recentlyViewedSop ? getSopUrl(recentlyViewedSop) : "/search/"}>
-        <span class="search-helper-card__icon search-helper-card__icon--green" aria-hidden="true">
-          <AppIcon name="tags" />
-        </span>
-        <span>
-          <strong>Recently viewed</strong>
-          <small>
-            {recentlyViewedSop ? `Continue with ${recentlyViewedSop.data.title}` : "Continue where you left off"}
-          </small>
-        </span>
-        <span aria-hidden="true">-&gt;</span>
-      </a>
-      <a class="search-helper-card" href={popularSop ? getSopUrl(popularSop) : "/search/"}>
-        <span class="search-helper-card__icon search-helper-card__icon--blue" aria-hidden="true">
-          <AppIcon name="analytics" />
-        </span>
-        <span>
-          <strong>Popular this week</strong>
-          <small>{popularSop ? popularSop.data.title : "Most viewed by your team"}</small>
-        </span>
-        <span aria-hidden="true">-&gt;</span>
-      </a>
-      <a class="search-helper-card search-helper-card--request" href="/submit/">
-        <span class="search-helper-card__icon search-helper-card__icon--purple" aria-hidden="true">
-          <AppIcon name="support" />
-        </span>
-        <span>
-          <strong>Can't find what you need?</strong>
-          <small>Request a new SOP</small>
-        </span>
-        <span aria-hidden="true">-&gt;</span>
-      </a>
     </div>
 
     <p class="result-count" id="result-count"></p>
@@ -262,40 +186,11 @@ const popularSearches = [
       <strong>No SOPs found</strong>
       <p>Try clearing a filter or searching by a broader tool, tag, owner, or keyword.</p>
     </div>
-    <div class="sop-grid" id="search-results">
-      {
-        sops.map((sop) => (
-          <div
-            data-search-card
-            data-sop-id={sop.data.id}
-            data-category={sop.data.category}
-            data-tools={sop.data.tools.join("|")}
-            data-owner={sop.data.owner}
-            data-status={sop.data.status}
-            data-tags={sop.data.tags.join("|")}
-            data-updated={sop.data.lastUpdated}
-            data-search={`${sop.data.title} ${sop.data.purpose} ${sop.data.category} ${sop.data.tags.join(" ")} ${sop.data.tools.join(" ")} ${sop.data.owner} ${sop.data.audience.join(" ")} ${sop.data.relatedSops.join(" ")} ${sop.body}`.toLowerCase()}
-          >
-            <SopCard
-              title={sop.data.title}
-              purpose={sop.data.purpose}
-              category={sop.data.category}
-              tags={sop.data.tags}
-              owner={sop.data.owner}
-              lastUpdated={sop.data.lastUpdated}
-              reviewDate={sop.data.reviewDate}
-              tools={sop.data.tools}
-              status={sop.data.status}
-              url={getSopUrl(sop)}
-            />
-          </div>
-        ))
-      }
-    </div>
+    <div class="sop-grid" id="search-results" aria-live="polite"></div>
   </section>
 </Layout>
 
-<script is:inline define:vars={{ PUBLISHED_SOPS_STORAGE_KEY }}>
+<script is:inline>
   const form = document.getElementById("sop-search-form");
   const queryInput = document.getElementById("search-query");
   const categoryFilter = document.getElementById("filter-category");
@@ -307,10 +202,10 @@ const popularSearches = [
   const resultCount = document.getElementById("result-count");
   const emptyState = document.getElementById("search-empty");
   const results = document.getElementById("search-results");
+  const ROLE_KEY = "sopHubSelectedRole";
   const SUB_ROLE_KEY = "sopHubSelectedCreatorSubRole";
   const ROLE_CONTEXT_EVENT = "sop-role-context-change";
-  let cards = Array.from(document.querySelectorAll("[data-search-card]"));
-  let searchHydrationRequestId = 0;
+  let searchRequestId = 0;
 
   const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (character) => {
@@ -324,15 +219,6 @@ const popularSearches = [
       return replacements[character];
     });
 
-  function readPublishedSops() {
-    try {
-      const records = JSON.parse(localStorage.getItem(PUBLISHED_SOPS_STORAGE_KEY) || "[]");
-      return Array.isArray(records) ? records : [];
-    } catch {
-      return [];
-    }
-  }
-
   function normalizeList(value) {
     if (Array.isArray(value)) return value.map(String).map((item) => item.trim()).filter(Boolean);
     if (typeof value === "string") {
@@ -342,6 +228,18 @@ const popularSearches = [
         .filter(Boolean);
     }
     return [];
+  }
+
+  function selectedCreatorSubRole() {
+    return localStorage.getItem(ROLE_KEY) === "creator" ? localStorage.getItem(SUB_ROLE_KEY) || "" : "";
+  }
+
+  function fetchHeaders() {
+    const selectedSubRole = selectedCreatorSubRole();
+    return {
+      accept: "application/json",
+      ...(selectedSubRole ? { "x-sop-sub-role": selectedSubRole } : {}),
+    };
   }
 
   function formatDate(value) {
@@ -355,50 +253,6 @@ const popularSearches = [
     });
   }
 
-  function optionExists(select, value) {
-    return Array.from(select?.options || []).some((option) => option.value === value);
-  }
-
-  function addFilterOption(select, value) {
-    if (!(select instanceof HTMLSelectElement) || !value || optionExists(select, value)) return;
-    const option = document.createElement("option");
-    option.value = value;
-    option.textContent = value;
-    select.append(option);
-  }
-
-  function searchTextFor(record) {
-    const stepText = normalizeList(record.procedureSteps).join(" ");
-    const structuredStepText = Array.isArray(record.procedureSteps)
-      ? record.procedureSteps
-          .map((step) => [step?.title, step?.instructions, step?.note].filter(Boolean).join(" "))
-          .join(" ")
-      : "";
-    return [
-      record.title,
-      record.purpose,
-      record.category,
-      record.owner,
-      record.beforeYouBegin,
-      record.troubleshootingNotes,
-      record.changeSummary,
-      record.summary,
-      record.bodyMarkdown,
-      record.version?.content,
-      record.version?.summary,
-      normalizeList(record.tags).join(" "),
-      normalizeList(record.tools).join(" "),
-      normalizeList(record.audience).join(" "),
-      normalizeList(record.relatedSops).join(" "),
-      normalizeList(record.screenshots).join(" "),
-      stepText,
-      structuredStepText,
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
-  }
-
   function statusBadgeHtml(status) {
     const className = String(status || "Published").toLowerCase().replace(/[^a-z0-9]+/g, "-");
     return `<span class="status-badge status-badge--${escapeHtml(className)}"><span class="sr-only">Status:</span>${escapeHtml(
@@ -406,34 +260,25 @@ const popularSearches = [
     )}</span>`;
   }
 
-  function renderPublishedCard(record) {
+  function sopUrl(record) {
+    if (record.slug) return `/sops/detail/?slug=${encodeURIComponent(record.slug)}`;
+    return `/sops/detail/?id=${encodeURIComponent(String(record.id || ""))}`;
+  }
+
+  function renderSopCard(record) {
     const tags = normalizeList(record.tags);
     const tools = normalizeList(record.tools);
-    const audience = normalizeList(record.audience);
-    const relatedSops = normalizeList(record.relatedSops);
     const status = record.status || "Published";
     const lastUpdated = record.lastUpdated || record.updatedDate || record.publishedAt || record.updatedAt;
-    const url = record.slug
-      ? `/sops/detail/?slug=${encodeURIComponent(record.slug)}`
-      : record.url || `/published/?id=${encodeURIComponent(record.id)}`;
-    const card = document.createElement("div");
-    card.dataset.searchCard = "";
-    card.dataset.sopId = record.sourceId || record.id;
-    card.dataset.category = record.category || "";
-    card.dataset.tools = tools.join("|");
-    card.dataset.owner = record.owner || "";
-    card.dataset.status = status;
-    card.dataset.tags = tags.join("|");
-    card.dataset.updated = lastUpdated || "";
-    card.dataset.search = searchTextFor({ ...record, tags, tools, audience, relatedSops });
-    card.innerHTML = `
+    return `
+      <div data-search-card data-sop-id="${escapeHtml(record.id || "")}">
       <article class="sop-card">
         <div class="sop-card__topline">
           <span class="sop-card__category">${escapeHtml(record.category || "Uncategorized")}</span>
           ${statusBadgeHtml(status)}
         </div>
-        <h2><a href="${escapeHtml(url)}">${escapeHtml(record.title || "Untitled SOP")}</a></h2>
-        <p class="sop-card__purpose">${escapeHtml(record.purpose || "No purpose provided.")}</p>
+        <h2><a href="${escapeHtml(sopUrl(record))}">${escapeHtml(record.title || "Untitled SOP")}</a></h2>
+        <p class="sop-card__purpose">${escapeHtml(record.summary || record.purpose || "No summary provided.")}</p>
         <dl class="compact-meta">
           <div><dt>Owner</dt><dd>${escapeHtml(record.owner || "Unassigned")}</dd></div>
           <div><dt>Updated</dt><dd>${escapeHtml(formatDate(lastUpdated))}</dd></div>
@@ -459,34 +304,8 @@ const popularSearches = [
             : ""
         }
       </article>
+      </div>
     `;
-    return card;
-  }
-
-  function hydratePublishedSops() {
-    if (!results) return;
-
-    readPublishedSops().forEach((record) => {
-      if (!record?.id || !record?.title) return;
-
-      const card = renderPublishedCard(record);
-      const existing = results.querySelector(
-        `[data-search-card][data-sop-id="${CSS.escape(card.dataset.sopId || record.id)}"]`,
-      );
-      if (existing) {
-        existing.replaceWith(card);
-      } else {
-        results.prepend(card);
-      }
-
-      addFilterOption(categoryFilter, card.dataset.category);
-      addFilterOption(ownerFilter, card.dataset.owner);
-      addFilterOption(statusFilter, card.dataset.status);
-      normalizeList(card.dataset.tools).forEach((tool) => addFilterOption(toolFilter, tool));
-      normalizeList(card.dataset.tags).forEach((tag) => addFilterOption(tagFilter, tag));
-    });
-
-    cards = Array.from(document.querySelectorAll("[data-search-card]"));
   }
 
   function valueOf(element) {
@@ -495,104 +314,68 @@ const popularSearches = [
       : "";
   }
 
-  function matchesToken(dataValue, filterValue) {
-    if (!filterValue) return true;
-    return String(dataValue || "")
-      .split("|")
-      .includes(filterValue);
-  }
-
-  function selectedCreatorSubRole() {
-    return localStorage.getItem(SUB_ROLE_KEY) || "";
-  }
-
-  async function fetchAllApiSops() {
-    const all = [];
-    let offset = 0;
-    const limit = 100;
-    let total = Infinity;
-
-    while (all.length < total) {
-      const response = await fetch(`/api/sops?limit=${limit}&offset=${offset}`);
-      if (!response.ok) throw new Error("Unable to load SOPs from D1.");
-      const payload = await response.json();
-      const records = payload.sops || payload.data?.sops || [];
-      total = Number(payload.total || payload.data?.total || records.length);
-      all.push(...records);
-      if (records.length === 0) break;
-      offset += records.length;
-    }
-
-    return all;
-  }
-
-  function resetFilterOptions() {
-    [
-      [categoryFilter, "All categories"],
-      [toolFilter, "All tools"],
-      [ownerFilter, "All owners"],
-      [statusFilter, "All statuses"],
-      [tagFilter, "All tags"],
-    ].forEach(([select, label]) => {
-      if (!(select instanceof HTMLSelectElement)) return;
-      select.innerHTML = `<option value="">${escapeHtml(label)}</option>`;
-    });
-  }
-
-  function resetSearchControls() {
-    [queryInput, categoryFilter, toolFilter, ownerFilter, statusFilter, tagFilter, updatedFilter].forEach((element) => {
-      if (element instanceof HTMLInputElement || element instanceof HTMLSelectElement) {
-        element.value = "";
-      }
-    });
-  }
-
-  function renderApiSops(apiSops) {
-    if (!results) return;
-
-    results.innerHTML = "";
-    resetFilterOptions();
-
-    apiSops.forEach((record) => {
-      const card = renderPublishedCard(record);
-      results.append(card);
-      addFilterOption(categoryFilter, card.dataset.category);
-      addFilterOption(ownerFilter, card.dataset.owner);
-      addFilterOption(statusFilter, card.dataset.status);
-      normalizeList(card.dataset.tools).forEach((tool) => addFilterOption(toolFilter, tool));
-      normalizeList(card.dataset.tags).forEach((tag) => addFilterOption(tagFilter, tag));
-    });
-
-    cards = Array.from(document.querySelectorAll("[data-search-card]"));
-    applySearch();
-  }
-
-  async function hydrateApiSops({ resetControls = false } = {}) {
-    if (!results) return;
-
-    const requestId = ++searchHydrationRequestId;
-    const requestedSubRole = selectedCreatorSubRole();
-
-    if (requestedSubRole) {
-      if (resetControls) resetSearchControls();
-      renderApiSops([]);
-    }
-
-    try {
-      const apiSops = await fetchAllApiSops();
-      if (requestId !== searchHydrationRequestId || requestedSubRole !== selectedCreatorSubRole()) return;
-      if (!apiSops.length && !requestedSubRole) return;
-      renderApiSops(apiSops);
-    } catch {
-      if (requestedSubRole) {
-        renderApiSops([]);
-      }
-      // Keep the static Markdown and browser-published fallback results available.
+  function replaceOptions(select, label, values) {
+    if (!(select instanceof HTMLSelectElement)) return;
+    const previousValue = select.value;
+    const options = [`<option value="">${escapeHtml(label)}</option>`]
+      .concat(
+        normalizeList(values).map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`),
+      )
+      .join("");
+    select.innerHTML = options;
+    if (normalizeList(values).includes(previousValue)) {
+      select.value = previousValue;
     }
   }
 
-  function matchesUpdated(dateValue, daysBack) {
+  async function loadFacets() {
+    const response = await fetch("/api/search/facets", {
+      cache: selectedCreatorSubRole() ? "no-store" : "default",
+      headers: fetchHeaders(),
+    });
+    if (!response.ok) throw new Error("Unable to load search filters.");
+    const payload = await response.json();
+    const facets = payload.facets || payload.data?.facets || {};
+    replaceOptions(categoryFilter, "All categories", facets.categories || []);
+    replaceOptions(toolFilter, "All tools", facets.tools || []);
+    replaceOptions(ownerFilter, "All owners", facets.owners || []);
+    replaceOptions(statusFilter, "All statuses", facets.statuses || []);
+    replaceOptions(tagFilter, "All tags", facets.tags || []);
+  }
+
+  function buildSearchParams() {
+    const params = new URLSearchParams();
+    params.set("limit", "100");
+    params.set("offset", "0");
+    const q = valueOf(queryInput);
+    const category = valueOf(categoryFilter);
+    const tool = valueOf(toolFilter);
+    const owner = valueOf(ownerFilter);
+    const status = valueOf(statusFilter);
+    const tag = valueOf(tagFilter);
+    if (q) params.set("q", q);
+    if (category) params.set("category", category);
+    if (tool) params.set("tool", tool);
+    if (owner) params.set("owner", owner);
+    if (status) params.set("status", status);
+    if (tag) params.set("tag", tag);
+    params.set("sort", "recent");
+    return params;
+  }
+
+  async function fetchSopPage(params, offset, requestedSubRole) {
+    params.set("offset", String(offset));
+    const response = await fetch(`/api/sops?${params.toString()}`, {
+      cache: requestedSubRole ? "no-store" : "default",
+      headers: fetchHeaders(),
+    });
+    if (!response.ok) throw new Error("Unable to load SOPs.");
+    return response.json();
+  }
+
+  function matchesUpdated(record, daysBack) {
     if (!daysBack) return true;
+    const dateValue = record.lastUpdated || record.updatedAt || record.publishedAt;
     if (!dateValue) return false;
     const date = new Date(String(dateValue).includes("T") ? dateValue : `${dateValue}T00:00:00`);
     if (Number.isNaN(date.getTime())) return false;
@@ -602,62 +385,93 @@ const popularSearches = [
     return date >= cutoff;
   }
 
-  function applySearch() {
-    const query = valueOf(queryInput).toLowerCase();
-    const category = valueOf(categoryFilter);
-    const tool = valueOf(toolFilter);
-    const owner = valueOf(ownerFilter);
-    const status = valueOf(statusFilter);
-    const tag = valueOf(tagFilter);
+  function renderResults(records, total) {
     const updated = valueOf(updatedFilter);
-    let visibleCount = 0;
-
-    cards.forEach((card) => {
-      const visible =
-        (!query || card.dataset.search.includes(query)) &&
-        (!category || card.dataset.category === category) &&
-        matchesToken(card.dataset.tools, tool) &&
-        (!owner || card.dataset.owner === owner) &&
-        (!status || card.dataset.status === status) &&
-        matchesToken(card.dataset.tags, tag) &&
-        matchesUpdated(card.dataset.updated, updated);
-
-      card.hidden = !visible;
-      if (visible) visibleCount += 1;
-    });
-
+    const visibleRecords = records.filter((record) => matchesUpdated(record, updated));
+    if (results) {
+      results.innerHTML = visibleRecords.map(renderSopCard).join("");
+    }
     if (resultCount) {
-      resultCount.textContent = `${visibleCount} SOP${visibleCount === 1 ? "" : "s"} found`;
+      const totalText = updated ? visibleRecords.length : total;
+      resultCount.textContent = `${totalText} SOP${totalText === 1 ? "" : "s"} found`;
     }
     if (emptyState) {
-      emptyState.hidden = visibleCount !== 0;
+      emptyState.hidden = visibleRecords.length !== 0;
+    }
+  }
+
+  async function loadResults() {
+    const requestId = ++searchRequestId;
+    const requestedSubRole = selectedCreatorSubRole();
+    if (resultCount) resultCount.textContent = "Loading SOPs from the database...";
+    if (emptyState) emptyState.hidden = true;
+
+    const params = buildSearchParams();
+    const records = [];
+    let total = 0;
+    let offset = 0;
+
+    do {
+      const payload = await fetchSopPage(params, offset, requestedSubRole);
+      if (requestId !== searchRequestId || requestedSubRole !== selectedCreatorSubRole()) return;
+      const pageRecords = payload.sops || payload.data?.sops || [];
+      total = Number(payload.total || payload.data?.total || pageRecords.length);
+      records.push(...pageRecords);
+      if (pageRecords.length === 0) break;
+      offset += pageRecords.length;
+    } while (records.length < total);
+
+    if (requestId !== searchRequestId || requestedSubRole !== selectedCreatorSubRole()) return;
+    renderResults(records, total);
+  }
+
+  function clearResults(message = "No SOPs found") {
+    if (results) results.innerHTML = "";
+    if (resultCount) resultCount.textContent = message;
+    if (emptyState) emptyState.hidden = false;
+  }
+
+  async function refreshSearch({ resetControls = false, reloadFacets = false } = {}) {
+    if (resetControls) {
+      [queryInput, categoryFilter, toolFilter, ownerFilter, statusFilter, tagFilter, updatedFilter].forEach((element) => {
+        if (element instanceof HTMLInputElement || element instanceof HTMLSelectElement) element.value = "";
+      });
+    }
+    try {
+      if (reloadFacets) await loadFacets();
+      await loadResults();
+    } catch {
+      clearResults("Search results could not load from the database.");
     }
   }
 
   form?.addEventListener("submit", (event) => {
     event.preventDefault();
-    applySearch();
+    refreshSearch();
   });
 
   form?.addEventListener("reset", () => {
-    window.setTimeout(applySearch, 0);
+    window.setTimeout(() => refreshSearch(), 0);
   });
 
   [queryInput, categoryFilter, toolFilter, ownerFilter, statusFilter, tagFilter, updatedFilter].forEach(
     (element) => {
-      element?.addEventListener("input", applySearch);
-      element?.addEventListener("change", applySearch);
+      element?.addEventListener("input", () => refreshSearch());
+      element?.addEventListener("change", () => refreshSearch());
     },
   );
 
-  hydratePublishedSops();
-  applySearch();
-  hydrateApiSops();
+  const initialQuery = new URLSearchParams(window.location.search).get("q") || "";
+  if (queryInput instanceof HTMLInputElement) {
+    queryInput.value = initialQuery;
+  }
+
+  refreshSearch({ reloadFacets: true });
 
   window.addEventListener(ROLE_CONTEXT_EVENT, (event) => {
     const detail = event instanceof CustomEvent ? event.detail || {} : {};
     if (detail.previousSubRole !== detail.subRole || detail.previousRole !== detail.role) {
-      hydrateApiSops({ resetControls: true });
+      refreshSearch({ resetControls: true, reloadFacets: true });
     }
   });
 </script>
