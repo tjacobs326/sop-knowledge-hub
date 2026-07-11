@@ -233,16 +233,30 @@ img {
   outline: 0;
 }
 
-.topbar-search kbd {
-  min-width: 3rem;
-  padding: 0.35rem 0.55rem;
-  color: var(--color-ink);
-  font-size: 0.78rem;
-  font-weight: 700;
+.topbar-search__button {
+  min-height: 2.55rem;
+  padding: 0 1.05rem;
+  color: #ffffff;
+  font-family: var(--font-heading);
+  font-size: 0.9rem;
+  font-weight: 950;
   text-align: center;
-  background: var(--color-linen);
+  background: linear-gradient(135deg, #ff9f2e 0%, #f45b16 100%);
   border: 1px solid rgba(154, 79, 10, 0.16);
-  border-radius: 8px;
+  border-radius: 9px;
+  box-shadow: 0 10px 20px rgba(244, 91, 22, 0.18);
+  cursor: pointer;
+}
+
+.topbar-search__button:hover,
+.topbar-search__button:focus-visible {
+  background: linear-gradient(135deg, #f97316 0%, #d9480f 100%);
+  box-shadow: 0 12px 24px rgba(244, 91, 22, 0.24);
+}
+
+.topbar-search__button:focus-visible {
+  outline: 3px solid rgba(26, 90, 245, 0.42);
+  outline-offset: 2px;
 }
 
 .topbar-actions {
@@ -7168,11 +7182,12 @@ tbody tr:hover {
   }
 
   .topbar-search {
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 0.55rem;
   }
 
-  .topbar-search kbd {
-    display: none;
+  .topbar-search__button {
+    padding-inline: 0.8rem;
   }
 
   .dashboard-stats .hero-stats__item {
@@ -8055,7 +8070,7 @@ tbody tr:hover {
   align-self: start;
 }
 
-.home-search-panel label,
+.home-browse-panel h2,
 .home-ask-panel h2 {
   margin: 0;
   color: var(--color-ink);
@@ -8063,15 +8078,27 @@ tbody tr:hover {
   font-weight: 900;
 }
 
-.home-search-panel__control {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.75rem;
+.home-browse-panel {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
 }
 
-.home-search-panel input {
-  min-height: 3.15rem;
-  font-size: 1rem;
+.home-browse-panel__icon {
+  display: grid;
+  width: 4.25rem;
+  height: 4.25rem;
+  place-items: center;
+  color: var(--color-ink);
+}
+
+.home-browse-panel__icon .hero-art-icon {
+  width: 4.25rem;
+  height: 4.25rem;
+}
+
+.home-browse-panel p {
+  margin: 0.25rem 0 0;
+  color: var(--color-muted);
 }
 
 .home-ask-panel {
@@ -8444,14 +8471,6 @@ button.home-action-card {
 
   .home-ask-panel .button {
     grid-column: 1 / -1;
-    width: 100%;
-  }
-
-  .home-search-panel__control {
-    grid-template-columns: 1fr;
-  }
-
-  .home-search-panel__control .button {
     width: 100%;
   }
 
