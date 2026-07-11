@@ -12,6 +12,13 @@ const contentTypes = new Map([
   [".svg", "image/svg+xml"],
   [".json", "application/json; charset=utf-8"],
 ]);
+const guidedNeedLabels = [
+  "Use a system or tool",
+  "Complete a process",
+  "Learn how to perform a task",
+  "Review or approve work",
+  "Troubleshoot a problem",
+];
 
 const apiGet = {
   success: true,
@@ -35,10 +42,7 @@ const apiGet = {
         shortLabel: "Need",
         question: "What do you need?",
         help: "Choose the kind of work you are trying to complete.",
-        options: [
-          { value: "Troubleshoot a very long Brightspace course-copy and section-sync problem", label: "Troubleshoot a very long Brightspace course-copy and section-sync problem", hint: "Derived from live SOP taxonomy with long wrapping text" },
-          { value: "Complete a process", label: "Complete a process", hint: "Derived from live SOP taxonomy" },
-        ],
+        options: guidedNeedLabels.map((label) => ({ value: label, label })),
       },
     ],
     options: { departments: [], categories: [], tools: [], tasks: [], roles: [] },
@@ -84,7 +88,10 @@ test.beforeAll(async () => {
     try {
       const url = new URL(req.url || "/", "http://127.0.0.1");
       if (url.pathname === "/api/guided-finder") {
-        const body = req.method === "POST" ? apiPost : apiGet;
+        let requestBody = "";
+        for await (const chunk of req) requestBody += chunk;
+        const parsed = requestBody ? JSON.parse(requestBody) : {};
+        const body = req.method === "POST" && parsed.mode !== "options" ? apiPost : apiGet;
         res.writeHead(200, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
         res.end(JSON.stringify(body));
         return;
@@ -116,26 +123,85 @@ async function expectNoOverflow(page, label) {
   expect(overflow, `${label} should not horizontally overflow: ${JSON.stringify(metrics)}`).toBeLessThanOrEqual(1);
 }
 
-async function expectStepLabelsStayWhole(page) {
-  const labels = await page.locator(".guided-workflow__rail strong").evaluateAll((nodes) =>
+async function expectResultsUseReadableColumns(page, label) {
+  const metrics = await page.locator(".guided-workflow__match").first().evaluate((card) => {
+    const title = card.querySelector("h3");
+    const link = card.querySelector("h3 a");
+    const cardStyle = window.getComputedStyle(card);
+    const linkStyle = link ? window.getComputedStyle(link) : null;
+    return {
+      cardGridColumns: cardStyle.gridTemplateColumns,
+      cardWidth: card.getBoundingClientRect().width,
+      titleWidth: title?.getBoundingClientRect().width || 0,
+      titleText: title?.textContent?.trim() || "",
+      linkWordBreak: linkStyle?.wordBreak || "",
+      linkOverflowWrap: linkStyle?.overflowWrap || "",
+    };
+  });
+  expect(metrics.cardGridColumns.split(" ").length, `${label} result card should not use a cramped two-column content grid`).toBe(1);
+  expect(metrics.titleWidth, `${label} SOP title should have readable width: ${JSON.stringify(metrics)}`).toBeGreaterThan(
+    Math.min(180, metrics.cardWidth * 0.65),
+  );
+  expect(metrics.linkWordBreak, `${label} SOP title should not break mid-word`).toBe("normal");
+  expect(metrics.linkOverflowWrap, `${label} SOP title should not break every character`).not.toBe("anywhere");
+}
+
+async function expectNeedOptionsAreApprovedOnly(page) {
+  const labels = await page.locator("#guided-finder-choices .guided-workflow__choice strong").evaluateAll((nodes) =>
+    nodes.map((node) => node.textContent?.trim()).filter(Boolean),
+  );
+  expect(labels).toEqual(guidedNeedLabels);
+}
+
+async function expectChoiceLabelsWrapByWords(page, label) {
+  const styles = await page.locator("#guided-finder-choices .guided-workflow__choice strong").evaluateAll((nodes) =>
     nodes.map((node) => {
       const style = window.getComputedStyle(node);
       return {
         text: node.textContent?.trim(),
-        whiteSpace: style.whiteSpace,
         overflowWrap: style.overflowWrap,
         wordBreak: style.wordBreak,
-        height: node.getBoundingClientRect().height,
-        lineHeight: Number.parseFloat(style.lineHeight),
+        hyphens: style.hyphens,
       };
     }),
   );
-  for (const label of labels) {
-    expect(label.whiteSpace, `${label.text} should stay on one row`).toBe("nowrap");
-    expect(label.overflowWrap, `${label.text} should not break mid-word`).toBe("normal");
-    expect(label.wordBreak, `${label.text} should not break mid-word`).toBe("normal");
-    expect(label.height, `${label.text} should fit on one line`).toBeLessThanOrEqual(label.lineHeight * 1.35);
+  for (const item of styles) {
+    expect(item.overflowWrap, `${label}: ${item.text} should not split mid-word`).not.toBe("anywhere");
+    expect(item.wordBreak, `${label}: ${item.text} should not split mid-word`).toBe("normal");
+    expect(item.hyphens, `${label}: ${item.text} should not hyphenate labels`).toBe("none");
   }
+}
+
+async function expectChoiceGridIsHorizontalWhenRoomy(page, width) {
+  const columns = await page.locator("#guided-finder-choices").evaluate((grid) =>
+    window.getComputedStyle(grid).gridTemplateColumns.split(" ").filter(Boolean).length,
+  );
+  if (width >= 1024) {
+    expect(columns, `${width}px should show the five Need choices across the screen`).toBeGreaterThanOrEqual(5);
+  } else if (width >= 600) {
+    expect(columns, `${width}px should avoid a tall single-column guided-choice stack`).toBeGreaterThanOrEqual(2);
+  } else {
+    expect(columns, `${width}px should remain a compact mobile stack`).toBeGreaterThanOrEqual(1);
+  }
+}
+
+async function expectPanelsUseFullLane(page, label) {
+  const metrics = await page.evaluate(() => {
+    const shell = document.querySelector(".guided-workflow__shell");
+    const main = document.querySelector(".guided-workflow__main");
+    const results = document.querySelector(".guided-workflow__results");
+    return {
+      shellWidth: shell?.getBoundingClientRect().width || 0,
+      mainWidth: main?.getBoundingClientRect().width || 0,
+      resultsWidth: results?.getBoundingClientRect().width || 0,
+    };
+  });
+  expect(metrics.mainWidth, `${label} main panel should use the available lane: ${JSON.stringify(metrics)}`).toBeGreaterThan(
+    metrics.shellWidth * 0.94,
+  );
+  expect(metrics.resultsWidth, `${label} results panel should use the available lane: ${JSON.stringify(metrics)}`).toBeGreaterThan(
+    metrics.shellWidth * 0.94,
+  );
 }
 
 for (const width of widths) {
@@ -147,7 +213,13 @@ for (const width of widths) {
     });
     await page.goto(`${baseUrl}/guided-finder/`, { waitUntil: "networkidle" });
     await expectNoOverflow(page, `${width}px initial`);
-    await expectStepLabelsStayWhole(page);
+    await expect(page.locator(".guided-workflow__rail")).toHaveCount(0);
+    await expectPanelsUseFullLane(page, `${width}px initial`);
+    await expect(page.getByRole("button", { name: /start guided selections/i })).toHaveCount(0);
+    await expect(page.getByLabel(/describe the task/i)).toHaveCount(0);
+    await expect(page.locator("#guided-finder-question")).toHaveText(/who are you/i);
+    await expect(page.getByRole("button", { name: /^back$/i })).toBeHidden();
+    await expect(page.locator("#guided-finder-restart")).toBeHidden();
 
     if (width <= 920) {
       const menu = page.locator("[data-nav-toggle]");
@@ -157,13 +229,19 @@ for (const width of widths) {
       await expect(menu).toHaveAttribute("aria-expanded", "false");
     }
 
-    await page.getByRole("button", { name: /start guided selections/i }).click();
     await expectNoOverflow(page, `${width}px question`);
-    await expectStepLabelsStayWhole(page);
+    await expectChoiceLabelsWrapByWords(page, `${width}px department choices`);
     await page.getByRole("button", { name: /instructional technology/i }).first().click();
-    await page.getByRole("button", { name: /continue/i }).click();
+    await expect(page.locator("#guided-finder-question")).toHaveText(/what do you need/i);
+    await expect(page.getByRole("button", { name: /^back$/i })).toBeVisible();
+    await expect(page.locator("#guided-finder-restart")).toBeVisible();
+    await expectNeedOptionsAreApprovedOnly(page);
+    await expectChoiceLabelsWrapByWords(page, `${width}px need choices`);
+    await expectChoiceGridIsHorizontalWhenRoomy(page, width);
     await page.getByRole("button", { name: /troubleshoot/i }).first().click();
     await expectNoOverflow(page, `${width}px results`);
+    await expectPanelsUseFullLane(page, `${width}px results`);
     await expect(page.getByRole("heading", { name: /best matching sop/i })).toBeVisible();
+    await expectResultsUseReadableColumns(page, `${width}px`);
   });
 }

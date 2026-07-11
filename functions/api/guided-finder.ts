@@ -8,6 +8,7 @@ import { listSopFacets, listSops } from "../_shared/sop-data";
 
 const MODEL = "@cf/meta/llama-3.1-8b-instruct-fast";
 const LOW_CONFIDENCE = 35;
+const CATEGORY_OPTION_LIMIT = 10;
 
 interface GuidedFinderFilters {
   department?: string;
@@ -18,6 +19,7 @@ interface GuidedFinderFilters {
 }
 
 interface GuidedFinderRequest {
+  mode?: "options" | "search";
   description?: string;
   filters?: GuidedFinderFilters;
 }
@@ -194,50 +196,56 @@ function optionFromValue(value: string, hint = ""): GuidedFinderOption {
   };
 }
 
-function buildNeedOptions(sops: Array<Record<string, unknown>>, facets: Awaited<ReturnType<typeof listSopFacets>>) {
-  const taxonomy = unique([
-    ...sops.map((sop) => String(sop.type || "")),
-    ...facets.tags,
-    ...facets.categories,
-  ]).slice(0, 80);
-  const scored = new Map<string, { label: string; terms: Set<string>; count: number }>();
-  const groups = [
-    { label: "Complete a process", terms: ["process", "procedure", "complete", "copy", "prepare", "submit", "setup", "build"] },
-    { label: "Use a system or tool", terms: ["tool", "system", "brightspace", "d2l", "ivanti", "cengage", "software", "ai"] },
-    { label: "Troubleshoot a problem", terms: ["troubleshoot", "missing", "issue", "problem", "fix", "resolution", "access"] },
-    { label: "Review or approve work", terms: ["review", "approve", "qa", "quality", "checklist", "final"] },
-    { label: "Find a policy or requirement", terms: ["policy", "requirement", "standard", "accessibility", "governance"] },
-    { label: "Learn how to perform a task", terms: ["job aid", "template", "guide", "how", "learn", "task"] },
-  ];
+const guidedNeedOptions: GuidedFinderOption[] = [
+  { value: "Use a system or tool", label: "Use a system or tool" },
+  { value: "Complete a process", label: "Complete a process" },
+  { value: "Learn how to perform a task", label: "Learn how to perform a task" },
+  { value: "Review or approve work", label: "Review or approve work" },
+  { value: "Troubleshoot a problem", label: "Troubleshoot a problem" },
+];
 
-  groups.forEach((group) => {
-    const record = { label: group.label, terms: new Set<string>(), count: 0 };
-    taxonomy.forEach((term) => {
-      const normalized = term.toLowerCase();
-      if (group.terms.some((keyword) => normalized.includes(keyword))) {
-        record.terms.add(term);
-        record.count += 1;
-      }
-    });
-    if (record.count) scored.set(group.label, record);
-  });
+function buildNeedOptions() {
+  return guidedNeedOptions;
+}
 
-  taxonomy.forEach((term) => {
-    if (scored.size >= 10) return;
-    const label = term.length > 42 ? `${term.slice(0, 39)}...` : term;
-    if (!Array.from(scored.keys()).some((existing) => existing.toLowerCase() === label.toLowerCase())) {
-      scored.set(label, { label, terms: new Set([term]), count: 1 });
-    }
-  });
+function categorySignalScore(name: string, count: number) {
+  const normalized = name.toLowerCase();
+  let score = count * 20;
+  if (/(brightspace|cengage|course build|quality|qa|template|troubleshoot|ticket|ivanti|accessibility|multimedia|project|planning|ai)/i.test(name)) {
+    score += 14;
+  }
+  if (/^(archive|uncategorized)$/i.test(name) || /\barchive\b/i.test(name)) score -= 40;
+  if (/\b(other|miscellaneous|general)\b/i.test(name)) score -= count > 2 ? 8 : 22;
+  if (/^\d+\.\s*/.test(name)) score -= 6;
+  if (normalized.length > 42) score -= 4;
+  return score;
+}
 
-  return Array.from(scored.values())
-    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
-    .slice(0, 8)
-    .map((item) => ({
-      value: Array.from(item.terms).slice(0, 4).join(" "),
-      label: item.label,
-      hint: item.terms.size > 1 ? `Matches ${item.terms.size} live taxonomy terms` : "Derived from live SOP taxonomy",
-    }));
+function buildCategoryOptions(sops: Array<Record<string, unknown>>, fallbackCategories: string[]) {
+  const counts = new Map<string, number>();
+  for (const sop of sops) {
+    const category = String(sop.category || "").trim();
+    if (!category) continue;
+    counts.set(category, (counts.get(category) || 0) + 1);
+  }
+
+  const ranked = Array.from(counts.entries())
+    .map(([category, count]) => ({
+      category,
+      count,
+      score: categorySignalScore(category, count),
+    }))
+    .sort((a, b) => b.score - a.score || b.count - a.count || a.category.localeCompare(b.category));
+
+  const selected = (ranked.length ? ranked : fallbackCategories.map((category) => ({ category, count: 0, score: categorySignalScore(category, 0) })))
+    .filter((item) => item.category && item.score > -15)
+    .slice(0, CATEGORY_OPTION_LIMIT);
+
+  return selected.map((item) => ({
+    value: item.category,
+    label: item.category,
+    hint: item.count ? `${item.count} published SOP${item.count === 1 ? "" : "s"}` : "Published SOP category",
+  }));
 }
 
 function buildGuidedSteps(input: {
@@ -256,7 +264,7 @@ function buildGuidedSteps(input: {
   const roleOptions = unique(input.sops.flatMap((sop) => (Array.isArray(sop.audience) ? sop.audience.map(String) : []))).map((role) =>
     optionFromValue(role, "Audience from published SOP metadata"),
   );
-  const categoryOptions = input.facets.categories.map((category) => optionFromValue(category, "Published SOP category"));
+  const categoryOptions = buildCategoryOptions(input.sops, input.facets.categories);
   const toolOptions = input.facets.tools.map((tool) => optionFromValue(tool, "System or tool from SOP metadata"));
   const steps: GuidedFinderStep[] = [
     {
@@ -276,8 +284,8 @@ function buildGuidedSteps(input: {
       number: 2,
       shortLabel: "Need",
       question: "What do you need?",
-      help: "Choose the kind of work you are trying to complete. These options are derived from live SOP categories, tags, and process types.",
-      options: buildNeedOptions(input.sops, input.facets),
+      help: "Choose the kind of work you are trying to complete.",
+      options: buildNeedOptions(),
     },
     {
       key: "tool",
@@ -522,7 +530,7 @@ async function publishedSops(context: PagesFunctionContext, filters: GuidedFinde
   return filtered.length ? filtered : initial.filter((sop) => includesAny(sop.audience, filters.userRole || ""));
 }
 
-export const onRequestGet = async (context: PagesFunctionContext) => {
+async function guidedFinderOptionsResponse(context: PagesFunctionContext) {
   const missingDb = requireDb(context.env.DB);
   if (missingDb) return missingDb;
 
@@ -584,6 +592,10 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
   } catch (error) {
     return failure("GUIDED_FINDER_OPTIONS_FAILED", error instanceof Error ? error.message : "Unable to load Guided Finder options.", 500);
   }
+}
+
+export const onRequestGet = async (context: PagesFunctionContext) => {
+  return guidedFinderOptionsResponse(context);
 };
 
 export const onRequestPost = async (context: PagesFunctionContext) => {
@@ -591,6 +603,10 @@ export const onRequestPost = async (context: PagesFunctionContext) => {
   if (missingDb) return missingDb;
   const [payload, parseError] = await readBody<GuidedFinderRequest>(context.request);
   if (parseError) return parseError;
+
+  if (payload?.mode === "options") {
+    return guidedFinderOptionsResponse(context);
+  }
 
   const description = String(payload?.description || "").trim().slice(0, 1200);
   const filters = payload?.filters || {};

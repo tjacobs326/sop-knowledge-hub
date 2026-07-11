@@ -1,7 +1,3 @@
----
-import AppIcon from "./AppIcon.astro";
----
-
 <section class="guided-finder guided-workflow" aria-labelledby="finder-heading">
   <div class="ticket-guide-hero guided-workflow__hero">
     <div class="ticket-guide-hero__content">
@@ -37,46 +33,10 @@ import AppIcon from "./AppIcon.astro";
   </div>
 
   <div class="guided-workflow__shell">
-    <nav class="guided-workflow__rail" aria-label="Guided Finder progress">
-      <ol id="guided-finder-rail">
-        <li class="is-active"><span>1</span><strong>Role</strong></li>
-        <li><span>2</span><strong>Need</strong></li>
-        <li><span>3</span><strong>Answer</strong></li>
-      </ol>
-    </nav>
-
     <div class="guided-workflow__main">
       <div class="ticket-guide-status guided-workflow__status" id="guided-finder-status" role="status" aria-live="polite">
         Loading Guided Finder options...
       </div>
-
-      <section class="guided-workflow__start" id="guided-finder-start" aria-labelledby="guided-finder-start-heading">
-        <div>
-          <p class="eyebrow">Start here</p>
-          <h2 id="guided-finder-start-heading">Start with your task or guided selections</h2>
-          <p>
-            Include the system, tool, department, or process if you know it. Workers AI helps interpret
-            your wording, then D1 returns real published SOP records.
-          </p>
-        </div>
-        <label class="ticket-guide-field guided-workflow__prompt" for="guided-finder-description">
-          <span>Describe the task, system, tool, or process</span>
-          <textarea
-            id="guided-finder-description"
-            rows="5"
-            placeholder="Example: I need to copy a Brightspace course shell or find the SOP for Cengage setup."
-          ></textarea>
-        </label>
-        <div class="ticket-guide-actions">
-          <button class="button button--primary" type="button" id="guided-finder-search">
-            <AppIcon name="search" />
-            Find SOPs
-          </button>
-          <button class="button button--secondary" type="button" id="guided-finder-start-guided">
-            Start Guided Selections
-          </button>
-        </div>
-      </section>
 
       <section class="guided-workflow__question" id="guided-finder-question-panel" hidden aria-labelledby="guided-finder-question">
         <div class="guided-workflow__progress">
@@ -110,7 +70,7 @@ import AppIcon from "./AppIcon.astro";
           </svg>
         </span>
         <h2>Ready when you are</h2>
-        <p>Describe your need or start the guided flow. Results will appear here as the finder narrows the backend SOP records.</p>
+        <p>Answer the guided questions. Results will appear here as the finder narrows the backend SOP records.</p>
       </div>
     </aside>
   </div>
@@ -128,17 +88,21 @@ import AppIcon from "./AppIcon.astro";
     description: "",
     lastResults: [],
   };
+  const guidedNeedOptions = [
+    "Use a system or tool",
+    "Complete a process",
+    "Learn how to perform a task",
+    "Review or approve work",
+    "Troubleshoot a problem",
+  ].map((label) => ({ value: label, label }));
 
   const statusEl = document.getElementById("guided-finder-status");
-  const startPanel = document.getElementById("guided-finder-start");
   const questionPanel = document.getElementById("guided-finder-question-panel");
   const descriptionEl = document.getElementById("guided-finder-description");
-  const searchButton = document.getElementById("guided-finder-search");
-  const startGuidedButton = document.getElementById("guided-finder-start-guided");
   const questionEl = document.getElementById("guided-finder-question");
   const helpEl = document.getElementById("guided-finder-help");
   const choicesEl = document.getElementById("guided-finder-choices");
-  const railEl = document.getElementById("guided-finder-rail");
+  const mainEl = document.querySelector(".guided-workflow__main");
   const countEl = document.getElementById("guided-finder-step-count");
   const progressEl = document.getElementById("guided-finder-progress-bar");
   const backButton = document.getElementById("guided-finder-back");
@@ -191,7 +155,7 @@ import AppIcon from "./AppIcon.astro";
         shortLabel: "Need",
         question: "What do you need?",
         help: "Choose the task or process closest to your work.",
-        options: (options.tasks || []).map(toOption),
+        options: guidedNeedOptions,
       },
       {
         key: "tool",
@@ -254,26 +218,6 @@ import AppIcon from "./AppIcon.astro";
     return state.steps[state.stepIndex] || null;
   }
 
-  function renderRail(forceAnswer = false) {
-    if (!railEl) return;
-    const step = currentStep();
-    const activeNumber = forceAnswer ? 3 : Math.min(step?.number || 1, 3);
-    const labels = [
-      { number: 1, label: "Role" },
-      { number: 2, label: "Need" },
-      { number: 3, label: "Answer" },
-    ];
-    railEl.innerHTML = labels
-      .map((item) => {
-        const complete = item.number < activeNumber;
-        const active = item.number === activeNumber;
-        return `<li class="${active ? "is-active" : ""} ${complete ? "is-complete" : ""}"${active ? ' aria-current="step"' : ""}>
-          <span>${item.number}</span><strong>${escapeHtml(item.label)}</strong>
-        </li>`;
-      })
-      .join("");
-  }
-
   function renderQuestion() {
     const step = currentStep();
     if (!step) {
@@ -281,16 +225,23 @@ import AppIcon from "./AppIcon.astro";
       return;
     }
 
-    if (startPanel) startPanel.hidden = true;
     if (questionPanel) questionPanel.hidden = false;
     if (questionEl) questionEl.textContent = step.question;
     if (helpEl) helpEl.textContent = step.help;
     if (countEl) countEl.textContent = `Step ${state.stepIndex + 1} of ${state.steps.length}`;
     if (progressEl) progressEl.style.width = `${((state.stepIndex + 1) / Math.max(state.steps.length, 1)) * 100}%`;
-    if (backButton instanceof HTMLButtonElement) backButton.disabled = state.stepIndex === 0;
+    if (backButton instanceof HTMLButtonElement) {
+      backButton.hidden = state.stepIndex === 0;
+      backButton.disabled = state.stepIndex === 0;
+    }
+    if (restartButton instanceof HTMLButtonElement) {
+      restartButton.hidden = state.stepIndex === 0;
+      restartButton.disabled = state.stepIndex === 0;
+    }
     if (nextButton instanceof HTMLButtonElement) nextButton.textContent = state.stepIndex === state.steps.length - 1 ? "Show Results" : "Continue";
 
     if (choicesEl) {
+      choicesEl.dataset.stepKey = step.key;
       choicesEl.innerHTML = step.options
         .map((option) => {
           const active = state.filters[step.key] === option.value;
@@ -313,14 +264,17 @@ import AppIcon from "./AppIcon.astro";
         .join("");
     }
 
-    renderRail();
-    window.requestAnimationFrame(() => questionEl?.focus?.());
+    window.requestAnimationFrame(() => {
+      if (mainEl instanceof HTMLElement && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        mainEl.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+      }
+      questionEl?.focus?.({ preventScroll: true });
+    });
   }
 
   function renderNoOptions() {
-    if (startPanel) startPanel.hidden = false;
     if (questionPanel) questionPanel.hidden = true;
-    setStatus("No Guided Finder filter options are available from the backend yet. You can still search by description.", "ready");
+    setStatus("No Guided Finder filter options are available from the backend yet.", "ready");
   }
 
   function selectedQueryParams() {
@@ -364,12 +318,10 @@ import AppIcon from "./AppIcon.astro";
     const results = payload?.results || [];
     state.lastResults = results;
     if (!results.length) {
-      renderRail();
       renderEmptyState(payload?.nextQuestion || "Try changing a department, category, system, or task.");
       return;
     }
 
-    renderRail(true);
     const params = selectedQueryParams();
     const query = params.toString();
     if (!resultsEl) return;
@@ -449,7 +401,12 @@ import AppIcon from "./AppIcon.astro";
     const requestId = ++state.requestId;
     setStatus("Loading live Guided Finder options...", "loading");
     try {
-      const response = await fetch("/api/guided-finder", { headers: { accept: "application/json" }, cache: "no-store" });
+      const response = await fetch("/api/guided-finder", {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({ mode: "options" }),
+      });
       const payload = await response.json();
       if (requestId !== state.requestId) return;
       if (!response.ok || !payload.success) {
@@ -459,8 +416,8 @@ import AppIcon from "./AppIcon.astro";
       state.filters = {};
       state.stepIndex = 0;
       buildSteps();
-      renderRail();
       setStatus("Guided Finder ready. Results use live backend records.", "ready");
+      startGuidedFlow();
     } catch (error) {
       if (requestId !== state.requestId) return;
       state.options = null;
@@ -484,34 +441,27 @@ import AppIcon from "./AppIcon.astro";
     state.stepIndex = 0;
     state.lastResults = [];
     if (!preserveDescription && descriptionEl) descriptionEl.value = "";
-    if (startPanel) startPanel.hidden = false;
     if (questionPanel) questionPanel.hidden = true;
     if (resultsEl) {
       resultsEl.innerHTML = `
         <div class="ticket-guide-empty">
           <h2>Ready when you are</h2>
-          <p>Describe your need or start the guided flow. Results will appear here as the finder narrows the backend SOP records.</p>
+          <p>Answer the guided questions. Results will appear here as the finder narrows the backend SOP records.</p>
         </div>
       `;
     }
-    renderRail();
   }
 
   choicesEl?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-key][data-value]");
     if (!button) return;
     state.filters[button.dataset.key] = button.dataset.value;
+    if (state.stepIndex < state.steps.length - 1) {
+      state.stepIndex += 1;
+    }
     renderQuestion();
     searchGuidedFinder();
   });
-
-  searchButton?.addEventListener("click", () => {
-    if (startPanel) startPanel.hidden = false;
-    if (questionPanel) questionPanel.hidden = true;
-    searchGuidedFinder();
-  });
-
-  startGuidedButton?.addEventListener("click", startGuidedFlow);
 
   backButton?.addEventListener("click", () => {
     state.stepIndex = Math.max(0, state.stepIndex - 1);

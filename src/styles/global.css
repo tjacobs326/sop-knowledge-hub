@@ -5447,12 +5447,13 @@ legend {
 }
 
 .guided-workflow__choices {
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  gap: clamp(0.65rem, 1.8vw, 0.9rem);
 }
 
 .guided-workflow__choice {
   align-items: center;
-  min-height: 5.5rem;
+  min-height: 4.75rem;
 }
 
 .guided-workflow__choice-mark {
@@ -5488,6 +5489,14 @@ legend {
 
 .guided-workflow__nav {
   justify-content: space-between;
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin: 1rem calc(clamp(1rem, 4vw, 1.35rem) * -1) calc(clamp(1rem, 4vw, 1.35rem) * -1);
+  padding: 0.75rem clamp(1rem, 4vw, 1.35rem);
+  border-top: 1px solid #d8c6b5;
+  background: rgba(255, 253, 250, 0.94);
+  backdrop-filter: blur(10px);
 }
 
 .guided-workflow__results {
@@ -5645,7 +5654,8 @@ legend {
 
 .guided-workflow__shell {
   width: 100%;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
   gap: clamp(0.85rem, 4vw, 1.25rem);
 }
 
@@ -5686,11 +5696,16 @@ legend {
   word-break: normal;
 }
 
-.guided-workflow__choice strong,
-.guided-workflow__choice small,
 .guided-workflow__match,
 .guided-workflow__match * {
   overflow-wrap: anywhere;
+}
+
+.guided-workflow__choice strong,
+.guided-workflow__choice small {
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
 }
 
 .guided-workflow__status {
@@ -5710,6 +5725,11 @@ legend {
   overflow-wrap: normal;
 }
 
+.guided-workflow__results-heading h2 {
+  max-width: 100%;
+  font-size: clamp(1.6rem, 2.5vw, 2.15rem);
+}
+
 .guided-workflow__start p,
 .guided-workflow__results-heading p,
 .guided-workflow__fieldset p,
@@ -5722,6 +5742,26 @@ legend {
 .guided-workflow__main,
 .guided-workflow__results {
   padding: clamp(1rem, 4vw, 1.35rem);
+  grid-column: 1 / -1;
+}
+
+.guided-workflow__main {
+  display: grid;
+  gap: clamp(0.9rem, 2vw, 1.15rem);
+}
+
+.guided-workflow__question {
+  display: grid;
+  gap: clamp(0.9rem, 2vw, 1.15rem);
+}
+
+.guided-workflow__question[hidden] {
+  display: none;
+}
+
+.guided-workflow__fieldset {
+  display: grid;
+  gap: clamp(0.75rem, 1.8vw, 1rem);
 }
 
 .guided-workflow .ticket-guide-field textarea,
@@ -5737,15 +5777,37 @@ legend {
 }
 
 .guided-workflow__choices {
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
 }
 
 .guided-workflow__choice {
   min-height: 0;
-  grid-template-columns: minmax(2.75rem, auto) minmax(0, 1fr);
-  gap: 0.75rem;
-  align-items: start;
-  padding: clamp(0.8rem, 3vw, 1rem);
+  grid-template-columns: minmax(2.2rem, auto) minmax(0, 1fr);
+  gap: 0.6rem;
+  align-items: center;
+  padding: clamp(0.7rem, 2.5vw, 0.9rem);
+}
+
+.guided-workflow__choice > span:last-child {
+  min-width: 0;
+}
+
+.guided-workflow__choice-mark {
+  width: clamp(2.1rem, 5vw, 2.5rem);
+  height: clamp(2.1rem, 5vw, 2.5rem);
+  flex-basis: clamp(2.1rem, 5vw, 2.5rem);
+}
+
+.guided-workflow__choice strong {
+  display: block;
+  font-size: clamp(1rem, 1.8vw, 1.18rem);
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.guided-workflow__choice small {
+  margin-top: 0.2rem;
+  line-height: 1.35;
 }
 
 .guided-workflow__choice,
@@ -5778,8 +5840,27 @@ legend {
 }
 
 .guided-workflow__match {
+  grid-template-columns: minmax(0, 1fr);
   width: 100%;
   padding: clamp(0.9rem, 4vw, 1.15rem);
+}
+
+.guided-workflow__match > span,
+.guided-workflow__match em,
+.guided-workflow__match h3,
+.guided-workflow__match p,
+.guided-workflow__match dl,
+.guided-workflow__match > strong,
+.guided-workflow__match .button {
+  grid-column: 1;
+  min-width: 0;
+}
+
+.guided-workflow__match > span,
+.guided-workflow__match h3,
+.guided-workflow__match h3 a {
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .guided-workflow__match h3,
@@ -5787,7 +5868,16 @@ legend {
 .guided-workflow__match strong,
 .guided-workflow__match dd {
   max-width: 100%;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+}
+
+.guided-workflow__match h3 {
+  font-size: clamp(1.15rem, 3vw, 1.35rem);
+  line-height: 1.2;
+}
+
+.guided-workflow__match > strong {
+  white-space: normal;
 }
 
 .guided-workflow__match dl {
@@ -5800,7 +5890,7 @@ legend {
 
 @media (min-width: 600px) {
   .guided-workflow__choices {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
   }
 
   .guided-workflow__nav .button,
@@ -5834,65 +5924,63 @@ legend {
 
 @media (min-width: 901px) {
   .guided-workflow__shell {
-    grid-template-columns: minmax(160px, 200px) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     gap: clamp(1rem, 2vw, 2rem);
   }
 
-  .guided-workflow__rail {
-    order: -1;
-    grid-column: 1;
-    position: sticky;
-    top: 1rem;
-  }
-
-  .guided-workflow__rail ol {
-    grid-template-columns: 1fr;
-  }
-
-  .guided-workflow__rail li {
-    justify-content: flex-start;
-    text-align: left;
-  }
-
   .guided-workflow__main {
-    grid-column: 2;
+    grid-column: 1 / -1;
   }
 
   .guided-workflow__results {
-    grid-column: 2;
+    grid-column: 1 / -1;
+  }
+
+  .guided-workflow__choices {
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  }
+
+  .guided-workflow__choices[data-step-key="task"] {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
 
 @media (min-width: 1180px) {
+  .guided-workflow__choices {
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  }
+
+  .guided-workflow__choices[data-step-key="task"] {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1500px) {
   .guided-workflow__shell {
-    grid-template-columns: minmax(170px, 200px) minmax(0, 1.05fr) minmax(20rem, 0.95fr);
-  }
-
-  .guided-workflow__rail {
-    position: sticky;
-    top: 1rem;
-    order: initial;
-    grid-column: auto;
-  }
-
-  .guided-workflow__rail ol {
-    grid-template-columns: 1fr;
-  }
-
-  .guided-workflow__rail li {
-    display: grid;
-    grid-template-columns: 2.25rem minmax(0, 1fr);
-    justify-items: start;
-    text-align: left;
-  }
-
-  .guided-workflow__main,
-  .guided-workflow__results {
-    grid-column: auto;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .guided-workflow__choices {
-    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  }
+
+  .guided-workflow__choices[data-step-key="task"] {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .guided-workflow__choices {
+    grid-template-columns: 1fr;
+  }
+
+  .guided-workflow__nav {
+    position: static;
+    margin: 1rem 0 0;
+    padding: 0;
+    border-top: 0;
+    background: transparent;
+    backdrop-filter: none;
   }
 }
 
