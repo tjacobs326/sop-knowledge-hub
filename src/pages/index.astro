@@ -2,498 +2,181 @@
 import Layout from "../components/Layout.astro";
 import AppIcon from "../components/AppIcon.astro";
 import HeroIllustrationIcon from "../components/HeroIllustrationIcon.astro";
-import { formatDate } from "../lib/dates";
-import { renderCategoryIconSvg } from "../lib/category-icons";
-import { getAllSops, getCategoryCounts, getSopUrl } from "../lib/sops";
-
-const sops = await getAllSops();
-const categoryCounts = getCategoryCounts(sops);
-const recentlyUpdated = [...sops]
-  .sort((a, b) => new Date(b.data.lastUpdated).getTime() - new Date(a.data.lastUpdated).getTime())
-  .slice(0, 5);
-const totalPublished = sops.filter((sop) => sop.data.status === "Published").length;
-const tagCount = new Set(sops.flatMap((sop) => sop.data.tags)).size;
-const lastUpdated = recentlyUpdated[0]?.data.lastUpdated ?? new Date().toISOString().slice(0, 10);
-
-type DashboardRole = "normal" | "creator" | "admin";
-type DashboardTone = "standard" | "urgent" | "danger" | "warning" | "success";
-type DashboardCard = {
-  href: string;
-  label: string;
-  value: string;
-  description: string;
-  icon: string;
-  iconSvg?: string;
-  tone: DashboardTone;
-  status?: string;
-};
-
-const recentlyViewedSop = recentlyUpdated[0];
-const popularSop =
-  [...sops]
-    .filter((sop) => sop.data.status === "Published")
-    .sort((a, b) => b.data.lastUpdated.localeCompare(a.data.lastUpdated))[0] ?? recentlyUpdated[0];
-const recentlyUpdatedSop = recentlyUpdated[0];
-const contentHealth = Math.round((totalPublished / Math.max(sops.length, 1)) * 100);
-
-const dashboardConfigs: Record<DashboardRole, { title: string; cards: DashboardCard[] }> = {
-  normal: {
-    title: "Recommended for You",
-    cards: [
-      {
-        href: recentlyViewedSop ? getSopUrl(recentlyViewedSop) : "/search/",
-        label: "Recently Viewed",
-        value: recentlyViewedSop?.data.title ?? "No recent SOP",
-        description: "Open SOPs from the database to start your history.",
-        icon: "document",
-        iconSvg: renderCategoryIconSvg({ name: recentlyViewedSop?.data.category ?? "document" }),
-        tone: "standard",
-      },
-      {
-        href: "/search/?saved=true",
-        label: "Saved SOPs",
-        value: "Saved",
-        description: "Saved SOPs will appear when the backend stores user-specific saves.",
-        icon: "tags",
-        iconSvg: renderCategoryIconSvg({ icon: "saved" }),
-        tone: "standard",
-      },
-      {
-        href: popularSop ? getSopUrl(popularSop) : "/search/",
-        label: "Popular This Week",
-        value: popularSop?.data.title ?? "Browse SOPs",
-        description: "Published SOP surfaced from the knowledge hub data.",
-        icon: "analytics",
-        iconSvg: renderCategoryIconSvg({ name: popularSop?.data.category ?? "analytics" }),
-        tone: "success",
-      },
-      {
-        href: recentlyUpdatedSop ? getSopUrl(recentlyUpdatedSop) : "/search/",
-        label: "Recently Updated",
-        value: recentlyUpdatedSop?.data.title ?? "No updates",
-        description: recentlyUpdatedSop ? `Updated ${formatDate(recentlyUpdatedSop.data.lastUpdated)}` : "Published SOP updates will appear here.",
-        icon: "review",
-        iconSvg: renderCategoryIconSvg({ name: recentlyUpdatedSop?.data.category ?? "review" }),
-        tone: "standard",
-      },
-      {
-        href: "/categories/",
-        label: "Explore Categories",
-        value: String(categoryCounts.length),
-        description: "Browse available SOP categories.",
-        icon: "categories",
-        iconSvg: renderCategoryIconSvg({ icon: "categories" }),
-        tone: "standard",
-      },
-      {
-        href: "/submit/",
-        label: "Can't Find It?",
-        value: "Request SOP",
-        description: "Submit a request when the process you need is missing.",
-        icon: "submit",
-        iconSvg: renderCategoryIconSvg({ icon: "request" }),
-        tone: "warning",
-        status: "Request help",
-      },
-    ],
-  },
-  creator: {
-    title: "My Work Summary",
-    cards: [
-      {
-        href: "/my-work/",
-        label: "Assigned to Me",
-        value: "My Work",
-        description: "Open My Work for backend-assigned SOP tasks.",
-        icon: "work",
-        tone: "standard",
-      },
-      {
-        href: "/admin/needs-review/",
-        label: "Needs My Review",
-        value: "Review",
-        description: "Open Needs Review for backend-assigned review items.",
-        icon: "review",
-        tone: "urgent",
-        status: "Action needed",
-      },
-      {
-        href: "/drafts/",
-        label: "My Drafts",
-        value: "Drafts",
-        description: "Open editable drafts assigned to your selected department.",
-        icon: "drafts",
-        tone: "standard",
-      },
-      {
-        href: "/my-work/",
-        label: "Overdue Reviews",
-        value: "Due",
-        description: "Overdue review counts load on the My Work dashboard.",
-        icon: "needsReview",
-        tone: "danger",
-        status: "Past due",
-      },
-      {
-        href: "/submit/",
-        label: "Open Requests",
-        value: "Requests",
-        description: "Submitted requests route through backend review queues.",
-        icon: "submit",
-        tone: "warning",
-        status: "Open",
-      },
-      {
-        href: recentlyViewedSop ? getSopUrl(recentlyViewedSop) : "/search/",
-        label: "Recently Viewed",
-        value: recentlyViewedSop?.data.title ?? "Browse SOPs",
-        description: "Last opened SOP from your history.",
-        icon: "search",
-        tone: "standard",
-      },
-    ],
-  },
-  admin: {
-    title: "Knowledge Hub Overview",
-    cards: [
-      {
-        href: "/admin/review/",
-        label: "Pending Reviews",
-        value: "Queue",
-        description: "Open the backend review queue for pending items.",
-        icon: "review",
-        tone: "urgent",
-        status: "Queue",
-      },
-      {
-        href: "/admin/review/",
-        label: "Urgent Items",
-        value: "Urgent",
-        description: "Urgent backend items appear in the review queue.",
-        icon: "needsReview",
-        tone: "danger",
-        status: "Priority",
-      },
-      {
-        href: "/admin/needs-review/",
-        label: "Past-Due SOP Reviews",
-        value: "Review",
-        description: "Past-due backend review items appear in Needs Review.",
-        icon: "qa",
-        tone: "danger",
-        status: "Past due",
-      },
-      {
-        href: "/submit/",
-        label: "Open Requests",
-        value: "Requests",
-        description: "Requests are stored and routed through the backend workflow.",
-        icon: "submit",
-        tone: "warning",
-        status: "Open",
-      },
-      {
-        href: "/admin/analytics/",
-        label: "Content Health",
-        value: `${contentHealth}%`,
-        description: `${totalPublished} of ${sops.length} SOPs are published.`,
-        icon: "analytics",
-        tone: "success",
-      },
-      {
-        href: "/admin/users/",
-        label: "Recent Admin Activity",
-        value: "Activity",
-        description: "Admin activity should be reviewed from backend audit logs.",
-        icon: "settings",
-        tone: "standard",
-      },
-    ],
-  },
-};
-
-const announcements = [
-  ["New SOP Updates", "Review the latest changed procedures and recently published drafts.", "May 15, 2026"],
-  ["Training on SOP Best Practices", "Use consistent steps, owners, review dates, and supporting media.", "May 22, 2026"],
-  ["New Category Added", "Admin taxonomy tools now support category and tag management.", "May 10, 2026"],
-];
-
-const resources = [
-  ["/categories/templates/", "SOP Templates", "Use templates to get started.", "normal"],
-  ["/finder/", "SOP Guidelines", "Find the right process path.", "normal"],
-  ["/admin/review/", "Approval Workflow", "Learn about the review process.", "creator"],
-  ["/ai-assist/", "SOP Training", "Get controlled AI assistance.", "creator"],
-  ["/admin/settings/", "Admin Settings", "Manage access, workflow, and taxonomy.", "admin"],
-  ["/admin/analytics/", "Business Analytics", "View adoption and usage metrics.", "admin"],
-  ["mailto:sop-support@organization.edu", "Contact SOP Support", "Get help from our team.", "all"],
-];
-
 ---
 
 <Layout title="SOP Knowledge Hub" wide>
-  <div class="dashboard-layout">
-    <div class="dashboard-main">
-      <section class="hero dashboard-hero">
-        <div class="hero__content">
-          <p class="eyebrow">Welcome to the</p>
-          <h1>SOP Knowledge Hub</h1>
-          <p class="hero__subtitle">
-            Your central hub for official standard operating procedures, guides, and best practices.
-          </p>
-          <div class="hero-benefits" aria-label="Knowledge hub benefits">
-            <span class="hero-benefit">
-              <span class="hero-benefit__icon hero-benefit__icon--orange" aria-hidden="true">
-                <HeroIllustrationIcon name="shield" />
-              </span>
-              <span>
-                <strong>Official</strong>
-                <small>Trusted and approved content</small>
-              </span>
-            </span>
-            <span class="hero-benefit">
-              <span class="hero-benefit__icon hero-benefit__icon--blue" aria-hidden="true">
-                <HeroIllustrationIcon name="search" />
-              </span>
-              <span>
-                <strong>Find Fast</strong>
-                <small>Search and discover what you need</small>
-              </span>
-            </span>
-            <span class="hero-benefit">
-              <span class="hero-benefit__icon hero-benefit__icon--purple" aria-hidden="true">
-                <HeroIllustrationIcon name="people" />
-              </span>
-              <span>
-                <strong>Stay Consistent</strong>
-                <small>Follow standard processes</small>
-              </span>
-            </span>
-            <span class="hero-benefit">
-              <span class="hero-benefit__icon hero-benefit__icon--green" aria-hidden="true">
-                <HeroIllustrationIcon name="chart" />
-              </span>
-              <span>
-                <strong>Improve Outcomes</strong>
-                <small>Best practices for your success</small>
-              </span>
-            </span>
-          </div>
-        </div>
-        <div class="hero-illustration" aria-hidden="true">
-          <div class="document-card">
-            <strong>SOP</strong>
-            <span></span>
-            <span></span>
-            <span></span>
-            <ul>
-              <li></li>
-              <li></li>
-              <li></li>
-            </ul>
-            <div class="document-card__preview">
-              <span class="document-card__file"><HeroIllustrationIcon name="documentShield" /></span>
-            </div>
-          </div>
-        </div>
-        <div class="hero-actions">
-          <a class="hero-action-card hero-action-card--search" href="/search/">
-            <span class="hero-action-card__icon" aria-hidden="true"><HeroIllustrationIcon name="target" /></span>
-            <span class="hero-action-card__copy">
-              <strong>Search SOPs</strong>
-              <small>Find the information you need.</small>
-            </span>
-            <svg class="hero-action-card__arrow" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M5 12h13m-5-5 5 5-5 5" />
-            </svg>
-          </a>
-          <a class="hero-action-card hero-action-card--finder" href="/finder/">
-            <span class="hero-action-card__icon" aria-hidden="true"><HeroIllustrationIcon name="book" /></span>
-            <span class="hero-action-card__copy">
-              <strong>Guided Finder</strong>
-              <small>Answer a few questions and we'll point you in the right direction.</small>
-            </span>
-            <svg class="hero-action-card__arrow" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M5 12h13m-5-5 5 5-5 5" />
-            </svg>
-          </a>
-        </div>
-        <p class="hero-request">
-          <span aria-hidden="true"><HeroIllustrationIcon name="support" /></span>
-          Can't find what you need? <a href="/submit/">Submit a request</a> and our team will help.
+  <div class="normal-home-dashboard">
+    <section class="home-command-center" aria-labelledby="home-heading">
+      <div class="home-command-center__copy">
+        <p class="eyebrow">SOP Knowledge Hub</p>
+        <h1 id="home-heading">Find the right SOP faster.</h1>
+        <p>
+          Search official SOPs, ask the hub for guidance, or request help when the process you need is missing.
         </p>
-      </section>
-
-      <div class="hero-stats dashboard-stats" role="list" aria-label="Knowledge base overview">
-        <div class="hero-stats__item" role="listitem">
-          <span class="hero-stats__icon hero-stats__icon--published" aria-hidden="true"><HeroIllustrationIcon name="statPublished" /></span>
-          <span class="hero-stats__content">
-            <span class="hero-stats__label">Published SOPs</span>
-            <strong class="hero-stats__value" id="home-published-count">{totalPublished}</strong>
-            <a href="/search/">View all published</a>
-          </span>
-        </div>
-        <div class="hero-stats__item" role="listitem">
-          <span class="hero-stats__icon hero-stats__icon--categories" aria-hidden="true"><HeroIllustrationIcon name="statCategories" /></span>
-          <span class="hero-stats__content">
-            <span class="hero-stats__label">Categories</span>
-            <strong class="hero-stats__value" id="home-category-count">{categoryCounts.length}</strong>
-            <a href="/categories/">View all categories</a>
-          </span>
-        </div>
-        <div class="hero-stats__item" role="listitem">
-          <span class="hero-stats__icon hero-stats__icon--tags" aria-hidden="true"><HeroIllustrationIcon name="statTags" /></span>
-          <span class="hero-stats__content">
-            <span class="hero-stats__label">Tags</span>
-            <strong class="hero-stats__value" id="home-tag-count">{tagCount}</strong>
-            <a href="/admin/tags/">View all tags</a>
-          </span>
-        </div>
-        <div class="hero-stats__item" role="listitem">
-          <span class="hero-stats__icon hero-stats__icon--updated" aria-hidden="true"><HeroIllustrationIcon name="statUpdated" /></span>
-          <span class="hero-stats__content">
-            <span class="hero-stats__label">Last Updated</span>
-            <strong class="hero-stats__value" id="home-last-updated">{formatDate(lastUpdated)}</strong>
-            <a href="/search/">See what's new</a>
-          </span>
-        </div>
       </div>
 
-      <section class="page-section dashboard-section-block" aria-labelledby="categories-heading">
-        <div class="dashboard-section-heading">
-          <h2 id="categories-heading">Browse by Category</h2>
-          <a href="/categories/">View all categories -></a>
+      <form class="home-search-panel" action="/search/" role="search" aria-label="Search SOPs">
+        <label for="home-sop-search">Search SOPs</label>
+        <div class="home-search-panel__control">
+          <input
+            id="home-sop-search"
+            name="q"
+            type="search"
+            placeholder="Search by title, system, category, owner, or keyword"
+            autocomplete="off"
+          />
+          <button class="button button--primary" type="submit">Search</button>
         </div>
-        <div class="category-grid dashboard-category-grid" id="home-category-grid">
-          <p class="empty-state">Loading categories from the database...</p>
-        </div>
-      </section>
+      </form>
 
-      <section class="page-section dashboard-section-block" aria-labelledby="recent-heading">
-        <div class="dashboard-section-heading">
-          <h2 id="recent-heading">Recently Updated SOPs</h2>
-          <a href="/search/">View all SOPs -></a>
+      <div class="home-ask-panel" aria-labelledby="home-guided-banner-heading">
+        <span class="home-ask-panel__icon" aria-hidden="true"><HeroIllustrationIcon name="book" /></span>
+        <div>
+          <h2 id="home-guided-banner-heading">Guided Finder</h2>
+          <p>Answer a few questions to quickly find the right SOP.</p>
         </div>
-        <div class="table-wrap dashboard-table">
-          <table>
-            <thead>
-              <tr>
-                <th scope="col">SOP Title</th>
-                <th scope="col">Category</th>
-                <th scope="col">Updated</th>
-              </tr>
-            </thead>
-            <tbody id="home-recent-sops">
-              {
-                recentlyUpdated.map((sop) => (
-                  <tr>
-                    <td data-label="SOP">
-                      <div class="dashboard-sop-title-row">
-                        <a href={getSopUrl(sop)}>{sop.data.title}</a>
-                      </div>
-                      <span class="dashboard-sop-purpose">{sop.data.purpose}</span>
-                    </td>
-                    <td data-label="Category">
-                      <span class="category-pill">
-                        <span class="category-pill__icon" aria-hidden="true" set:html={renderCategoryIconSvg({ name: sop.data.category })} />
-                        {sop.data.category}
-                      </span>
-                    </td>
-                    <td data-label="Updated">{formatDate(sop.data.lastUpdated)}</td>
-                  </tr>
-                ))
-              }
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </div>
+        <a class="button button--secondary" href="/finder/">Open Guided Finder</a>
+      </div>
+    </section>
 
-    <aside class="dashboard-rail" aria-label="Dashboard tools">
-      {
-        (Object.entries(dashboardConfigs) as [DashboardRole, (typeof dashboardConfigs)[DashboardRole]][]).map(
-          ([role, config]) => (
-            <section class="dashboard-panel role-dashboard-panel" data-dashboard-role={role} aria-labelledby={`dashboard-${role}-heading`}>
-              <h2 id={`dashboard-${role}-heading`}>{config.title}</h2>
-              <div class="work-summary-grid">
-                {config.cards.map((item) => (
-                  <a
-                    class:list={["work-summary-card", `work-summary-card--${item.tone}`]}
-                    href={item.href}
-                    aria-label={`${item.label}: ${item.value}. ${item.description}`}
-                  >
-                    <span class="work-summary-card__icon" aria-hidden="true">
-                      {item.iconSvg ? <span class="work-summary-card__art" set:html={item.iconSvg} /> : <AppIcon name={item.icon} />}
-                    </span>
-                    <span class="work-summary-card__body">
-                      <span class="work-summary-card__label">{item.label}</span>
-                      <strong>{item.value}</strong>
-                      <small>{item.description}</small>
-                    </span>
-                    {item.status && <span class="work-summary-card__status">{item.status}</span>}
-                  </a>
-                ))}
-              </div>
-            </section>
-          ),
-        )
-      }
+    <section class="home-quick-actions" aria-labelledby="home-quick-actions-heading">
+      <div class="dashboard-section-heading">
+        <h2 id="home-quick-actions-heading">Quick Actions</h2>
+      </div>
+      <div class="home-quick-actions__grid">
+        <a class="home-action-card" href="/search/">
+          <span class="home-action-card__icon" aria-hidden="true"><HeroIllustrationIcon name="target" /></span>
+          <span>
+            <strong>Browse SOPs</strong>
+            <small>Search and browse all published SOPs.</small>
+          </span>
+        </a>
+        <a class="home-action-card" href="/finder/">
+          <span class="home-action-card__icon" aria-hidden="true"><HeroIllustrationIcon name="book" /></span>
+          <span>
+            <strong>Guided Finder</strong>
+            <small>Step through filters to find the right SOP.</small>
+          </span>
+        </a>
+        <a class="home-action-card" href="/submit/">
+          <span class="home-action-card__icon" aria-hidden="true"><HeroIllustrationIcon name="support" /></span>
+          <span>
+            <strong>Request an SOP</strong>
+            <small>Ask for a missing process or update.</small>
+          </span>
+        </a>
+        <a class="home-action-card" href="/create/" id="home-create-sop-action" hidden>
+          <span class="home-action-card__icon" aria-hidden="true"><HeroIllustrationIcon name="documentShield" /></span>
+          <span>
+            <strong>Create an SOP</strong>
+            <small>Start an authorized SOP draft.</small>
+          </span>
+        </a>
+        <button class="home-action-card" type="button" id="home-quick-ask-hub">
+          <span class="home-action-card__icon" aria-hidden="true"><HeroIllustrationIcon name="book" /></span>
+          <span>
+            <strong>Ask Hub</strong>
+            <small>Get guided help from the assistant.</small>
+          </span>
+        </button>
+      </div>
+    </section>
 
-      <section class="dashboard-panel">
-        <div class="dashboard-panel__heading">
-          <h2>Announcements</h2>
-          <a href="/search/">View all</a>
-        </div>
-        <ol class="announcement-list">
-          {
-            announcements.map(([title, body, date]) => (
-              <li>
-                <strong>{title}</strong>
-                <p>{body}</p>
-                <time>{date}</time>
-              </li>
-            ))
-          }
-        </ol>
-      </section>
+    <section class="home-summary-strip" aria-label="Knowledge hub summary">
+      <div>
+        <span>Published SOPs</span>
+        <strong id="home-summary-published">Loading</strong>
+      </div>
+      <div>
+        <span>Categories</span>
+        <strong id="home-summary-categories">Loading</strong>
+      </div>
+      <div>
+        <span>Last Updated</span>
+        <strong id="home-summary-updated">Loading</strong>
+      </div>
+    </section>
 
-      <section class="dashboard-panel">
-        <h2>Helpful Resources</h2>
-        <div class="resource-list">
-          {
-            resources.map(([href, title, body, role]) => (
-              <a href={href} data-role-option={role}>
-                <span>
-                  <strong>{title}</strong>
-                  <small>{body}</small>
-                </span>
-                <span aria-hidden="true">></span>
-              </a>
-            ))
-          }
+    <section class="home-dashboard-section" id="home-activity-section" aria-labelledby="home-activity-heading" hidden>
+      <div class="dashboard-section-heading">
+        <div>
+          <p class="eyebrow">Personal Dashboard</p>
+          <h2 id="home-activity-heading">Your SOP Activity</h2>
         </div>
-      </section>
-    </aside>
+      </div>
+      <div class="home-activity-grid">
+        <article class="dashboard-panel home-activity-card" id="home-recently-viewed-card" hidden>
+          <div class="dashboard-panel__heading">
+            <h3>Recently Viewed SOPs</h3>
+            <a href="/search/">View all</a>
+          </div>
+          <ul class="home-item-list" id="home-recently-viewed"></ul>
+        </article>
+
+        <article class="dashboard-panel home-activity-card" id="home-saved-card" hidden>
+          <div class="dashboard-panel__heading">
+            <h3>Saved SOPs</h3>
+            <a href="/search/?saved=true">View all</a>
+          </div>
+          <ul class="home-item-list" id="home-saved-sops"></ul>
+        </article>
+
+        <article class="dashboard-panel home-activity-card" id="home-updated-card" hidden>
+          <div class="dashboard-panel__heading">
+            <h3>Recently Updated for You</h3>
+            <a href="/search/?sort=recent">View all</a>
+          </div>
+          <ul class="home-item-list" id="home-updated-for-you"></ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="home-dashboard-section" id="home-important-section" aria-labelledby="home-important-heading" hidden>
+      <div class="dashboard-section-heading">
+        <h2 id="home-important-heading">Important Updates</h2>
+        <a href="/search/?sort=recent">View all</a>
+      </div>
+      <div class="home-update-grid" id="home-important-updates"></div>
+    </section>
+
+    <section class="home-dashboard-section" aria-labelledby="home-help-heading">
+      <div class="dashboard-section-heading">
+        <h2 id="home-help-heading">Need Help?</h2>
+      </div>
+      <div class="home-help-grid">
+        <a class="dashboard-panel home-help-card" href="/submit/?type=issue">
+          <AppIcon name="review" />
+          <span>
+            <strong>Report an SOP issue</strong>
+            <small>Flag unclear, outdated, or incomplete content.</small>
+          </span>
+        </a>
+        <a class="dashboard-panel home-help-card" href="mailto:sop-support@organization.edu">
+          <AppIcon name="support" />
+          <span>
+            <strong>Contact support</strong>
+            <small>Reach the SOP support team for help.</small>
+          </span>
+        </a>
+        <a class="dashboard-panel home-help-card" href="/finder/">
+          <AppIcon name="finder" />
+          <span>
+            <strong>SOP Help & FAQs</strong>
+            <small>Use Guided Finder for common questions and SOP discovery.</small>
+          </span>
+        </a>
+      </div>
+    </section>
   </div>
 </Layout>
 
 <script>
   // @ts-nocheck
-  import { renderCategoryIconSvg } from "../lib/category-icons";
-  import { fetchAllD1Sops, fetchD1Categories, fetchRecentD1Sops } from "../lib/sop-api";
+  import { fetchD1Categories } from "../lib/sop-api";
 
-  const SUB_ROLE_KEY = "sopHubSelectedCreatorSubRole";
   const ROLE_CONTEXT_EVENT = "sop-role-context-change";
-  let homeHydrationRequestId = 0;
-
-  const categoryIconByName = {
-    "QA Processes": "qa",
-    "Brightspace D2L": "d2l",
-    Templates: "template",
-    "Course Builds": "course",
-    "Ivanti / Ticketing System": "ticket",
-    "AI Tools": "ai",
-    Troubleshooting: "troubleshooting",
-  };
+  const MAX_PANEL_ITEMS = 5;
+  let homeRequestId = 0;
 
   const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (character) => {
@@ -511,11 +194,7 @@ const resources = [
     if (!value) return "Not set";
     const date = new Date(String(value).includes("T") ? value : `${value}T00:00:00`);
     if (Number.isNaN(date.getTime())) return String(value);
-    return new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }).format(date);
+    return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(date);
   }
 
   function setText(id, value) {
@@ -523,176 +202,113 @@ const resources = [
     if (element) element.textContent = String(value);
   }
 
-  function selectedCreatorSubRole() {
-    return localStorage.getItem(SUB_ROLE_KEY) || "";
+  function sopUrl(sop) {
+    if (sop?.detailUrl) return sop.detailUrl;
+    if (sop?.slug) return `/sops/detail/?slug=${encodeURIComponent(sop.slug)}`;
+    return `/sops/detail/?id=${encodeURIComponent(String(sop?.id || ""))}`;
   }
 
-  function renderCategoryIcon(category) {
-    return renderCategoryIconSvg(category);
-  }
-
-  function displayCategoryName(name) {
-    return String(name || "Uncategorized").replace(/^\s*\d+\.\s*/, "");
-  }
-
-  function renderCategoryCard(category) {
-    const count = Number(category.sopCount || category.count || 0);
-    const displayName = displayCategoryName(category.name);
+  function renderSopItem(sop) {
     return `
-      <a class="category-card" href="${escapeHtml(category.detailUrl)}" style="--card-accent: ${escapeHtml(category.color)}">
-        <div class="category-card__header">
-          <span class="category-card__icon" aria-hidden="true">${renderCategoryIcon(category)}</span>
-          <h2 class="category-card__title">${escapeHtml(displayName)}</h2>
-        </div>
-        <p>${escapeHtml(category.description)}</p>
-        <div class="category-card__footer">
-          <span class="category-card__count">${escapeHtml(count)} ${count === 1 ? "SOP" : "SOPs"}</span>
-        </div>
-      </a>
+      <li>
+        <a href="${escapeHtml(sopUrl(sop))}">${escapeHtml(sop.title || "Untitled SOP")}</a>
+        <span>${escapeHtml(sop.category || "Uncategorized")} · ${escapeHtml(formatDateClient(sop.updatedAt || sop.publishedAt))}</span>
+      </li>
     `;
   }
 
-  function categoryKey(category) {
-    return String(category?.slug || category?.categorySlug || category?.name || "").toLowerCase();
+  function renderPanel(cardId, listId, items) {
+    const card = document.getElementById(cardId);
+    const list = document.getElementById(listId);
+    if (!(card instanceof HTMLElement) || !(list instanceof HTMLElement)) return false;
+    const safeItems = Array.isArray(items) ? items.filter(Boolean).slice(0, MAX_PANEL_ITEMS) : [];
+    card.hidden = safeItems.length === 0;
+    list.innerHTML = safeItems.map(renderSopItem).join("");
+    return safeItems.length > 0;
   }
 
-  function categoriesFromSops(sops, categoryMetadata) {
-    const metadataByName = new Map();
-    const metadataBySlug = new Map();
-    categoryMetadata.forEach((category) => {
-      metadataByName.set(String(category.name || "").toLowerCase(), category);
-      metadataBySlug.set(String(category.slug || "").toLowerCase(), category);
-    });
-
-    const grouped = new Map();
-    sops
-      .filter((sop) => String(sop.status || "").toLowerCase() === "published")
-      .forEach((sop) => {
-        const name = String(sop.category || "Uncategorized");
-        const slug = String(sop.categorySlug || name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""));
-        const key = slug || name.toLowerCase();
-        const existing = grouped.get(key) || {
-          name,
-          slug,
-          sopCount: 0,
-          relatedSopIds: [],
-        };
-        existing.sopCount += 1;
-        existing.relatedSopIds.push(sop.id);
-        grouped.set(key, existing);
-      });
-
-    return Array.from(grouped.values())
-      .map((category) => {
-        const metadata =
-          metadataBySlug.get(categoryKey(category)) ||
-          metadataByName.get(String(category.name || "").toLowerCase()) ||
-          {};
-        return {
-          ...metadata,
-          ...category,
-          description: metadata.description || "Browse related SOPs and guidance.",
-          icon: metadata.icon || category.icon || "document",
-          color: metadata.color || category.color || "#f8fafc",
-          detailUrl: `/categories/detail/?slug=${encodeURIComponent(category.slug || "")}`,
-        };
-      })
-      .sort((a, b) => Number(b.sopCount || 0) - Number(a.sopCount || 0) || String(a.name).localeCompare(String(b.name)));
+  function renderImportantUpdates(items) {
+    const section = document.getElementById("home-important-section");
+    const container = document.getElementById("home-important-updates");
+    if (!(section instanceof HTMLElement) || !(container instanceof HTMLElement)) return;
+    const safeItems = Array.isArray(items) ? items.filter(Boolean).slice(0, 3) : [];
+    section.hidden = safeItems.length === 0;
+    container.innerHTML = safeItems
+      .map(
+        (item) => `
+          <a class="dashboard-panel home-update-card" href="${escapeHtml(item.href || "/search/")}">
+            <strong>${escapeHtml(item.title || "SOP update")}</strong>
+            <p>${escapeHtml(item.body || "A published SOP was updated.")}</p>
+            <time>${escapeHtml(formatDateClient(item.updatedAt))}</time>
+          </a>
+        `,
+      )
+      .join("");
   }
 
-  function renderCategoryLoading() {
-    const categoryGrid = document.getElementById("home-category-grid");
-    if (categoryGrid) {
-      categoryGrid.innerHTML = `<p class="empty-state">Loading categories from the database...</p>`;
+  function openAskHub() {
+    const launcher = document.querySelector(".ai-chatbot__toggle");
+    if (launcher instanceof HTMLButtonElement && !launcher.hidden) {
+      launcher.click();
     }
   }
 
-  function renderCategoryEmpty() {
-    const categoryGrid = document.getElementById("home-category-grid");
-    if (categoryGrid) {
-      categoryGrid.innerHTML = `<p class="empty-state">No published SOP categories are available for this role.</p>`;
+  async function hydrateSummary(requestId) {
+    try {
+      const [sopsResponse, categories] = await Promise.all([
+        fetch("/api/sops?limit=1&sort=recent", { headers: { accept: "application/json" } }).then((response) => response.json()),
+        fetchD1Categories(),
+      ]);
+      if (requestId !== homeRequestId) return;
+      const firstSop = sopsResponse?.data?.sops?.[0] || sopsResponse?.sops?.[0] || null;
+      const total = Number(sopsResponse?.data?.total ?? sopsResponse?.total ?? 0);
+      setText("home-summary-published", total);
+      setText("home-summary-categories", categories.length);
+      setText("home-summary-updated", formatDateClient(firstSop?.updatedAt || firstSop?.lastUpdated));
+    } catch {
+      if (requestId !== homeRequestId) return;
+      setText("home-summary-published", "Unavailable");
+      setText("home-summary-categories", "Unavailable");
+      setText("home-summary-updated", "Unavailable");
     }
   }
 
-  function renderCategoryGrid(categories) {
-    const categoryGrid = document.getElementById("home-category-grid");
-    if (!categoryGrid) return;
-    if (!categories.length) {
-      renderCategoryEmpty();
-      return;
-    }
-    categoryGrid.innerHTML = categories.slice(0, 5).map(renderCategoryCard).join("");
-  }
-
-  function renderRecentRow(sop) {
-    const categoryIcon = renderCategoryIconSvg({ name: sop.category, slug: sop.categorySlug });
-
-    return `
-      <tr>
-        <td data-label="SOP">
-          <div class="dashboard-sop-title-row">
-            <a href="${escapeHtml(sop.detailUrl)}">${escapeHtml(sop.title)}</a>
-          </div>
-          <span class="dashboard-sop-purpose">${escapeHtml(sop.summary || sop.purpose)}</span>
-        </td>
-        <td data-label="Category">
-          <span class="category-pill">
-            <span class="category-pill__icon" aria-hidden="true">${categoryIcon}</span>
-            ${escapeHtml(sop.category)}
-          </span>
-        </td>
-        <td data-label="Updated">${escapeHtml(formatDateClient(sop.updatedAt))}</td>
-      </tr>
-    `;
-  }
-
-  async function hydrateHomeFromD1({ clearPrevious = false } = {}) {
-    const requestId = ++homeHydrationRequestId;
-    const requestedSubRole = selectedCreatorSubRole();
-
-    if (clearPrevious) {
-      setText("home-published-count", "...");
-      renderCategoryLoading();
-    }
+  async function hydrateHome() {
+    const requestId = ++homeRequestId;
+    const activitySection = document.getElementById("home-activity-section");
+    if (activitySection instanceof HTMLElement) activitySection.hidden = true;
 
     try {
-      const [allSops, categories, recentSops] = await Promise.all([
-        fetchAllD1Sops({ limit: 100, sort: "recent" }),
-        fetchD1Categories(),
-        fetchRecentD1Sops(5),
-      ]);
-      if (requestId !== homeHydrationRequestId || requestedSubRole !== selectedCreatorSubRole()) return;
-      if (!allSops.length && !requestedSubRole) return;
+      await hydrateSummary(requestId);
+      const response = await fetch("/api/home-dashboard", {
+        headers: { accept: "application/json" },
+        cache: "no-store",
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (requestId !== homeRequestId) return;
+      if (!response.ok || payload?.success === false) throw new Error(payload?.error?.message || "Dashboard could not load.");
 
-      const roleCategories = categoriesFromSops(allSops, categories);
-      const tagCount = new Set(allSops.flatMap((sop) => sop.tags)).size;
-      const latest = recentSops[0] || allSops[0];
-      setText("home-published-count", allSops.filter((sop) => sop.status === "Published").length);
-      setText("home-category-count", roleCategories.length);
-      setText("home-tag-count", tagCount);
-      setText("home-last-updated", formatDateClient(latest?.updatedAt));
-
-      renderCategoryGrid(roleCategories);
-
-      const recentTable = document.getElementById("home-recent-sops");
-      if (recentTable && recentSops.length) {
-        recentTable.innerHTML = recentSops.map(renderRecentRow).join("");
+      const dashboard = payload.data || {};
+      const createAction = document.getElementById("home-create-sop-action");
+      if (createAction instanceof HTMLElement) {
+        createAction.hidden = !Boolean(dashboard.user?.permissions?.canCreateSop);
       }
+      const activity = dashboard.activity || {};
+      const hasViewed = renderPanel("home-recently-viewed-card", "home-recently-viewed", activity.recentlyViewed);
+      const hasSaved = renderPanel("home-saved-card", "home-saved-sops", activity.savedSops);
+      const hasUpdated = renderPanel("home-updated-card", "home-updated-for-you", activity.recentlyUpdatedForYou);
+      if (activitySection instanceof HTMLElement) activitySection.hidden = !(hasViewed || hasSaved || hasUpdated);
+      renderImportantUpdates(dashboard.importantUpdates);
     } catch {
-      if (requestedSubRole) {
-        setText("home-published-count", "0");
-        renderCategoryEmpty();
-      }
-      // Keep the static dashboard snapshot as the fallback when D1 is unavailable.
+      if (requestId !== homeRequestId) return;
+      renderImportantUpdates([]);
     }
   }
 
-  hydrateHomeFromD1();
-
-  window.addEventListener(ROLE_CONTEXT_EVENT, (event) => {
-    const detail = event instanceof CustomEvent ? event.detail || {} : {};
-    if (detail.previousSubRole !== detail.subRole || detail.previousRole !== detail.role) {
-      hydrateHomeFromD1({ clearPrevious: true });
-    }
+  document.getElementById("home-open-ask-hub")?.addEventListener("click", openAskHub);
+  document.getElementById("home-quick-ask-hub")?.addEventListener("click", openAskHub);
+  window.addEventListener(ROLE_CONTEXT_EVENT, () => {
+    hydrateHome();
   });
+  hydrateHome();
 </script>

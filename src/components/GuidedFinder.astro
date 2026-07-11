@@ -2,88 +2,91 @@
 import AppIcon from "./AppIcon.astro";
 ---
 
-<section class="guided-finder ticket-guide" aria-labelledby="finder-heading">
-  <div class="ticket-guide-hero">
+<section class="guided-finder guided-workflow" aria-labelledby="finder-heading">
+  <div class="ticket-guide-hero guided-workflow__hero">
     <div class="ticket-guide-hero__content">
       <p class="eyebrow">Guided Finder</p>
-      <h1 id="finder-heading">AI Guided SOP Finder</h1>
-      <p>Answer a few simple questions and the finder will match your need to real published SOPs.</p>
+      <h1 id="finder-heading">What do you need help with?</h1>
+      <p>
+        Answer a few focused questions or describe the task in your own words. The finder recommends
+        approved SOPs from the live backend only.
+      </p>
     </div>
     <div class="ticket-guide-hero__visual" aria-hidden="true">
-      <div class="ticket-guide-card">
+      <div class="ticket-guide-card guided-workflow__card">
         <strong>SOP</strong>
         <span></span>
         <span></span>
         <span class="short"></span>
-        <div class="ticket-guide-card__checks">
-          <i></i>
-          <i></i>
-          <i></i>
-        </div>
         <div class="ticket-guide-card__doc">
           <svg viewBox="0 0 120 120" focusable="false" aria-hidden="true">
-            <path class="blob" d="M20 72c-9-28 9-55 39-58 27-3 52 14 55 43 3 31-18 50-48 52-25 2-38-11-46-37Z"></path>
-            <path class="paper" d="M42 24h27l18 18v52H42V24Z"></path>
-            <path class="fold" d="M69 24v18h18"></path>
-            <path class="line" d="M53 53h24M53 64h20M53 75h17"></path>
-            <path class="shield" d="M81 70l18-7 18 7v13c0 14-10 23-18 26-8-3-18-12-18-26V70Z"></path>
-            <path class="check" d="m90 84 6 6 13-16"></path>
+            <path class="blob" d="M18 72c-8-29 12-53 43-55 30-2 52 18 54 47 2 30-20 49-49 51-25 2-40-13-48-43Z"></path>
+            <path class="target" d="M60 28a31 31 0 1 0 0 62 31 31 0 0 0 0-62Zm0 12a19 19 0 1 1 0 38 19 19 0 0 1 0-38Z"></path>
+            <path class="line" d="M60 47v13h13"></path>
+            <path class="arrow" d="M73 47 93 27m-8 0h8v8"></path>
+            <path class="check" d="m38 89 8 8 18-24"></path>
           </svg>
         </div>
       </div>
     </div>
   </div>
 
-  <div class="ticket-guide-layout">
-    <form id="ticket-guide-form" class="ticket-guide-panel" aria-label="AI Guided SOP Finder">
-      <div class="ticket-guide-status" id="ticket-guide-status" role="status" aria-live="polite">
-        Loading finder...
+  <div class="guided-workflow__shell">
+    <div class="guided-workflow__main">
+      <div class="ticket-guide-status guided-workflow__status" id="guided-finder-status" role="status" aria-live="polite">
+        Loading Guided Finder options...
       </div>
 
-      <div class="ticket-guide-step">
+      <section class="guided-workflow__start" id="guided-finder-start" aria-labelledby="guided-finder-start-heading">
         <div>
-          <span>1</span>
-          <h2>Which role or department best fits?</h2>
+          <p class="eyebrow">Start here</p>
+          <h2 id="guided-finder-start-heading">Tell us what you are trying to do</h2>
+          <p>
+            Include the system, tool, department, or process if you know it. Workers AI helps interpret
+            your wording, then D1 returns real published SOP records.
+          </p>
         </div>
-        <div id="ticket-guide-roles" class="ticket-guide-choice-grid"></div>
-      </div>
-
-      <div class="ticket-guide-step">
-        <div>
-          <span>2</span>
-          <h2>What kind of work are you doing?</h2>
+        <label class="ticket-guide-field guided-workflow__prompt" for="guided-finder-description">
+          <span>Describe the task, system, tool, or process</span>
+          <textarea
+            id="guided-finder-description"
+            rows="5"
+            placeholder="Example: I need to copy a Brightspace course shell or find the SOP for Cengage setup."
+          ></textarea>
+        </label>
+        <div class="ticket-guide-actions">
+          <button class="button button--primary" type="button" id="guided-finder-search">
+            <AppIcon name="search" />
+            Find SOPs
+          </button>
+          <button class="button button--secondary" type="button" id="guided-finder-start-guided">
+            Start Guided Selections
+          </button>
         </div>
-        <div id="ticket-guide-requests" class="ticket-guide-choice-grid"></div>
-      </div>
+      </section>
 
-      <label class="ticket-guide-field" for="ticket-guide-details">
-        <span>Describe the task, system, tool, or process</span>
-        <textarea
-          id="ticket-guide-details"
-          rows="5"
-          placeholder="Example: I need to copy a Brightspace course shell, update dates, or find the SOP for Cengage setup."
-        ></textarea>
-      </label>
+      <section class="guided-workflow__question" id="guided-finder-question-panel" hidden aria-labelledby="guided-finder-question">
+        <div class="guided-workflow__progress">
+          <span id="guided-finder-step-count">Step 1 of 1</span>
+          <div class="guided-workflow__progress-track" aria-hidden="true">
+            <span id="guided-finder-progress-bar"></span>
+          </div>
+        </div>
+        <fieldset class="guided-workflow__fieldset">
+          <legend id="guided-finder-question" tabindex="-1">Loading question</legend>
+          <p id="guided-finder-help"></p>
+          <div class="ticket-guide-choice-grid guided-workflow__choices" id="guided-finder-choices"></div>
+        </fieldset>
+        <div class="ticket-guide-actions guided-workflow__nav">
+          <button class="button button--secondary" type="button" id="guided-finder-back">Back</button>
+          <button class="button button--secondary" type="button" id="guided-finder-restart">Start Over</button>
+          <a class="button button--secondary" href="/">Exit Guided Finder</a>
+          <button class="button button--primary" type="button" id="guided-finder-next">Continue</button>
+        </div>
+      </section>
+    </div>
 
-      <fieldset class="ticket-guide-impact">
-        <legend>Impact signals</legend>
-        <label><input type="checkbox" name="studentBlocked" /> Student is blocked</label>
-        <label><input type="checkbox" name="gradesAffected" /> Grades are affected</label>
-        <label><input type="checkbox" name="manyStudents" /> Many students</label>
-        <label><input type="checkbox" name="oneStudent" /> One student</label>
-        <label><input type="checkbox" name="liveCourse" /> Live course</label>
-      </fieldset>
-
-      <div class="ticket-guide-actions">
-        <button class="button button--primary" type="submit">
-          <AppIcon name="search" />
-          Find matching SOPs
-        </button>
-        <button class="button button--secondary" type="button" id="ticket-guide-reset">Reset</button>
-      </div>
-    </form>
-
-    <aside class="ticket-guide-result" id="ticket-guide-result" aria-live="polite">
+    <aside class="ticket-guide-result guided-workflow__results" id="guided-finder-results" aria-live="polite">
       <div class="ticket-guide-empty">
         <span aria-hidden="true">
           <svg viewBox="0 0 120 120" focusable="false">
@@ -94,129 +97,40 @@ import AppIcon from "./AppIcon.astro";
           </svg>
         </span>
         <h2>Ready when you are</h2>
-        <p>Choose a role, choose a work type, then describe what you need. The AI extracts search criteria, but results only come from backend SOP records.</p>
+        <p>Describe your need or start the guided flow. Results will appear here as the finder narrows the backend SOP records.</p>
       </div>
     </aside>
-  </div>
-
-  <div class="ticket-guide-support-grid">
-    <section class="ticket-guide-panel ticket-guide-reference">
-      <div class="section-heading">
-        <h2>Common Scenarios</h2>
-      </div>
-      <div id="ticket-guide-scenarios" class="ticket-guide-scenarios"></div>
-    </section>
-
-    <section class="ticket-guide-panel ticket-guide-reference">
-      <div class="section-heading">
-        <h2>How Routing Works</h2>
-      </div>
-      <ol id="ticket-guide-journey" class="ticket-guide-journey"></ol>
-    </section>
-
-    <section class="ticket-guide-panel ticket-guide-reference">
-      <div class="section-heading">
-        <h2>FAQ</h2>
-      </div>
-      <div id="ticket-guide-faqs" class="ticket-guide-faqs"></div>
-    </section>
   </div>
 </section>
 
 <script>
   // @ts-nocheck
-  const guideSlug = "its-ticket-routing";
+  const ROLE_CONTEXT_EVENT = "sop-role-context-change";
   const state = {
-    guide: null,
-    role: "",
-    requestType: "",
-    history: [],
+    requestId: 0,
+    options: null,
+    steps: [],
+    stepIndex: 0,
+    filters: {},
+    description: "",
+    lastResults: [],
   };
 
-  const form = document.getElementById("ticket-guide-form");
-  const statusEl = document.getElementById("ticket-guide-status");
-  const roleEl = document.getElementById("ticket-guide-roles");
-  const requestEl = document.getElementById("ticket-guide-requests");
-  const resultEl = document.getElementById("ticket-guide-result");
-  const detailsEl = document.getElementById("ticket-guide-details");
-  const resetEl = document.getElementById("ticket-guide-reset");
-  const scenariosEl = document.getElementById("ticket-guide-scenarios");
-  const journeyEl = document.getElementById("ticket-guide-journey");
-  const faqsEl = document.getElementById("ticket-guide-faqs");
-
-  const iconMap = {
-    headphones: "support",
-    "graduation-cap": "academic",
-    "clipboard-list": "project",
-    presentation: "faculty",
-    wrench: "broken",
-    "user-plus": "access",
-    copy: "template",
-    video: "media",
-    "book-open-check": "cengage",
-    "git-pull-request": "project",
-  };
-
-  const fallbackGuide = {
-    roles: [
-      { roleKey: "normal-user", label: "Normal User", hint: "Find published SOPs", icon: "book-open-check" },
-      { roleKey: "instructional-technology", label: "Instructional Technology", hint: "Tools and access", icon: "wrench" },
-      { roleKey: "instructional-design", label: "Instructional Design", hint: "Course design work", icon: "graduation-cap" },
-      { roleKey: "project-management", label: "Project Management", hint: "Project path work", icon: "clipboard-list" },
-      { roleKey: "quality-assurance", label: "Quality Assurance", hint: "Review and QA", icon: "book-open-check" },
-      { roleKey: "multimedia", label: "Multimedia", hint: "Media requests", icon: "video" },
-    ],
-    requestTypes: [
-      { requestKey: "find-sop", label: "Find an SOP", hint: "Locate the right process", icon: "book-open-check" },
-      { requestKey: "troubleshooting", label: "Troubleshooting", hint: "Something is not working", icon: "wrench" },
-      { requestKey: "course-build", label: "Course Build", hint: "Build or update a course", icon: "graduation-cap" },
-      { requestKey: "access", label: "Access or Enrollment", hint: "User, role, or course access", icon: "user-plus" },
-      { requestKey: "media", label: "Media or Cengage", hint: "Videos, assets, or Cengage", icon: "video" },
-    ],
-    scenarios: [
-      {
-        routeClass: "route-success",
-        routeLabel: "Backend grounded",
-        title: "Describe the task in plain language",
-        why: "Workers AI extracts intent, tool, category, and keywords.",
-        nextStep: "The final matches are pulled from published Cloudflare database records.",
-      },
-      {
-        routeClass: "route-warning",
-        routeLabel: "Follow-up ready",
-        title: "Not enough detail?",
-        why: "The finder asks one focused question instead of guessing.",
-        nextStep: "Add the missing system, tool, or task and search again.",
-      },
-    ],
-    journey: [
-      {
-        stepNumber: "1",
-        title: "Choose context",
-        body: "Pick the closest role and work type so the finder has useful context.",
-      },
-      {
-        stepNumber: "2",
-        title: "Describe the need",
-        body: "Use normal language, including the system, tool, task, or process name if you know it.",
-      },
-      {
-        stepNumber: "3",
-        title: "Review real SOPs",
-        body: "Only published backend SOP records are returned as recommendations.",
-      },
-    ],
-    faqs: [
-      {
-        question: "Can the AI invent SOPs?",
-        answer: "No. The AI only extracts search criteria. The displayed SOPs come from backend database records.",
-      },
-      {
-        question: "What should I type?",
-        answer: "Describe what you are trying to do, the system or tool involved, and any keywords you already know.",
-      },
-    ],
-  };
+  const statusEl = document.getElementById("guided-finder-status");
+  const startPanel = document.getElementById("guided-finder-start");
+  const questionPanel = document.getElementById("guided-finder-question-panel");
+  const descriptionEl = document.getElementById("guided-finder-description");
+  const searchButton = document.getElementById("guided-finder-search");
+  const startGuidedButton = document.getElementById("guided-finder-start-guided");
+  const questionEl = document.getElementById("guided-finder-question");
+  const helpEl = document.getElementById("guided-finder-help");
+  const choicesEl = document.getElementById("guided-finder-choices");
+  const countEl = document.getElementById("guided-finder-step-count");
+  const progressEl = document.getElementById("guided-finder-progress-bar");
+  const backButton = document.getElementById("guided-finder-back");
+  const nextButton = document.getElementById("guided-finder-next");
+  const restartButton = document.getElementById("guided-finder-restart");
+  const resultsEl = document.getElementById("guided-finder-results");
 
   const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (character) => {
@@ -224,286 +138,336 @@ import AppIcon from "./AppIcon.astro";
       return replacements[character];
     });
 
-  function guideIcon(name) {
-    const key = iconMap[name] || name || "default";
-    const svgs = {
-      support: '<svg viewBox="0 0 120 120"><path class="blob" d="M21 74c-8-29 12-55 43-56 30-1 52 20 51 50-1 29-22 47-51 47-23 0-37-15-43-41Z"/><path class="main" d="M36 64a24 24 0 0 1 48 0v16H72V64a12 12 0 0 0-24 0v16H36V64Z"/><path class="accent" d="M71 85h9c7 0 12-5 12-12V62"/><path class="line" d="M45 92h27"/></svg>',
-      academic: '<svg viewBox="0 0 120 120"><path class="blob" d="M23 73c-10-29 12-53 43-53 29 0 49 19 50 47 1 29-20 48-49 49-24 1-38-13-44-43Z"/><path class="main" d="M21 43 60 25l39 18-39 19-39-19Z"/><path class="accent" d="M39 57v24c13 9 29 9 42 0V57"/><path class="line" d="M99 45v27"/></svg>',
-      project: '<svg viewBox="0 0 120 120"><path class="blob" d="M22 76c-9-30 12-53 42-56 31-2 52 18 52 48 0 29-22 46-51 48-25 1-38-14-43-40Z"/><path class="main" d="M31 78 60 93l29-15-29-15-29 15Z"/><path class="accent" d="M31 58 60 73l29-15-29-15-29 15Z"/><path class="main" d="M31 39 60 54l29-15-29-15-29 15Z"/></svg>',
-      faculty: '<svg viewBox="0 0 120 120"><path class="blob" d="M21 73c-8-30 14-53 44-54 29-1 49 19 51 47 2 30-20 49-49 50-24 1-39-13-46-43Z"/><path class="main" d="M60 27c15 8 26 8 39 5v27c0 25-17 41-39 50-22-9-39-25-39-50V32c13 3 24 3 39-5Z"/><path class="check" d="m44 62 11 11 24-29"/></svg>',
-      broken: '<svg viewBox="0 0 120 120"><path class="blob" d="M21 73c-8-29 13-52 43-53 29-1 50 18 52 47 2 30-21 49-49 50-24 1-39-14-46-44Z"/><path class="main" d="M77 28a23 23 0 0 0 18 31L61 93a14 14 0 0 1-20-20l34-34c-1-4-1-8 2-11Z"/><path class="line" d="m42 77 15 15"/></svg>',
-      access: '<svg viewBox="0 0 120 120"><path class="blob" d="M22 74c-9-30 13-53 43-54 29-1 49 19 51 47 2 30-21 48-49 49-24 1-39-13-45-42Z"/><path class="main" d="M52 58a18 18 0 1 0 0-36 18 18 0 0 0 0 36Zm-30 39c5-18 16-28 30-28s25 10 30 28H22Z"/><path class="accent" d="M88 42v28M74 56h28"/></svg>',
-      template: '<svg viewBox="0 0 120 120"><path class="blob" d="M22 74c-9-29 12-53 42-54 30-1 51 18 52 47 1 30-21 49-50 50-24 1-39-14-44-43Z"/><path class="main" d="M38 25h31l18 18v52H38V25Z"/><path class="accent" d="M69 25v18h18"/><path class="line" d="M49 58h26M49 70h26M49 82h16"/></svg>',
-      media: '<svg viewBox="0 0 120 120"><path class="blob" d="M23 73c-10-29 12-53 43-53 29 0 49 19 50 47 1 29-20 48-49 49-24 1-38-13-44-43Z"/><path class="main" d="M27 35h49v50H27V35Z"/><path class="accent" d="m76 52 23-13v42L76 68V52Z"/><path class="line" d="m47 49 18 11-18 11V49Z"/></svg>',
-      cengage: '<svg viewBox="0 0 120 120"><path class="blob" d="M22 74c-9-30 13-53 43-54 29-1 50 19 51 48 1 29-21 47-50 48-24 1-38-13-44-42Z"/><path class="main" d="M32 31h34c13 0 22 9 22 22v36H53c-12 0-21-9-21-21V31Z"/><path class="accent" d="M49 50h25M49 63h25M49 76h16"/></svg>',
-      default: '<svg viewBox="0 0 120 120"><path class="blob" d="M21 74c-8-30 13-54 43-55 30-1 51 19 52 48 1 30-21 49-50 50-24 1-39-14-45-43Z"/><path class="main" d="M37 30h32l17 17v43H37V30Z"/><path class="line" d="M49 57h25M49 69h20"/></svg>',
-    };
-    return svgs[key] || svgs.default;
-  }
-
-  function setStatus(message, tone = "") {
+  function setStatus(message, tone = "loading") {
     if (!statusEl) return;
     statusEl.textContent = message;
     statusEl.dataset.tone = tone;
   }
 
-  function renderChoices(container, items, activeKey, type) {
-    if (!container) return;
-    container.innerHTML = items
-      .map((item) => {
-        const key = item.roleKey || item.requestKey;
-        return `
-          <button class="ticket-guide-choice ${key === activeKey ? "is-active" : ""}" type="button" data-choice-type="${type}" data-choice-key="${escapeHtml(key)}">
-            <span class="ticket-guide-choice__icon" aria-hidden="true">${guideIcon(item.icon)}</span>
-            <span>
-              <strong>${escapeHtml(item.label)}</strong>
-              <small>${escapeHtml(item.hint || item.defaultBadge || "")}</small>
-            </span>
-          </button>
-        `;
-      })
-      .join("");
+  function formatDate(value) {
+    if (!value) return "Not set";
+    const date = new Date(String(value).includes("T") ? value : `${value}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(date);
   }
 
-  function renderGuide(guide) {
-    state.guide = guide;
-    state.role = guide.roles?.[0]?.roleKey || "";
-    state.requestType = guide.requestTypes?.[0]?.requestKey || "";
-    renderChoices(roleEl, guide.roles || [], state.role, "role");
-    renderChoices(requestEl, guide.requestTypes || [], state.requestType, "request");
-    renderScenarios(guide.scenarios || []);
-    renderJourney(guide.journey || []);
-    renderFaqs(guide.faqs || []);
-    setStatus("AI finder loaded. Results come from published SOP records only.", "ready");
+  function toOption(value) {
+    if (typeof value === "string") return { value, label: value };
+    return {
+      value: String(value?.name || value?.label || value?.id || ""),
+      label: String(value?.name || value?.label || value?.id || ""),
+      hint: String(value?.description || ""),
+    };
   }
 
-  function renderScenarios(scenarios) {
-    if (!scenariosEl) return;
-    scenariosEl.innerHTML = scenarios
-      .map(
-        (scenario) => `
-          <article>
-            <span class="${escapeHtml(scenario.routeClass)}">${escapeHtml(scenario.routeLabel)}</span>
-            <h3>${escapeHtml(scenario.title)}</h3>
-            <p>${escapeHtml(scenario.why)}</p>
-            <small>${escapeHtml(scenario.nextStep)}</small>
-          </article>
-        `,
-      )
-      .join("");
+  function buildSteps() {
+    const options = state.options?.options || {};
+    const definitions = [
+      {
+        key: "department",
+        question: "Which department or team is this related to?",
+        help: "Choose the department most connected to the SOP you need.",
+        options: (options.departments || []).map(toOption),
+      },
+      {
+        key: "category",
+        question: "Which SOP category best fits?",
+        help: "These categories come from published backend SOP records.",
+        options: (options.categories || []).map(toOption),
+      },
+      {
+        key: "tool",
+        question: "Which system or tool are you using?",
+        help: "Pick the platform, system, or tool involved in the task.",
+        options: (options.tools || []).map(toOption),
+      },
+      {
+        key: "task",
+        question: "What are you trying to accomplish?",
+        help: "Choose the task or process closest to your work.",
+        options: (options.tasks || []).map(toOption),
+      },
+      {
+        key: "userRole",
+        question: "Which user role is this for?",
+        help: "Use this only when the SOP depends on a specific audience or role.",
+        options: (options.roles || []).map(toOption),
+      },
+    ];
+
+    const userDepartment = String(state.options?.user?.department || "").trim();
+    if (userDepartment && !state.filters.department) {
+      const match = definitions[0].options.find((option) => option.label.toLowerCase() === userDepartment.toLowerCase());
+      if (match) state.filters.department = match.value;
+    }
+
+    state.steps = definitions.filter((step) => step.options.length > 0);
   }
 
-  function renderJourney(steps) {
-    if (!journeyEl) return;
-    journeyEl.innerHTML = steps
-      .map(
-        (step) => `
-          <li>
-            <span>${escapeHtml(step.stepNumber)}</span>
-            <div>
-              <strong>${escapeHtml(step.title)}</strong>
-              <p>${escapeHtml(step.body)}</p>
-            </div>
-          </li>
-        `,
-      )
-      .join("");
+  function currentStep() {
+    return state.steps[state.stepIndex] || null;
   }
 
-  function renderFaqs(faqs) {
-    if (!faqsEl) return;
-    faqsEl.innerHTML = faqs
-      .map(
-        (faq) => `
-          <details>
-            <summary>${escapeHtml(faq.question)}</summary>
-            <p>${escapeHtml(faq.answer)}</p>
-          </details>
-        `,
-      )
-      .join("");
-  }
-
-  function collectImpact() {
-    const impact = {};
-    form?.querySelectorAll(".ticket-guide-impact input").forEach((input) => {
-      if (input instanceof HTMLInputElement) impact[input.name] = input.checked;
-    });
-    return impact;
-  }
-
-  function renderRouteResult(result) {
-    if (!resultEl) return;
-    const nextSteps = (result.nextSteps || []).map((step) => `<li>${escapeHtml(step)}</li>`).join("");
-    const signals = Object.entries(result.signals || {})
-      .filter(([, active]) => Boolean(active))
-      .map(([key]) => `<li>${escapeHtml(key.replaceAll("_", " "))}</li>`)
-      .join("");
-    const sopLink = result.recommendedSop?.detailUrl
-      ? `<a class="button button--secondary" href="${escapeHtml(result.recommendedSop.detailUrl)}">Open related SOP</a>`
-      : "";
-    const actionLabel = result.requiresProjectPath ? "Project path required" : result.requiresTicket ? "Ticket required" : "No ITS ticket required";
-
-    resultEl.innerHTML = `
-      <div class="ticket-guide-result-card">
-        <div class="ticket-guide-result-card__top">
-          <span class="${escapeHtml(result.routeClass)}">${escapeHtml(result.routeLabel)}</span>
-          <strong>${escapeHtml(result.confidenceScore)}% match</strong>
-        </div>
-        <h2>${escapeHtml(result.title)}</h2>
-        <p>${escapeHtml(result.summary)}</p>
-        <dl>
-          <div><dt>Destination</dt><dd>${escapeHtml(result.destinationLabel)}</dd></div>
-          <div><dt>Action</dt><dd>${escapeHtml(actionLabel)}</dd></div>
-        </dl>
-        <h3>Next steps</h3>
-        <ol>${nextSteps}</ol>
-        ${signals ? `<h3>Detected signals</h3><ul class="ticket-guide-signals">${signals}</ul>` : ""}
-        <div class="ticket-guide-result-card__actions">
-          ${sopLink}
-          <a class="button button--secondary" href="/submit/">Submit request</a>
-        </div>
-      </div>
-    `;
-  }
-
-  function renderFinderResult(data) {
-    if (!resultEl) return;
-    const criteria = data.criteria || {};
-
-    if (data.mode === "follow_up") {
-      resultEl.innerHTML = `
-        <div class="ticket-guide-result-card">
-          <div class="ticket-guide-result-card__top">
-            <span class="route-warning">More detail needed</span>
-            <strong>AI follow-up</strong>
-          </div>
-          <h2>One quick question</h2>
-          <p>${escapeHtml(data.question || "Which system, tool, or process is this about?")}</p>
-          <p>Add that answer to the description and run the finder again.</p>
-        </div>
-      `;
+  function renderQuestion() {
+    const step = currentStep();
+    if (!step) {
+      renderNoOptions();
       return;
     }
 
-    const sopCards = (data.sops || [])
-      .map(
-        (sop) => `
-          <article class="ticket-guide-sop-match">
-            <div>
-              <span>${escapeHtml(sop.category || "Published SOP")}</span>
-              <h3><a href="${escapeHtml(sop.url)}">${escapeHtml(sop.title)}</a></h3>
-              <p>${escapeHtml(sop.summary || "Open this SOP to review the full process.")}</p>
-              <small>${escapeHtml([...(sop.tools || []), ...(sop.tags || [])].slice(0, 5).join(" • "))}</small>
-            </div>
-            <strong>${escapeHtml(sop.matchScore)} match</strong>
-          </article>
-        `,
-      )
-      .join("");
+    if (startPanel) startPanel.hidden = true;
+    if (questionPanel) questionPanel.hidden = false;
+    if (questionEl) questionEl.textContent = step.question;
+    if (helpEl) helpEl.textContent = step.help;
+    if (countEl) countEl.textContent = `Step ${state.stepIndex + 1} of ${state.steps.length}`;
+    if (progressEl) progressEl.style.width = `${((state.stepIndex + 1) / Math.max(state.steps.length, 1)) * 100}%`;
+    if (backButton instanceof HTMLButtonElement) backButton.disabled = state.stepIndex === 0;
+    if (nextButton instanceof HTMLButtonElement) nextButton.textContent = state.stepIndex === state.steps.length - 1 ? "Show Results" : "Continue";
 
-    resultEl.innerHTML = `
-      <div class="ticket-guide-result-card">
-        <div class="ticket-guide-result-card__top">
-          <span class="${data.mode === "results" ? "route-success" : "route-warning"}">Backend SOP results</span>
-          <strong>${escapeHtml(data.model || "Workers AI")}</strong>
-        </div>
-        <h2>${data.sops?.length ? "Recommended SOPs" : "No matching SOPs found"}</h2>
-        <p>${escapeHtml(data.explanation || "The finder searched published backend SOP records.")}</p>
-        <dl>
-          <div><dt>Task intent</dt><dd>${escapeHtml(criteria.taskIntent || "Not specified")}</dd></div>
-          <div><dt>System/tool</dt><dd>${escapeHtml(criteria.systemTool || "Not specified")}</dd></div>
-          <div><dt>Category</dt><dd>${escapeHtml(criteria.category || "Not specified")}</dd></div>
-        </dl>
-        <div class="ticket-guide-sop-matches">
-          ${sopCards || `<p>No published SOP records matched yet. Try a more specific system, tool, or task name.</p>`}
+    if (choicesEl) {
+      choicesEl.innerHTML = step.options
+        .map((option) => {
+          const active = state.filters[step.key] === option.value;
+          return `
+            <button
+              class="ticket-guide-choice guided-workflow__choice${active ? " is-active" : ""}"
+              type="button"
+              data-key="${escapeHtml(step.key)}"
+              data-value="${escapeHtml(option.value)}"
+              aria-pressed="${active ? "true" : "false"}"
+            >
+              <span class="ticket-guide-choice__icon guided-workflow__choice-mark" aria-hidden="true"></span>
+              <span>
+                <strong>${escapeHtml(option.label)}</strong>
+                ${option.hint ? `<small>${escapeHtml(option.hint)}</small>` : ""}
+              </span>
+            </button>
+          `;
+        })
+        .join("");
+    }
+
+    window.requestAnimationFrame(() => questionEl?.focus?.());
+  }
+
+  function renderNoOptions() {
+    if (startPanel) startPanel.hidden = false;
+    if (questionPanel) questionPanel.hidden = true;
+    setStatus("No Guided Finder filter options are available from the backend yet. You can still search by description.", "ready");
+  }
+
+  function selectedQueryParams() {
+    const params = new URLSearchParams();
+    Object.entries(state.filters).forEach(([key, value]) => {
+      if (value) params.set(key, String(value));
+    });
+    if (state.description) params.set("q", state.description);
+    return params;
+  }
+
+  function renderEmptyState(message = "No published SOP matched those answers.") {
+    const params = selectedQueryParams();
+    const query = params.toString();
+    const requestUrl = `/submit/${query ? `?${query}` : ""}`;
+    const searchUrl = `/search/${query ? `?${query}` : ""}`;
+    if (!resultsEl) return;
+    resultsEl.innerHTML = `
+      <div class="ticket-guide-empty guided-workflow__no-results">
+        <h2>No exact match found</h2>
+        <p>${escapeHtml(message)}</p>
+        <div class="ticket-guide-actions">
+          <button class="button button--secondary" type="button" id="guided-finder-change">Change answers</button>
+          <a class="button button--secondary" href="${escapeHtml(searchUrl)}">Search all SOPs</a>
+          <button class="button button--secondary" type="button" id="guided-finder-ask-hub">Ask Hub</button>
+          <a class="button button--primary" href="${escapeHtml(requestUrl)}">Request an SOP</a>
+          <a class="button button--secondary" href="/submit/?type=issue">Report missing content</a>
         </div>
       </div>
     `;
-  }
-
-  async function loadGuide() {
-    try {
-      const response = await fetch(`/api/guides/${guideSlug}`, { headers: { accept: "application/json" } });
-      if (!response.ok) throw new Error(`Guide request failed: ${response.status}`);
-      const payload = await response.json();
-      const guide = payload.data?.guide || payload.guide;
-      if (!guide) throw new Error("Guide response did not include guide data");
-      renderGuide(guide);
-    } catch (error) {
-      renderGuide(fallbackGuide);
-      setStatus("AI finder loaded. Describe what you need and results will come from published SOP records.", "ready");
-    }
-  }
-
-  async function routeRequest() {
-    setStatus("Asking Workers AI to classify your request...", "loading");
-    const selectedRoleLabel = state.guide?.roles?.find((role) => role.roleKey === state.role)?.label || state.role;
-    const selectedRequestLabel =
-      state.guide?.requestTypes?.find((request) => request.requestKey === state.requestType)?.label || state.requestType;
-    const details = detailsEl instanceof HTMLTextAreaElement ? detailsEl.value : "";
-    const payload = {
-      message: [
-        `Role or department: ${selectedRoleLabel}`,
-        `Work type: ${selectedRequestLabel}`,
-        `Details: ${details}`,
-        `Impact signals: ${Object.entries(collectImpact())
-          .filter(([, active]) => active)
-          .map(([key]) => key)
-          .join(", ") || "none"}`,
-      ].join("\n"),
-      history: state.history,
-    };
-    const response = await fetch("/api/finder", {
-      method: "POST",
-      headers: { "content-type": "application/json", accept: "application/json" },
-      body: JSON.stringify(payload),
+    document.getElementById("guided-finder-change")?.addEventListener("click", () => {
+      if (questionPanel?.hidden) startGuidedFlow();
+      renderQuestion();
     });
-    if (!response.ok) throw new Error(`Finder request failed: ${response.status}`);
-    const body = await response.json();
-    const result = body.data || body;
-    state.history.push({ role: "user", content: payload.message });
-    if (result.mode === "follow_up") state.history.push({ role: "assistant", content: result.question });
-    renderFinderResult(result);
-    setStatus("Finder completed. SOP results are grounded in backend records.", "ready");
+    document.getElementById("guided-finder-ask-hub")?.addEventListener("click", () => {
+      document.querySelector(".ai-chatbot__toggle")?.click();
+    });
   }
 
-  form?.addEventListener("click", (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLElement)) return;
-    const button = target.closest("[data-choice-type]");
-    if (!(button instanceof HTMLElement)) return;
-    const type = button.dataset.choiceType;
-    const key = button.dataset.choiceKey || "";
-    if (type === "role") state.role = key;
-    if (type === "request") state.requestType = key;
-    renderChoices(roleEl, state.guide?.roles || [], state.role, "role");
-    renderChoices(requestEl, state.guide?.requestTypes || [], state.requestType, "request");
-  });
-
-  form?.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    try {
-      await routeRequest();
-    } catch {
-      setStatus("The route could not be calculated. Please try again.", "error");
+  function renderResults(payload) {
+    const results = payload?.results || [];
+    state.lastResults = results;
+    if (!results.length) {
+      renderEmptyState(payload?.nextQuestion || "Try changing a department, category, system, or task.");
+      return;
     }
-  });
 
-  resetEl?.addEventListener("click", () => {
-    form?.reset();
-    if (state.guide) renderGuide(state.guide);
-    resultEl?.replaceChildren();
-    state.history = [];
-    if (resultEl) {
-      resultEl.innerHTML = `
+    const params = selectedQueryParams();
+    const query = params.toString();
+    if (!resultsEl) return;
+    resultsEl.innerHTML = `
+      <div class="guided-workflow__results-heading">
+        <p class="eyebrow">${escapeHtml(payload?.model || "Guided Finder")}</p>
+        <h2>${results.length === 1 ? "Best matching SOP" : "Best matching SOPs"}</h2>
+        <p>${escapeHtml(payload?.sourcePolicy || "Only approved backend SOP records are shown.")}</p>
+      </div>
+      <div class="ticket-guide-sop-matches guided-workflow__match-list">
+        ${results
+          .map(
+            (sop) => `
+              <article class="ticket-guide-sop-match guided-workflow__match">
+                <span>${escapeHtml(sop.department || "All departments")} · ${escapeHtml(sop.category || "Uncategorized")}</span>
+                <h3><a href="${escapeHtml(sop.href || "#")}">${escapeHtml(sop.title || "Untitled SOP")}</a></h3>
+                <p>${escapeHtml(sop.summary || "No description available.")}</p>
+                <dl>
+                  <div>
+                    <dt>System/tool</dt>
+                    <dd>${escapeHtml((sop.tools || []).join(", ") || "Not specified")}</dd>
+                  </div>
+                  <div>
+                    <dt>Updated</dt>
+                    <dd>${escapeHtml(formatDate(sop.lastReviewed || sop.updatedAt))}</dd>
+                  </div>
+                </dl>
+                <strong>${escapeHtml(sop.relevance || "Matches your Guided Finder answers.")}</strong>
+                <a class="button button--primary" href="${escapeHtml(sop.href || "#")}">Open SOP</a>
+              </article>
+            `,
+          )
+          .join("")}
+      </div>
+      ${payload?.total > results.length ? `<a class="button button--secondary" href="/search/${query ? `?${escapeHtml(query)}` : ""}">View all matching SOPs</a>` : ""}
+    `;
+  }
+
+  async function searchGuidedFinder() {
+    const requestId = ++state.requestId;
+    state.description = String(descriptionEl?.value || "").trim();
+    setStatus("Searching approved backend SOPs...", "loading");
+
+    try {
+      const response = await fetch("/api/guided-finder", {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({ description: state.description, filters: state.filters }),
+      });
+      const payload = await response.json();
+      if (requestId !== state.requestId) return;
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error?.message || "Guided Finder could not load matching SOPs.");
+      }
+      setStatus(
+        payload.data.results?.length
+          ? `${payload.data.results.length} matching SOP${payload.data.results.length === 1 ? "" : "s"} found.`
+          : "No exact match found. Try changing the answers or request a missing SOP.",
+        payload.data.results?.length ? "ready" : "error",
+      );
+      renderResults(payload.data);
+    } catch (error) {
+      if (requestId !== state.requestId) return;
+      setStatus(error.message || "Guided Finder could not load matching SOPs.", "error");
+      renderEmptyState("The finder could not complete that search. You can still search all SOPs or submit a request.");
+    }
+  }
+
+  async function loadOptions() {
+    const requestId = ++state.requestId;
+    setStatus("Loading live Guided Finder options...", "loading");
+    try {
+      const response = await fetch("/api/guided-finder", { headers: { accept: "application/json" }, cache: "no-store" });
+      const payload = await response.json();
+      if (requestId !== state.requestId) return;
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error?.message || "Guided Finder options could not be loaded.");
+      }
+      state.options = payload.data;
+      state.filters = {};
+      state.stepIndex = 0;
+      buildSteps();
+      setStatus("Guided Finder loaded. Options and results come from live backend records.", "ready");
+    } catch (error) {
+      if (requestId !== state.requestId) return;
+      state.options = null;
+      state.steps = [];
+      setStatus(error.message || "Guided Finder options could not be loaded.", "error");
+    }
+  }
+
+  function startGuidedFlow() {
+    if (!state.steps.length) {
+      renderNoOptions();
+      return;
+    }
+    state.stepIndex = 0;
+    renderQuestion();
+    searchGuidedFinder();
+  }
+
+  function resetFinder({ preserveDescription = false } = {}) {
+    state.filters = {};
+    state.stepIndex = 0;
+    state.lastResults = [];
+    if (!preserveDescription && descriptionEl) descriptionEl.value = "";
+    if (startPanel) startPanel.hidden = false;
+    if (questionPanel) questionPanel.hidden = true;
+    if (resultsEl) {
+      resultsEl.innerHTML = `
         <div class="ticket-guide-empty">
           <h2>Ready when you are</h2>
-          <p>Choose a role, choose a work type, then describe what you need. The finder will return published SOP records only.</p>
+          <p>Describe your need or start the guided flow. Results will appear here as the finder narrows the backend SOP records.</p>
         </div>
       `;
     }
+  }
+
+  choicesEl?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-key][data-value]");
+    if (!button) return;
+    state.filters[button.dataset.key] = button.dataset.value;
+    renderQuestion();
+    searchGuidedFinder();
   });
 
-  loadGuide();
+  searchButton?.addEventListener("click", () => {
+    if (startPanel) startPanel.hidden = false;
+    if (questionPanel) questionPanel.hidden = true;
+    searchGuidedFinder();
+  });
+
+  startGuidedButton?.addEventListener("click", startGuidedFlow);
+
+  backButton?.addEventListener("click", () => {
+    state.stepIndex = Math.max(0, state.stepIndex - 1);
+    renderQuestion();
+    searchGuidedFinder();
+  });
+
+  nextButton?.addEventListener("click", () => {
+    if (state.stepIndex >= state.steps.length - 1) {
+      searchGuidedFinder();
+      return;
+    }
+    state.stepIndex += 1;
+    renderQuestion();
+    searchGuidedFinder();
+  });
+
+  restartButton?.addEventListener("click", () => {
+    resetFinder({ preserveDescription: true });
+    startGuidedFlow();
+  });
+
+  window.addEventListener(ROLE_CONTEXT_EVENT, async () => {
+    resetFinder();
+    await loadOptions();
+  });
+
+  window.addEventListener("storage", async (event) => {
+    if (!event.key || event.key.startsWith("sop-active-")) {
+      resetFinder();
+      await loadOptions();
+    }
+  });
+
+  loadOptions();
 </script>

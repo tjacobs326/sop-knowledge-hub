@@ -2257,11 +2257,14 @@ dd {
 }
 
 .ai-chatbot__close {
-  display: grid;
-  width: 2.25rem;
-  height: 2.25rem;
+  display: inline-flex;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
   flex: 0 0 auto;
-  place-items: center;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.65rem;
   border: 2px solid #fff;
   border-radius: 999px;
   color: var(--color-ink);
@@ -2271,6 +2274,11 @@ dd {
   font-weight: 900;
   line-height: 1;
   cursor: pointer;
+}
+
+.ai-chatbot__close span[aria-hidden="true"] {
+  font-size: 1.1rem;
+  line-height: 1;
 }
 
 .ai-chatbot__close:hover,
@@ -5267,6 +5275,220 @@ legend {
   margin: 0.55rem 0 0;
 }
 
+.guided-workflow__shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(20rem, 0.95fr);
+  gap: 1.25rem;
+  margin-top: 1.25rem;
+}
+
+.guided-workflow__main,
+.guided-workflow__results {
+  min-width: 0;
+}
+
+.guided-workflow__main {
+  padding: 1.35rem;
+  border: 1px solid #d8c6b5;
+  border-radius: 14px;
+  background: #fffdfa;
+  box-shadow: 0 16px 38px rgba(7, 29, 72, 0.08);
+}
+
+.guided-workflow__start {
+  display: grid;
+  gap: 1rem;
+}
+
+.guided-workflow__start h2,
+.guided-workflow__results-heading h2 {
+  margin: 0;
+  color: #071d48;
+  font-size: clamp(1.4rem, 2vw, 2rem);
+}
+
+.guided-workflow__start p,
+.guided-workflow__results-heading p {
+  margin: 0.35rem 0 0;
+  color: #596273;
+  line-height: 1.6;
+}
+
+.guided-workflow__prompt textarea {
+  min-height: 11rem;
+}
+
+.guided-workflow__question[hidden],
+.guided-workflow__start[hidden] {
+  display: none;
+}
+
+.guided-workflow__progress {
+  display: grid;
+  gap: 0.55rem;
+  margin-bottom: 1rem;
+  color: #596273;
+  font-weight: 800;
+}
+
+.guided-workflow__progress-track {
+  height: 0.55rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #d8e0ed;
+}
+
+.guided-workflow__progress-track span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: #f97316;
+  transition: width 180ms ease;
+}
+
+.guided-workflow__fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.guided-workflow__fieldset legend {
+  margin: 0;
+  color: #071d48;
+  font-family: var(--font-heading);
+  font-size: clamp(1.35rem, 2vw, 1.9rem);
+  font-weight: 900;
+}
+
+.guided-workflow__fieldset legend:focus {
+  outline: 3px solid #f97316;
+  outline-offset: 4px;
+}
+
+.guided-workflow__fieldset p {
+  margin: 0.45rem 0 1rem;
+  color: #596273;
+  line-height: 1.55;
+}
+
+.guided-workflow__choices {
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+
+.guided-workflow__choice {
+  align-items: center;
+  min-height: 5.5rem;
+}
+
+.guided-workflow__choice-mark {
+  position: relative;
+  width: 2.7rem;
+  height: 2.7rem;
+  flex: 0 0 2.7rem;
+}
+
+.guided-workflow__choice-mark::before,
+.guided-workflow__choice-mark::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+}
+
+.guided-workflow__choice-mark::before {
+  inset: 0;
+  background: #eef5ff;
+  border: 2px solid #071d48;
+}
+
+.guided-workflow__choice-mark::after {
+  inset: 0.75rem;
+  background: #f97316;
+  box-shadow: 0.8rem -0.8rem 0 -0.35rem #1aa8d5;
+}
+
+.guided-workflow__choice.is-active .guided-workflow__choice-mark::before {
+  background: #fff4df;
+  border-color: #f97316;
+}
+
+.guided-workflow__nav {
+  justify-content: space-between;
+}
+
+.guided-workflow__results {
+  align-self: start;
+}
+
+.guided-workflow__results-heading {
+  margin-bottom: 1rem;
+}
+
+.guided-workflow__match-list {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.guided-workflow__match {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.guided-workflow__match dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+  margin: 0;
+}
+
+.guided-workflow__match dt {
+  color: #596273;
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.guided-workflow__match dd {
+  margin: 0.15rem 0 0;
+  color: #071d48;
+  font-weight: 800;
+}
+
+.guided-workflow__no-results .ticket-guide-actions {
+  justify-content: center;
+}
+
+@media (max-width: 920px) {
+  .guided-workflow__shell {
+    grid-template-columns: 1fr;
+  }
+
+  .guided-workflow__results {
+    order: 2;
+  }
+}
+
+@media (max-width: 640px) {
+  .guided-workflow__nav {
+    justify-content: stretch;
+  }
+
+  .guided-workflow__nav .button,
+  .guided-workflow__no-results .button {
+    width: 100%;
+  }
+
+  .guided-workflow__match dl {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guided-workflow__progress-track span {
+    transition: none;
+  }
+}
+
 @media (max-width: 980px) {
   .ticket-guide-hero,
   .ticket-guide-layout,
@@ -7196,6 +7418,350 @@ tbody tr:hover {
   border: 1.5px solid #2b2445;
 }
 
+.normal-home-dashboard {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.home-command-center {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(18rem, 0.95fr);
+  gap: clamp(1rem, 2.4vw, 1.5rem);
+  align-items: stretch;
+  padding: clamp(1.25rem, 2.7vw, 2rem);
+  color: var(--color-ink);
+  background:
+    radial-gradient(circle at 92% 18%, rgba(250, 185, 91, 0.18), transparent 22%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 255, 0.96));
+  border: 1px solid rgba(180, 195, 220, 0.56);
+  border-radius: 10px;
+  box-shadow: 0 18px 42px rgba(26, 50, 99, 0.10);
+}
+
+.home-command-center__copy {
+  align-self: center;
+}
+
+.home-command-center__copy h1 {
+  max-width: 15ch;
+  margin: 0;
+  color: var(--color-ink);
+  font-size: clamp(2.35rem, 5vw, 4.15rem);
+  line-height: 1;
+}
+
+.home-command-center__copy p:not(.eyebrow) {
+  max-width: 42rem;
+  margin: 1rem 0 0;
+  color: var(--color-text);
+  font-size: clamp(1rem, 1.4vw, 1.2rem);
+}
+
+.home-search-panel,
+.home-ask-panel {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-soft);
+}
+
+.home-search-panel {
+  align-self: start;
+}
+
+.home-search-panel label,
+.home-ask-panel h2 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.home-search-panel__control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+}
+
+.home-search-panel input {
+  min-height: 3.15rem;
+  font-size: 1rem;
+}
+
+.home-ask-panel {
+  grid-column: 2;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.home-ask-panel__icon,
+.home-action-card__icon {
+  display: grid;
+  place-items: center;
+  color: var(--color-ink);
+}
+
+.home-ask-panel__icon {
+  width: 4.25rem;
+  height: 4.25rem;
+}
+
+.home-ask-panel__icon .hero-art-icon {
+  width: 4.25rem;
+  height: 4.25rem;
+}
+
+.home-ask-panel p {
+  margin: 0.25rem 0 0;
+  color: var(--color-muted);
+}
+
+.home-quick-actions,
+.home-dashboard-section {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.home-quick-actions__grid,
+.home-help-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  gap: 1rem;
+}
+
+.home-action-card,
+.home-help-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.85rem;
+  align-items: center;
+  min-height: 7rem;
+  padding: 1rem;
+  color: var(--color-ink);
+  text-align: left;
+  text-decoration: none;
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-soft);
+}
+
+.home-quick-actions__grid .home-action-card {
+  min-height: 6.4rem;
+}
+
+button.home-action-card {
+  font: inherit;
+  cursor: pointer;
+}
+
+.home-action-card:hover,
+.home-action-card:focus-visible,
+.home-help-card:hover,
+.home-help-card:focus-visible,
+.home-update-card:hover,
+.home-update-card:focus-visible {
+  color: var(--color-ink);
+  border-color: rgba(250, 185, 91, 0.78);
+  box-shadow: 0 18px 36px rgba(26, 50, 99, 0.12);
+  transform: translateY(-1px);
+}
+
+.home-action-card__icon {
+  width: 4.25rem;
+  height: 4.25rem;
+}
+
+.home-action-card__icon .hero-art-icon {
+  width: 4.25rem;
+  height: 4.25rem;
+}
+
+.home-action-card strong,
+.home-action-card small,
+.home-help-card strong,
+.home-help-card small {
+  display: block;
+}
+
+.home-action-card strong,
+.home-help-card strong {
+  color: var(--color-ink);
+  font-size: 1.05rem;
+}
+
+.home-action-card small,
+.home-help-card small {
+  margin-top: 0.25rem;
+  color: var(--color-muted);
+  line-height: 1.4;
+}
+
+.home-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  overflow: hidden;
+  color: var(--color-white);
+  background: linear-gradient(110deg, rgba(11, 27, 59, 0.98), rgba(26, 50, 99, 0.98));
+  border: 1px solid rgba(250, 185, 91, 0.22);
+  border-radius: 8px;
+}
+
+.home-guided-finder {
+  display: grid;
+  gap: 1rem;
+}
+
+.home-guided-finder[hidden] {
+  display: none;
+}
+
+.home-guided-finder__status {
+  color: var(--color-muted);
+  font-weight: 800;
+}
+
+.home-guided-finder__form {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.home-guided-finder__step {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.home-guided-finder__step label {
+  color: var(--color-ink);
+  font-weight: 900;
+}
+
+.home-guided-results {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.home-guided-empty {
+  display: grid;
+  gap: 0.65rem;
+  padding: 1rem;
+  color: var(--color-ink);
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.home-guided-empty p {
+  margin: 0;
+  color: var(--color-muted);
+}
+
+.home-summary-strip div {
+  display: grid;
+  gap: 0.25rem;
+  padding: 1rem 1.1rem;
+  border-right: 1px solid rgba(226, 235, 255, 0.14);
+}
+
+.home-summary-strip div:last-child {
+  border-right: 0;
+}
+
+.home-summary-strip span {
+  color: rgba(226, 235, 255, 0.76);
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.home-summary-strip strong {
+  color: var(--color-white);
+  font-size: 1.45rem;
+}
+
+.home-activity-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.home-activity-card h3 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 1rem;
+}
+
+.home-item-list {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.home-item-list li {
+  display: grid;
+  gap: 0.18rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid rgba(180, 195, 220, 0.42);
+}
+
+.home-item-list li:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.home-item-list a {
+  color: var(--color-ink);
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.home-item-list span {
+  color: var(--color-muted);
+  font-size: 0.86rem;
+}
+
+.home-update-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.home-update-card {
+  display: grid;
+  gap: 0.45rem;
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+.home-update-card strong {
+  color: var(--color-ink);
+}
+
+.home-update-card p {
+  margin: 0;
+  color: var(--color-muted);
+}
+
+.home-update-card time {
+  color: var(--color-copper);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.home-help-card .app-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
 /* Purpose-built homepage illustrations. These replace the generic app-icon treatment in the hero. */
 .hero-art-icon {
   display: block;
@@ -7279,6 +7845,42 @@ tbody tr:hover {
 }
 
 @media (max-width: 720px) {
+  .home-command-center,
+  .home-quick-actions__grid,
+  .home-summary-strip,
+  .home-activity-grid,
+  .home-update-grid,
+  .home-help-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .home-ask-panel {
+    grid-column: auto;
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .home-ask-panel .button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .home-search-panel__control {
+    grid-template-columns: 1fr;
+  }
+
+  .home-search-panel__control .button {
+    width: 100%;
+  }
+
+  .home-summary-strip div {
+    border-right: 0;
+    border-bottom: 1px solid rgba(226, 235, 255, 0.14);
+  }
+
+  .home-summary-strip div:last-child {
+    border-bottom: 0;
+  }
+
   .dashboard-hero .hero-benefit__icon {
     width: 4rem;
     height: 4rem;

@@ -5,7 +5,7 @@ export const roleAccessViews = [
     label: "Normal Users",
     description: "Search SOPs, use Guided Finder, browse categories, and submit requests.",
     landingPage: "/search/",
-    options: ["Search SOPs", "Guided Finder", "Categories", "Submit Request"],
+    options: ["Search SOPs", "Guided Finder", "Categories", "Request an SOP"],
   },
   {
     id: "creator",
