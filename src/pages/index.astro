@@ -21,7 +21,7 @@ import HeroIllustrationIcon from "../components/HeroIllustrationIcon.astro";
           <h2 id="home-browse-panel-heading">Browse SOPs</h2>
           <p>View and search all published SOPs in one place.</p>
         </div>
-        <a class="button button--primary" href="/search/">Browse SOPs</a>
+        <a class="button button--primary" href="/search/">Browse SOPs <span aria-hidden="true">&rarr;</span></a>
       </div>
 
       <div class="home-ask-panel" aria-labelledby="home-guided-banner-heading">
@@ -30,50 +30,43 @@ import HeroIllustrationIcon from "../components/HeroIllustrationIcon.astro";
           <h2 id="home-guided-banner-heading">Guided Finder</h2>
           <p>Answer a few questions to quickly find the right SOP.</p>
         </div>
-        <a class="button button--secondary" href="/guided-finder/">Open Guided Finder</a>
+        <a class="button button--secondary" href="/guided-finder/">Open Guided Finder <span aria-hidden="true">&rarr;</span></a>
       </div>
     </section>
 
     <section class="home-quick-actions" aria-labelledby="home-quick-actions-heading">
       <div class="dashboard-section-heading">
-        <h2 id="home-quick-actions-heading">Quick Actions</h2>
+        <span class="home-quick-actions__bolt" aria-hidden="true">▸</span>
+        <div>
+          <h2 id="home-quick-actions-heading">Quick Actions</h2>
+          <p>Get things done quickly.</p>
+        </div>
       </div>
       <div class="home-quick-actions__grid">
-        <a class="home-action-card" href="/search/">
-          <span class="home-action-card__icon" aria-hidden="true"><HeroIllustrationIcon name="target" /></span>
-          <span>
-            <strong>Browse SOPs</strong>
-            <small>Search and browse all published SOPs.</small>
-          </span>
-        </a>
-        <a class="home-action-card" href="/guided-finder/">
-          <span class="home-action-card__icon" aria-hidden="true"><HeroIllustrationIcon name="book" /></span>
-          <span>
-            <strong>Guided Finder</strong>
-            <small>Step through filters to find the right SOP.</small>
-          </span>
-        </a>
-        <a class="home-action-card" href="/submit/">
-          <span class="home-action-card__icon" aria-hidden="true"><HeroIllustrationIcon name="support" /></span>
+        <a class="home-action-card home-action-card--request" href="/submit/">
+          <span class="home-action-card__icon" aria-hidden="true"><AppIcon name="submit" /></span>
           <span>
             <strong>Request an SOP</strong>
             <small>Ask for a missing process or update.</small>
           </span>
+          <span class="home-action-card__arrow" aria-hidden="true">&rarr;</span>
         </a>
-        <a class="home-action-card" href="/create/" id="home-create-sop-action" hidden>
-          <span class="home-action-card__icon" aria-hidden="true"><HeroIllustrationIcon name="documentShield" /></span>
-          <span>
-            <strong>Create an SOP</strong>
-            <small>Start an authorized SOP draft.</small>
-          </span>
-        </a>
-        <button class="home-action-card" type="button" id="home-quick-ask-hub">
-          <span class="home-action-card__icon" aria-hidden="true"><HeroIllustrationIcon name="book" /></span>
+        <button class="home-action-card home-action-card--ask" type="button" id="home-quick-ask-hub">
+          <span class="home-action-card__icon" aria-hidden="true"><AppIcon name="ai" /></span>
           <span>
             <strong>Ask Hub</strong>
             <small>Get guided help from the assistant.</small>
           </span>
+          <span class="home-action-card__arrow" aria-hidden="true">&rarr;</span>
         </button>
+        <a class="home-action-card home-action-card--recent" href="/search/?sort=recent">
+          <span class="home-action-card__icon" aria-hidden="true"><AppIcon name="activity" /></span>
+          <span>
+            <strong>Recent Activity</strong>
+            <small>View your recent activity and updates.</small>
+          </span>
+          <span class="home-action-card__arrow" aria-hidden="true">&rarr;</span>
+        </a>
       </div>
     </section>
 

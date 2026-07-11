@@ -29,6 +29,7 @@ const blobToneByName: Record<string, AccentTone> = {
   users: "pink",
   tags: "yellow",
   analytics: "green",
+  activity: "orange",
   settings: "soft",
   qa: "yellow",
   d2l: "yellow",
@@ -59,6 +60,7 @@ const paths: Record<string, string[]> = {
   users: ["M9 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z", "M3.5 19a5.5 5.5 0 0 1 11 0", "M16 11a2.5 2.5 0 1 0 0-5", "M16.5 14.5A4.5 4.5 0 0 1 20.5 19"],
   tags: ["M4 10V5h5l10 10-5 5L4 10Z", "M7.5 7.5h.01"],
   analytics: ["M5 19V9", "M12 19V5", "M19 19v-7"],
+  activity: ["M12 6v6l4 2", "M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z", "M4.7 8.5 3.8 5.2 7 4.5", "M19.3 15.5l.9 3.3-3.2.7"],
   settings: ["M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z", "M12 3v3", "M12 18v3", "M3 12h3", "M18 12h3", "M5.6 5.6l2.1 2.1", "M16.3 16.3l2.1 2.1", "M18.4 5.6l-2.1 2.1", "M7.7 16.3l-2.1 2.1"],
   qa: ["M12 3.8 19.2 7v5.1c0 4.4-2.9 7.6-7.2 8.3-4.3-.7-7.2-3.9-7.2-8.3V7L12 3.8Z", "M8.9 12.2l2.1 2.1 4.4-5"],
   d2l: ["M4.8 6.5c2.4-.9 4.6-.7 7.2.9 2.6-1.6 4.8-1.8 7.2-.9v11.4c-2.6-.9-4.8-.6-7.2 1-2.4-1.6-4.6-1.9-7.2-1V6.5Z", "M12 7.4v11.4"],
@@ -138,6 +140,10 @@ const accentPaths: Record<string, AccentPath[]> = {
     { tone: "green", d: "M4.8 19V12h3.2v7z" },
     { tone: "blue", d: "M10.4 19V7h3.2v12z" },
     { tone: "orange", d: "M16 19v-9h3.2v9z" },
+  ],
+  activity: [
+    { tone: "soft", d: "M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z" },
+    { tone: "orange", d: "M12 7v5l4 2" },
   ],
   settings: [
     { tone: "soft", d: "M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" },
