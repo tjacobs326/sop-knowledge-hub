@@ -6,11 +6,16 @@ import AppIcon from "./AppIcon.astro";
   <div class="ticket-guide-hero guided-workflow__hero">
     <div class="ticket-guide-hero__content">
       <p class="eyebrow">Guided Finder</p>
-      <h1 id="finder-heading">What do you need help with?</h1>
+      <h1 id="finder-heading">Find the right SOP</h1>
       <p>
-        Answer a few focused questions or describe the task in your own words. The finder recommends
-        approved SOPs from the live backend only.
+        Answer a few questions about who you are and what you are trying to accomplish. The Guided Finder
+        uses approved SOP data to recommend the most relevant process.
       </p>
+      <ul class="guided-workflow__benefits" aria-label="Guided Finder benefits">
+        <li>Find the correct process</li>
+        <li>Narrow results by your work</li>
+        <li>Use approved SOP content</li>
+      </ul>
     </div>
     <div class="ticket-guide-hero__visual" aria-hidden="true">
       <div class="ticket-guide-card guided-workflow__card">
@@ -32,6 +37,14 @@ import AppIcon from "./AppIcon.astro";
   </div>
 
   <div class="guided-workflow__shell">
+    <nav class="guided-workflow__rail" aria-label="Guided Finder progress">
+      <ol id="guided-finder-rail">
+        <li class="is-active"><span>1</span><strong>Role</strong></li>
+        <li><span>2</span><strong>Need</strong></li>
+        <li><span>3</span><strong>Answer</strong></li>
+      </ol>
+    </nav>
+
     <div class="guided-workflow__main">
       <div class="ticket-guide-status guided-workflow__status" id="guided-finder-status" role="status" aria-live="polite">
         Loading Guided Finder options...
@@ -40,7 +53,7 @@ import AppIcon from "./AppIcon.astro";
       <section class="guided-workflow__start" id="guided-finder-start" aria-labelledby="guided-finder-start-heading">
         <div>
           <p class="eyebrow">Start here</p>
-          <h2 id="guided-finder-start-heading">Tell us what you are trying to do</h2>
+          <h2 id="guided-finder-start-heading">Start with your task or guided selections</h2>
           <p>
             Include the system, tool, department, or process if you know it. Workers AI helps interpret
             your wording, then D1 returns real published SOP records.
@@ -125,6 +138,7 @@ import AppIcon from "./AppIcon.astro";
   const questionEl = document.getElementById("guided-finder-question");
   const helpEl = document.getElementById("guided-finder-help");
   const choicesEl = document.getElementById("guided-finder-choices");
+  const railEl = document.getElementById("guided-finder-rail");
   const countEl = document.getElementById("guided-finder-step-count");
   const progressEl = document.getElementById("guided-finder-progress-bar");
   const backButton = document.getElementById("guided-finder-back");
@@ -160,40 +174,60 @@ import AppIcon from "./AppIcon.astro";
     };
   }
 
-  function buildSteps() {
+  function fallbackSteps() {
     const options = state.options?.options || {};
-    const definitions = [
+    return [
       {
         key: "department",
+        number: 1,
+        shortLabel: "Role",
         question: "Which department or team is this related to?",
         help: "Choose the department most connected to the SOP you need.",
         options: (options.departments || []).map(toOption),
       },
       {
-        key: "category",
-        question: "Which SOP category best fits?",
-        help: "These categories come from published backend SOP records.",
-        options: (options.categories || []).map(toOption),
+        key: "task",
+        number: 2,
+        shortLabel: "Need",
+        question: "What do you need?",
+        help: "Choose the task or process closest to your work.",
+        options: (options.tasks || []).map(toOption),
       },
       {
         key: "tool",
+        number: 3,
+        shortLabel: "Tool",
         question: "Which system or tool are you using?",
         help: "Pick the platform, system, or tool involved in the task.",
         options: (options.tools || []).map(toOption),
       },
       {
-        key: "task",
-        question: "What are you trying to accomplish?",
-        help: "Choose the task or process closest to your work.",
-        options: (options.tasks || []).map(toOption),
+        key: "category",
+        number: 4,
+        shortLabel: "Category",
+        question: "Which SOP category best fits?",
+        help: "These categories come from published backend SOP records.",
+        options: (options.categories || []).map(toOption),
       },
       {
         key: "userRole",
+        number: 5,
+        shortLabel: "Audience",
         question: "Which user role is this for?",
         help: "Use this only when the SOP depends on a specific audience or role.",
         options: (options.roles || []).map(toOption),
       },
     ];
+  }
+
+  function buildSteps() {
+    const definitions =
+      Array.isArray(state.options?.steps) && state.options.steps.length
+        ? state.options.steps.map((step) => ({
+            ...step,
+            options: (step.options || []).map(toOption),
+          }))
+        : fallbackSteps();
 
     const userDepartment = String(state.options?.user?.department || "").trim();
     if (userDepartment && !state.filters.department) {
@@ -201,11 +235,43 @@ import AppIcon from "./AppIcon.astro";
       if (match) state.filters.department = match.value;
     }
 
-    state.steps = definitions.filter((step) => step.options.length > 0);
+    definitions.forEach((step) => {
+      if (step.preselected && !state.filters[step.key]) state.filters[step.key] = step.preselected;
+    });
+
+    state.steps = definitions.filter((step) => {
+      if (!step.options.length) return false;
+      if (step.locked) return false;
+      if (step.options.length === 1) {
+        state.filters[step.key] = step.options[0].value;
+        return false;
+      }
+      return true;
+    });
   }
 
   function currentStep() {
     return state.steps[state.stepIndex] || null;
+  }
+
+  function renderRail(forceAnswer = false) {
+    if (!railEl) return;
+    const step = currentStep();
+    const activeNumber = forceAnswer ? 3 : Math.min(step?.number || 1, 3);
+    const labels = [
+      { number: 1, label: "Role" },
+      { number: 2, label: "Need" },
+      { number: 3, label: "Answer" },
+    ];
+    railEl.innerHTML = labels
+      .map((item) => {
+        const complete = item.number < activeNumber;
+        const active = item.number === activeNumber;
+        return `<li class="${active ? "is-active" : ""} ${complete ? "is-complete" : ""}"${active ? ' aria-current="step"' : ""}>
+          <span>${item.number}</span><strong>${escapeHtml(item.label)}</strong>
+        </li>`;
+      })
+      .join("");
   }
 
   function renderQuestion() {
@@ -247,6 +313,7 @@ import AppIcon from "./AppIcon.astro";
         .join("");
     }
 
+    renderRail();
     window.requestAnimationFrame(() => questionEl?.focus?.());
   }
 
@@ -297,10 +364,12 @@ import AppIcon from "./AppIcon.astro";
     const results = payload?.results || [];
     state.lastResults = results;
     if (!results.length) {
+      renderRail();
       renderEmptyState(payload?.nextQuestion || "Try changing a department, category, system, or task.");
       return;
     }
 
+    renderRail(true);
     const params = selectedQueryParams();
     const query = params.toString();
     if (!resultsEl) return;
@@ -313,9 +382,10 @@ import AppIcon from "./AppIcon.astro";
       <div class="ticket-guide-sop-matches guided-workflow__match-list">
         ${results
           .map(
-            (sop) => `
-              <article class="ticket-guide-sop-match guided-workflow__match">
+            (sop, index) => `
+              <article class="ticket-guide-sop-match guided-workflow__match${index === 0 ? " guided-workflow__match--best" : ""}">
                 <span>${escapeHtml(sop.department || "All departments")} · ${escapeHtml(sop.category || "Uncategorized")}</span>
+                ${index === 0 ? `<em>Strongest match</em>` : ""}
                 <h3><a href="${escapeHtml(sop.href || "#")}">${escapeHtml(sop.title || "Untitled SOP")}</a></h3>
                 <p>${escapeHtml(sop.summary || "No description available.")}</p>
                 <dl>
@@ -336,7 +406,12 @@ import AppIcon from "./AppIcon.astro";
           .join("")}
       </div>
       ${payload?.total > results.length ? `<a class="button button--secondary" href="/search/${query ? `?${escapeHtml(query)}` : ""}">View all matching SOPs</a>` : ""}
+      <button class="button button--secondary" type="button" id="guided-finder-change-results">Change answers</button>
     `;
+    document.getElementById("guided-finder-change-results")?.addEventListener("click", () => {
+      if (questionPanel) questionPanel.hidden = false;
+      renderQuestion();
+    });
   }
 
   async function searchGuidedFinder() {
@@ -384,6 +459,7 @@ import AppIcon from "./AppIcon.astro";
       state.filters = {};
       state.stepIndex = 0;
       buildSteps();
+      renderRail();
       setStatus("Guided Finder loaded. Options and results come from live backend records.", "ready");
     } catch (error) {
       if (requestId !== state.requestId) return;
@@ -418,6 +494,7 @@ import AppIcon from "./AppIcon.astro";
         </div>
       `;
     }
+    renderRail();
   }
 
   choicesEl?.addEventListener("click", (event) => {

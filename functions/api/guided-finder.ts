@@ -35,6 +35,23 @@ interface GuidedFinderIntent {
   suggestedNextQuestion?: string;
 }
 
+interface GuidedFinderOption {
+  value: string;
+  label: string;
+  hint?: string;
+}
+
+interface GuidedFinderStep {
+  key: keyof GuidedFinderFilters;
+  number: number;
+  shortLabel: string;
+  question: string;
+  help: string;
+  options: GuidedFinderOption[];
+  preselected?: string;
+  locked?: boolean;
+}
+
 interface RankedCandidate {
   id: string;
   relevance: string;
@@ -168,6 +185,143 @@ function departmentName(value: string | undefined, departments: DepartmentRow[])
   );
   return match?.name || value;
 }
+
+function optionFromValue(value: string, hint = ""): GuidedFinderOption {
+  return {
+    value,
+    label: value,
+    hint,
+  };
+}
+
+function buildNeedOptions(sops: Array<Record<string, unknown>>, facets: Awaited<ReturnType<typeof listSopFacets>>) {
+  const taxonomy = unique([
+    ...sops.map((sop) => String(sop.type || "")),
+    ...facets.tags,
+    ...facets.categories,
+  ]).slice(0, 80);
+  const scored = new Map<string, { label: string; terms: Set<string>; count: number }>();
+  const groups = [
+    { label: "Complete a process", terms: ["process", "procedure", "complete", "copy", "prepare", "submit", "setup", "build"] },
+    { label: "Use a system or tool", terms: ["tool", "system", "brightspace", "d2l", "ivanti", "cengage", "software", "ai"] },
+    { label: "Troubleshoot a problem", terms: ["troubleshoot", "missing", "issue", "problem", "fix", "resolution", "access"] },
+    { label: "Review or approve work", terms: ["review", "approve", "qa", "quality", "checklist", "final"] },
+    { label: "Find a policy or requirement", terms: ["policy", "requirement", "standard", "accessibility", "governance"] },
+    { label: "Learn how to perform a task", terms: ["job aid", "template", "guide", "how", "learn", "task"] },
+  ];
+
+  groups.forEach((group) => {
+    const record = { label: group.label, terms: new Set<string>(), count: 0 };
+    taxonomy.forEach((term) => {
+      const normalized = term.toLowerCase();
+      if (group.terms.some((keyword) => normalized.includes(keyword))) {
+        record.terms.add(term);
+        record.count += 1;
+      }
+    });
+    if (record.count) scored.set(group.label, record);
+  });
+
+  taxonomy.forEach((term) => {
+    if (scored.size >= 10) return;
+    const label = term.length > 42 ? `${term.slice(0, 39)}...` : term;
+    if (!Array.from(scored.keys()).some((existing) => existing.toLowerCase() === label.toLowerCase())) {
+      scored.set(label, { label, terms: new Set([term]), count: 1 });
+    }
+  });
+
+  return Array.from(scored.values())
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+    .slice(0, 8)
+    .map((item) => ({
+      value: Array.from(item.terms).slice(0, 4).join(" "),
+      label: item.label,
+      hint: item.terms.size > 1 ? `Matches ${item.terms.size} live taxonomy terms` : "Derived from live SOP taxonomy",
+    }));
+}
+
+function buildGuidedSteps(input: {
+  departments: DepartmentRow[];
+  facets: Awaited<ReturnType<typeof listSopFacets>>;
+  sops: Array<Record<string, unknown>>;
+  user: Awaited<ReturnType<typeof getAuthUser>>;
+  selectedSubRole: Awaited<ReturnType<typeof resolveRequestedCreatorSubRole>>;
+}) {
+  const knownDepartment = input.user?.selectedSubRole?.department || input.selectedSubRole?.department || "";
+  const departmentOptions = input.departments.map((department) => ({
+    value: department.name,
+    label: department.name,
+    hint: department.description || "Active backend department",
+  }));
+  const roleOptions = unique(input.sops.flatMap((sop) => (Array.isArray(sop.audience) ? sop.audience.map(String) : []))).map((role) =>
+    optionFromValue(role, "Audience from published SOP metadata"),
+  );
+  const categoryOptions = input.facets.categories.map((category) => optionFromValue(category, "Published SOP category"));
+  const toolOptions = input.facets.tools.map((tool) => optionFromValue(tool, "System or tool from SOP metadata"));
+  const steps: GuidedFinderStep[] = [
+    {
+      key: "department",
+      number: 1,
+      shortLabel: "Role",
+      question: "Who are you?",
+      help: knownDepartment
+        ? "Your department context is preselected from your active role. Change it only if your access allows broader searching."
+        : "Choose the department or team most related to the SOP you need.",
+      options: departmentOptions,
+      preselected: knownDepartment,
+      locked: Boolean(knownDepartment && input.user?.role === "creator"),
+    },
+    {
+      key: "task",
+      number: 2,
+      shortLabel: "Need",
+      question: "What do you need?",
+      help: "Choose the kind of work you are trying to complete. These options are derived from live SOP categories, tags, and process types.",
+      options: buildNeedOptions(input.sops, input.facets),
+    },
+    {
+      key: "tool",
+      number: 3,
+      shortLabel: "Tool",
+      question: "Which system or tool are you using?",
+      help: "Pick the platform, system, or tool involved. This question is skipped when it would not narrow results.",
+      options: toolOptions,
+    },
+    {
+      key: "category",
+      number: 4,
+      shortLabel: "Category",
+      question: "Which category best matches the work?",
+      help: "Categories come from the live Cloudflare database.",
+      options: categoryOptions,
+    },
+    {
+      key: "userRole",
+      number: 5,
+      shortLabel: "Audience",
+      question: "Who is this SOP for?",
+      help: "Use this when the SOP depends on a specific audience or role.",
+      options: roleOptions,
+    },
+  ];
+
+  return steps.filter((step) => step.options.length > 0);
+}
+
+async function logGuidedFinderNoResult(db: NonNullable<PagesFunctionContext["env"]["DB"]>, query: string, filters: GuidedFinderFilters) {
+  try {
+    await db
+      .prepare(
+        `INSERT INTO search_logs (id, query, filters_json, results_count, no_results, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      )
+      .bind(`search-${Date.now()}-${Math.random().toString(36).slice(2)}`, query.slice(0, 500), JSON.stringify(filters), 0, 1, new Date().toISOString())
+      .run();
+  } catch {
+    // Analytics logging must never block the interactive finder.
+  }
+}
+
 
 function deterministicIntent(description: string, filters: GuidedFinderFilters = {}): GuidedFinderIntent {
   const keywords = unique([
@@ -385,6 +539,7 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
       ...facets.tags,
       ...sops.flatMap((sop) => [String(sop.type || ""), ...(Array.isArray(sop.tags) ? sop.tags.map(String) : [])]),
     ]).slice(0, 80);
+    const steps = buildGuidedSteps({ departments, facets, sops, user, selectedSubRole });
 
     return new Response(
       JSON.stringify({
@@ -412,6 +567,7 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
             tasks,
             roles,
           },
+          steps,
           sourcePolicy: "Guided Finder options are loaded from published SOP records and active backend departments.",
           model: context.env.AI ? MODEL : "deterministic-fallback",
         },
@@ -485,6 +641,10 @@ export const onRequestPost = async (context: PagesFunctionContext) => {
 
     const needsFollowUp =
       !results.length && Boolean((intent.confidence || 0) < LOW_CONFIDENCE || (intent.missingFields || []).length);
+
+    if (!results.length) {
+      await logGuidedFinderNoResult(context.env.DB!, description || Object.values(normalizedFilters).filter(Boolean).join(" "), normalizedFilters);
+    }
 
     return success({
       mode: results.length ? "results" : needsFollowUp ? "follow_up" : "no_results",
