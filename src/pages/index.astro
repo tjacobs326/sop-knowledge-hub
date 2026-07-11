@@ -1,7 +1,6 @@
 ---
 import Layout from "../components/Layout.astro";
 import AppIcon from "../components/AppIcon.astro";
-import HeroIllustrationIcon from "../components/HeroIllustrationIcon.astro";
 ---
 
 <Layout title="SOP Knowledge Hub" wide>
@@ -16,7 +15,7 @@ import HeroIllustrationIcon from "../components/HeroIllustrationIcon.astro";
       </div>
 
       <div class="home-search-panel home-browse-panel" aria-labelledby="home-browse-panel-heading">
-        <span class="home-browse-panel__icon" aria-hidden="true"><HeroIllustrationIcon name="target" /></span>
+        <span class="home-browse-panel__icon" aria-hidden="true"><AppIcon name="target" /></span>
         <div>
           <h2 id="home-browse-panel-heading">Browse SOPs</h2>
           <p>View and search all published SOPs in one place.</p>
@@ -25,7 +24,7 @@ import HeroIllustrationIcon from "../components/HeroIllustrationIcon.astro";
       </div>
 
       <div class="home-ask-panel" aria-labelledby="home-guided-banner-heading">
-        <span class="home-ask-panel__icon" aria-hidden="true"><HeroIllustrationIcon name="book" /></span>
+        <span class="home-ask-panel__icon" aria-hidden="true"><AppIcon name="finder" /></span>
         <div>
           <h2 id="home-guided-banner-heading">Guided Finder</h2>
           <p>Answer a few questions to quickly find the right SOP.</p>
@@ -36,7 +35,7 @@ import HeroIllustrationIcon from "../components/HeroIllustrationIcon.astro";
 
     <section class="home-quick-actions" aria-labelledby="home-quick-actions-heading">
       <div class="dashboard-section-heading">
-        <span class="home-quick-actions__bolt" aria-hidden="true">▸</span>
+        <span class="home-quick-actions__bolt" aria-hidden="true"><AppIcon name="ai" /></span>
         <div>
           <h2 id="home-quick-actions-heading">Quick Actions</h2>
           <p>Get things done quickly.</p>

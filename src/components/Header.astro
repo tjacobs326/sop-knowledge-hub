@@ -1,6 +1,5 @@
 ---
 import AppIcon from "./AppIcon.astro";
-import { renderCategoryIconSvg } from "../lib/category-icons";
 
 const navGroups = [
   {
@@ -43,7 +42,6 @@ const navGroups = [
 const pathname = Astro.url.pathname;
 const isCurrent = (href: string) => pathname === href || (href !== "/" && pathname.startsWith(href));
 const roleClass = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-const renderNavIcon = (icon: string, label: string) => renderCategoryIconSvg({ name: label, icon });
 ---
 
 <header class="site-header no-print" aria-label="SOP Knowledge Hub navigation">
@@ -85,7 +83,7 @@ const renderNavIcon = (icon: string, label: string) => renderCategoryIconSvg({ n
                   href={item.href}
                   aria-current={isCurrent(item.href) ? "page" : undefined}
                 >
-                  <span class="main-nav__icon" aria-hidden="true" set:html={renderNavIcon(item.icon, item.label)} />
+                  <span class="main-nav__icon" aria-hidden="true"><AppIcon name={item.icon} /></span>
                   {item.label}
                 </a>
               ))}

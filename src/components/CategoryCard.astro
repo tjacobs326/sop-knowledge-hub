@@ -84,46 +84,11 @@ const categoryIcon = renderCategoryIconSvg({ name, slug, icon });
     box-shadow: none;
   }
 
-  .category-card__icon .app-icon {
-    width: 3.25rem;
-    height: 3.25rem;
-  }
-
-  .category-card__icon .hero-art-icon,
   .category-card__icon .category-art-icon {
     display: block;
     width: 6.4rem;
     height: 5rem;
-    overflow: visible;
-  }
-
-  .category-card__icon .app-icon[data-variant="illustrated"] > path:not(.app-icon__fill),
-  .category-card__icon .app-icon__fill {
-    stroke: var(--color-ink);
-  }
-
-  .category-card__icon .app-icon__fill--blue {
-    fill: var(--color-ink);
-  }
-
-  .category-card__icon .app-icon__fill--green {
-    fill: var(--color-success);
-  }
-
-  .category-card__icon .app-icon__fill--orange {
-    fill: var(--color-kindle-accessible);
-  }
-
-  .category-card__icon .app-icon__fill--pink {
-    fill: var(--color-danger);
-  }
-
-  .category-card__icon .app-icon__fill--soft {
-    fill: var(--color-muted);
-  }
-
-  .category-card__icon .app-icon__fill--yellow {
-    fill: var(--color-beacon-accessible);
+    object-fit: contain;
   }
 
   .category-card p {

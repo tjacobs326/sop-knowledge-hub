@@ -59,23 +59,9 @@ import AppIcon from "../components/AppIcon.astro";
             <div class="search-visual__line"></div>
             <div class="search-visual__line search-visual__line--short"></div>
           </div>
-          <svg class="search-visual__magnifier" viewBox="0 0 170 170" focusable="false" aria-hidden="true">
-            <defs>
-              <linearGradient id="searchMagnifierHandle" x1="96" y1="96" x2="154" y2="154" gradientUnits="userSpaceOnUse">
-                <stop stop-color="#17386f" />
-                <stop offset="1" stop-color="#2f6fed" />
-              </linearGradient>
-              <radialGradient id="searchMagnifierGlass" cx="35%" cy="30%" r="65%">
-                <stop stop-color="#ffffff" />
-                <stop offset="0.58" stop-color="#f8fbff" stop-opacity="0.88" />
-                <stop offset="1" stop-color="#dce9fb" stop-opacity="0.72" />
-              </radialGradient>
-            </defs>
-            <path class="search-visual__handle" d="M101 101h0c5.3-5.3 13.8-5.3 19.1 0l36 36c5.3 5.3 5.3 13.8 0 19.1h0c-5.3 5.3-13.8 5.3-19.1 0l-36-36c-5.3-5.3-5.3-13.8 0-19.1Z" />
-            <circle class="search-visual__lens" cx="67" cy="67" r="52" />
-            <circle class="search-visual__handle-joint" cx="103" cy="103" r="14" />
-            <path class="search-visual__shine" d="M45 44c10-11 27-14 42-8" />
-          </svg>
+          <span class="search-visual__magnifier">
+            <AppIcon name="search" size="xl" />
+          </span>
           <div class="search-visual__checklist">
             <span></span>
             <span></span>
