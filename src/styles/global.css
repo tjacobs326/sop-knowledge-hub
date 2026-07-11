@@ -8999,7 +8999,8 @@ button.home-action-card {
 .guided-workflow__main {
   display: grid;
   gap: 1rem;
-  padding: clamp(1rem, 2.6vw, 1.75rem);
+  padding: 0;
+  overflow: hidden;
   border: 1px solid #d8e0ed;
   border-radius: 14px;
   background: #ffffff;
@@ -9009,7 +9010,7 @@ button.home-action-card {
 .guided-workflow__status {
   justify-self: start;
   max-width: 100%;
-  padding: 0;
+  padding: clamp(1.1rem, 2.3vw, 1.6rem) clamp(1.1rem, 2.8vw, 1.8rem) 0;
   border: 0;
   background: transparent;
   color: #596273;
@@ -9030,7 +9031,8 @@ button.home-action-card {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   column-gap: clamp(1rem, 2.5vw, 1.65rem);
-  row-gap: clamp(1rem, 2vw, 1.35rem);
+  row-gap: clamp(1.25rem, 2.4vw, 1.85rem);
+  padding: 0 clamp(1.1rem, 2.8vw, 1.8rem);
 }
 
 .guided-workflow__question[hidden] {
@@ -9058,7 +9060,7 @@ button.home-action-card {
 .guided-workflow__question-icon {
   width: clamp(3.8rem, 7vw, 5.4rem);
   height: clamp(3.8rem, 7vw, 5.4rem);
-  margin-top: 0.25rem;
+  margin-top: clamp(0.1rem, 1vw, 0.35rem);
 }
 
 .guided-workflow__question-icon svg {
@@ -9073,7 +9075,7 @@ button.home-action-card {
 
 .guided-workflow__fieldset {
   display: grid;
-  gap: clamp(1.15rem, 2.2vw, 1.65rem);
+  gap: clamp(1.2rem, 2.5vw, 1.8rem);
 }
 
 .guided-workflow__fieldset legend {
@@ -9095,18 +9097,19 @@ button.home-action-card {
 .guided-workflow__choices {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 15.5rem), 1fr));
-  gap: clamp(0.85rem, 2vw, 1rem);
+  gap: clamp(1rem, 2vw, 1.35rem);
 }
 
 .guided-workflow__choices[data-step-key="task"] {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
 }
 
 .guided-workflow__choice {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  min-height: clamp(5.25rem, 8vw, 6.4rem);
+  overflow: hidden;
+  min-height: clamp(5.8rem, 8vw, 7rem);
   gap: clamp(0.75rem, 1.7vw, 1rem);
   padding: clamp(0.95rem, 2vw, 1.25rem);
   border: 1px solid #d8e0ed;
@@ -9130,10 +9133,13 @@ button.home-action-card {
 }
 
 .guided-workflow__choice strong {
+  max-width: 100%;
   color: #071d48;
-  font-size: clamp(1.1rem, 1.55vw, 1.28rem);
+  font-size: clamp(1.02rem, 1.25vw, 1.2rem);
   line-height: 1.25;
-  text-wrap: balance;
+  overflow-wrap: break-word;
+  text-wrap: pretty;
+  word-break: normal;
 }
 
 .guided-workflow__choice small {
@@ -9143,22 +9149,36 @@ button.home-action-card {
 
 .guided-workflow__nav {
   grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: clamp(0.75rem, 2vw, 1rem);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: clamp(0.75rem, 1.6vw, 1rem);
   position: static;
-  margin: clamp(0.25rem, 1vw, 0.5rem) calc(clamp(1rem, 2.6vw, 1.75rem) * -1) calc(clamp(1rem, 2.6vw, 1.75rem) * -1);
-  padding: clamp(0.95rem, 2vw, 1.25rem) clamp(1rem, 2.6vw, 1.75rem);
+  margin: clamp(0.25rem, 1vw, 0.5rem) calc(clamp(1.1rem, 2.8vw, 1.8rem) * -1) 0;
+  padding: clamp(1.25rem, 2.2vw, 1.65rem) clamp(1.1rem, 2.8vw, 1.8rem);
   border-top: 1px solid #d8e0ed;
   background: #fbfdff;
   backdrop-filter: none;
 }
 
 .guided-workflow__nav .button {
-  width: 100%;
-  min-height: 3.35rem;
+  width: min(100%, 15rem);
+  min-height: 3.45rem;
   justify-content: center;
+  gap: 0.7rem;
   border-radius: 10px;
+  font-size: clamp(0.95rem, 1.25vw, 1.05rem);
+}
+
+.guided-workflow__nav .button svg {
+  width: 1.55rem;
+  height: 1.55rem;
+  flex: 0 0 1.55rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.3;
 }
 
 .guided-workflow__results {
@@ -9215,13 +9235,13 @@ button.home-action-card {
   }
 
   .guided-workflow__choices[data-step-key="task"] {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
   }
 }
 
 @media (min-width: 901px) {
   .guided-workflow__choices[data-step-key="task"] {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
   }
 }
 
@@ -9233,6 +9253,7 @@ button.home-action-card {
 
   .guided-workflow__question {
     grid-template-columns: 1fr;
+    padding-inline: clamp(0.9rem, 4vw, 1.2rem);
   }
 
   .guided-workflow__question-icon {
@@ -9240,6 +9261,12 @@ button.home-action-card {
   }
 
   .guided-workflow__nav {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
+    margin-inline: calc(clamp(0.9rem, 4vw, 1.2rem) * -1);
+  }
+
+  .guided-workflow__nav .button {
+    width: 100%;
   }
 }

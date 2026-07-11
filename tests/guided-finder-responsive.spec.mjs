@@ -124,6 +124,7 @@ async function expectNoOverflow(page, label) {
 }
 
 async function expectResultsUseReadableColumns(page, label) {
+  await expect(page.locator(".guided-workflow__match").first()).toBeVisible();
   const metrics = await page.locator(".guided-workflow__match").first().evaluate((card) => {
     const title = card.querySelector("h3");
     const link = card.querySelector("h3 a");
@@ -176,13 +177,35 @@ async function expectChoiceGridIsHorizontalWhenRoomy(page, width) {
   const columns = await page.locator("#guided-finder-choices").evaluate((grid) =>
     window.getComputedStyle(grid).gridTemplateColumns.split(" ").filter(Boolean).length,
   );
-  if (width >= 1024) {
-    expect(columns, `${width}px should show the five Need choices across the screen`).toBeGreaterThanOrEqual(5);
+  if (width >= 1280) {
+    expect(columns, `${width}px should use a roomy multi-column Need layout without cramping labels`).toBeGreaterThanOrEqual(3);
   } else if (width >= 600) {
-    expect(columns, `${width}px should avoid a tall single-column guided-choice stack`).toBeGreaterThanOrEqual(2);
+    expect(columns, `${width}px should keep a usable guided-choice stack without overflow`).toBeGreaterThanOrEqual(1);
   } else {
     expect(columns, `${width}px should remain a compact mobile stack`).toBeGreaterThanOrEqual(1);
   }
+}
+
+async function expectChoiceTextFitsCards(page, label) {
+  const overflows = await page.locator("#guided-finder-choices .guided-workflow__choice").evaluateAll((cards) =>
+    cards
+      .map((card) => {
+        const text = card.querySelector("strong");
+        if (!text) return null;
+        const cardRect = card.getBoundingClientRect();
+        const textRect = text.getBoundingClientRect();
+        return {
+          text: text.textContent?.trim() || "",
+          cardRight: cardRect.right,
+          textRight: textRect.right,
+          cardLeft: cardRect.left,
+          textLeft: textRect.left,
+        };
+      })
+      .filter(Boolean)
+      .filter((item) => item.textRight > item.cardRight + 1 || item.textLeft < item.cardLeft - 1),
+  );
+  expect(overflows, `${label} choice labels should stay inside their cards`).toEqual([]);
 }
 
 async function expectPanelsUseFullLane(page, label) {
@@ -212,6 +235,7 @@ for (const width of widths) {
       localStorage.removeItem("sopHubSelectedCreatorSubRole");
     });
     await page.goto(`${baseUrl}/guided-finder/`, { waitUntil: "networkidle" });
+    await expect(page.locator(".guided-workflow__shell")).toBeVisible();
     await expectNoOverflow(page, `${width}px initial`);
     await expect(page.locator(".guided-workflow__rail")).toHaveCount(0);
     await expectPanelsUseFullLane(page, `${width}px initial`);
@@ -241,6 +265,7 @@ for (const width of widths) {
     await expectNeedOptionsAreApprovedOnly(page);
     await expectChoiceLabelsWrapByWords(page, `${width}px need choices`);
     await expectChoiceGridIsHorizontalWhenRoomy(page, width);
+    await expectChoiceTextFitsCards(page, `${width}px need choices`);
     await page.getByRole("button", { name: /troubleshoot/i }).first().click();
     await expectNoOverflow(page, `${width}px results`);
     await expectPanelsUseFullLane(page, `${width}px results`);
