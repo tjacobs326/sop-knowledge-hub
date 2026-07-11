@@ -460,7 +460,7 @@ import AppIcon from "./AppIcon.astro";
       state.stepIndex = 0;
       buildSteps();
       renderRail();
-      setStatus("Guided Finder loaded. Options and results come from live backend records.", "ready");
+      setStatus("Guided Finder ready. Results use live backend records.", "ready");
     } catch (error) {
       if (requestId !== state.requestId) return;
       state.options = null;

@@ -116,6 +116,28 @@ async function expectNoOverflow(page, label) {
   expect(overflow, `${label} should not horizontally overflow: ${JSON.stringify(metrics)}`).toBeLessThanOrEqual(1);
 }
 
+async function expectStepLabelsStayWhole(page) {
+  const labels = await page.locator(".guided-workflow__rail strong").evaluateAll((nodes) =>
+    nodes.map((node) => {
+      const style = window.getComputedStyle(node);
+      return {
+        text: node.textContent?.trim(),
+        whiteSpace: style.whiteSpace,
+        overflowWrap: style.overflowWrap,
+        wordBreak: style.wordBreak,
+        height: node.getBoundingClientRect().height,
+        lineHeight: Number.parseFloat(style.lineHeight),
+      };
+    }),
+  );
+  for (const label of labels) {
+    expect(label.whiteSpace, `${label.text} should stay on one row`).toBe("nowrap");
+    expect(label.overflowWrap, `${label.text} should not break mid-word`).toBe("normal");
+    expect(label.wordBreak, `${label.text} should not break mid-word`).toBe("normal");
+    expect(label.height, `${label.text} should fit on one line`).toBeLessThanOrEqual(label.lineHeight * 1.35);
+  }
+}
+
 for (const width of widths) {
   test(`Guided Finder reflows without overflow at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: width < 700 ? 740 : 900 });
@@ -125,6 +147,7 @@ for (const width of widths) {
     });
     await page.goto(`${baseUrl}/guided-finder/`, { waitUntil: "networkidle" });
     await expectNoOverflow(page, `${width}px initial`);
+    await expectStepLabelsStayWhole(page);
 
     if (width <= 920) {
       const menu = page.locator("[data-nav-toggle]");
@@ -136,6 +159,7 @@ for (const width of widths) {
 
     await page.getByRole("button", { name: /start guided selections/i }).click();
     await expectNoOverflow(page, `${width}px question`);
+    await expectStepLabelsStayWhole(page);
     await page.getByRole("button", { name: /instructional technology/i }).first().click();
     await page.getByRole("button", { name: /continue/i }).click();
     await page.getByRole("button", { name: /troubleshoot/i }).first().click();
