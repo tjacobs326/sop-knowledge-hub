@@ -1,34 +1,18 @@
 <section class="guided-finder guided-workflow" aria-labelledby="finder-heading">
   <div class="ticket-guide-hero guided-workflow__hero">
-    <div class="ticket-guide-hero__content">
-      <p class="eyebrow">Guided Finder</p>
-      <h1 id="finder-heading">Find the right SOP</h1>
-      <p>
-        Answer a few questions about who you are and what you are trying to accomplish. The Guided Finder
-        uses approved SOP data to recommend the most relevant process.
-      </p>
-      <ul class="guided-workflow__benefits" aria-label="Guided Finder benefits">
-        <li>Find the correct process</li>
-        <li>Narrow results by your work</li>
-        <li>Use approved SOP content</li>
-      </ul>
+    <div class="guided-workflow__hero-icon" aria-hidden="true">
+      <svg viewBox="0 0 120 120" focusable="false">
+        <path class="blob" d="M18 72c-8-29 12-53 43-55 30-2 52 18 54 47 2 30-20 49-49 51-25 2-40-13-48-43Z"></path>
+        <path class="target" d="M60 28a31 31 0 1 0 0 62 31 31 0 0 0 0-62Zm0 12a19 19 0 1 1 0 38 19 19 0 0 1 0-38Z"></path>
+        <path class="arrow" d="M72 49 92 29m-8 0h8v8"></path>
+        <path class="dart" d="m50 68 18-18 9 9-18 18-14 5 5-14Z"></path>
+      </svg>
     </div>
-    <div class="ticket-guide-hero__visual" aria-hidden="true">
-      <div class="ticket-guide-card guided-workflow__card">
-        <strong>SOP</strong>
-        <span></span>
-        <span></span>
-        <span class="short"></span>
-        <div class="ticket-guide-card__doc">
-          <svg viewBox="0 0 120 120" focusable="false" aria-hidden="true">
-            <path class="blob" d="M18 72c-8-29 12-53 43-55 30-2 52 18 54 47 2 30-20 49-49 51-25 2-40-13-48-43Z"></path>
-            <path class="target" d="M60 28a31 31 0 1 0 0 62 31 31 0 0 0 0-62Zm0 12a19 19 0 1 1 0 38 19 19 0 0 1 0-38Z"></path>
-            <path class="line" d="M60 47v13h13"></path>
-            <path class="arrow" d="M73 47 93 27m-8 0h8v8"></path>
-            <path class="check" d="m38 89 8 8 18-24"></path>
-          </svg>
-        </div>
-      </div>
+    <div class="ticket-guide-hero__content">
+      <h1 id="finder-heading">Guided Finder</h1>
+      <p>
+        Answer a few questions about who you are and what you need to do. We'll recommend the most relevant SOP.
+      </p>
     </div>
   </div>
 
@@ -45,6 +29,16 @@
             <span id="guided-finder-progress-bar"></span>
           </div>
         </div>
+        <span class="guided-workflow__question-icon" aria-hidden="true">
+          <svg viewBox="0 0 48 48" focusable="false">
+            <path d="M14 34c0-5 4-9 10-9s10 4 10 9"></path>
+            <circle cx="24" cy="16" r="6"></circle>
+            <path d="M7 36c0-4 3-7 8-7"></path>
+            <path d="M33 29c5 0 8 3 8 7"></path>
+            <circle cx="14" cy="19" r="4"></circle>
+            <circle cx="34" cy="19" r="4"></circle>
+          </svg>
+        </span>
         <fieldset class="guided-workflow__fieldset">
           <legend id="guided-finder-question" tabindex="-1">Loading question</legend>
           <p id="guided-finder-help"></p>
@@ -54,7 +48,6 @@
           <button class="button button--secondary" type="button" id="guided-finder-back">Back</button>
           <button class="button button--secondary" type="button" id="guided-finder-restart">Start Over</button>
           <a class="button button--secondary" href="/">Exit Guided Finder</a>
-          <button class="button button--primary" type="button" id="guided-finder-next">Continue</button>
         </div>
       </section>
     </div>
@@ -73,6 +66,7 @@
         <p>Answer the guided questions. Results will appear here as the finder narrows the backend SOP records.</p>
       </div>
     </aside>
+    <p class="guided-workflow__policy-note">Results are based on published SOPs you are authorized to view.</p>
   </div>
 </section>
 
@@ -106,7 +100,6 @@
   const countEl = document.getElementById("guided-finder-step-count");
   const progressEl = document.getElementById("guided-finder-progress-bar");
   const backButton = document.getElementById("guided-finder-back");
-  const nextButton = document.getElementById("guided-finder-next");
   const restartButton = document.getElementById("guided-finder-restart");
   const resultsEl = document.getElementById("guided-finder-results");
 
@@ -218,6 +211,27 @@
     return state.steps[state.stepIndex] || null;
   }
 
+  function narrowCategoryOptions(options) {
+    const selectedCategory = state.filters.category;
+    const matchedCategories = Array.from(
+      new Set((state.lastResults || []).map((sop) => String(sop.category || "").trim()).filter(Boolean)),
+    );
+    if (!matchedCategories.length) return options.slice(0, 10);
+
+    const matchedSet = new Set(matchedCategories.map((category) => category.toLowerCase()));
+    const narrowed = options.filter((option) => matchedSet.has(String(option.value || option.label || "").toLowerCase()));
+    if (selectedCategory && !narrowed.some((option) => option.value === selectedCategory)) {
+      const selected = options.find((option) => option.value === selectedCategory);
+      if (selected) narrowed.unshift(selected);
+    }
+    return (narrowed.length ? narrowed : options).slice(0, 10);
+  }
+
+  function visibleStepOptions(step) {
+    if (step.key === "category") return narrowCategoryOptions(step.options || []);
+    return step.options || [];
+  }
+
   function renderQuestion() {
     const step = currentStep();
     if (!step) {
@@ -238,11 +252,11 @@
       restartButton.hidden = state.stepIndex === 0;
       restartButton.disabled = state.stepIndex === 0;
     }
-    if (nextButton instanceof HTMLButtonElement) nextButton.textContent = state.stepIndex === state.steps.length - 1 ? "Show Results" : "Continue";
 
     if (choicesEl) {
+      const options = visibleStepOptions(step);
       choicesEl.dataset.stepKey = step.key;
-      choicesEl.innerHTML = step.options
+      choicesEl.innerHTML = options
         .map((option) => {
           const active = state.filters[step.key] === option.value;
           return `
@@ -390,6 +404,7 @@
         payload.data.results?.length ? "ready" : "error",
       );
       renderResults(payload.data);
+      if (currentStep()?.key === "category") renderQuestion();
     } catch (error) {
       if (requestId !== state.requestId) return;
       setStatus(error.message || "Guided Finder could not load matching SOPs.", "error");
@@ -433,7 +448,6 @@
     }
     state.stepIndex = 0;
     renderQuestion();
-    searchGuidedFinder();
   }
 
   function resetFinder({ preserveDescription = false } = {}) {
@@ -465,16 +479,6 @@
 
   backButton?.addEventListener("click", () => {
     state.stepIndex = Math.max(0, state.stepIndex - 1);
-    renderQuestion();
-    searchGuidedFinder();
-  });
-
-  nextButton?.addEventListener("click", () => {
-    if (state.stepIndex >= state.steps.length - 1) {
-      searchGuidedFinder();
-      return;
-    }
-    state.stepIndex += 1;
     renderQuestion();
     searchGuidedFinder();
   });

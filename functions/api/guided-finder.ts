@@ -8,7 +8,7 @@ import { listSopFacets, listSops } from "../_shared/sop-data";
 
 const MODEL = "@cf/meta/llama-3.1-8b-instruct-fast";
 const LOW_CONFIDENCE = 35;
-const CATEGORY_OPTION_LIMIT = 10;
+const CATEGORY_OPTION_LIMIT = 8;
 
 interface GuidedFinderFilters {
   department?: string;
@@ -221,6 +221,10 @@ function categorySignalScore(name: string, count: number) {
   return score;
 }
 
+function isLowSignalCategory(name: string) {
+  return /^(archive|uncategorized)$/i.test(name) || /\b(archive|uncategorized|other|miscellaneous)\b/i.test(name);
+}
+
 function buildCategoryOptions(sops: Array<Record<string, unknown>>, fallbackCategories: string[]) {
   const counts = new Map<string, number>();
   for (const sop of sops) {
@@ -238,7 +242,7 @@ function buildCategoryOptions(sops: Array<Record<string, unknown>>, fallbackCate
     .sort((a, b) => b.score - a.score || b.count - a.count || a.category.localeCompare(b.category));
 
   const selected = (ranked.length ? ranked : fallbackCategories.map((category) => ({ category, count: 0, score: categorySignalScore(category, 0) })))
-    .filter((item) => item.category && item.score > -15)
+    .filter((item) => item.category && !isLowSignalCategory(item.category) && item.score > 0)
     .slice(0, CATEGORY_OPTION_LIMIT);
 
   return selected.map((item) => ({

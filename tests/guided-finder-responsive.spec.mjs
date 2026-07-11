@@ -217,7 +217,10 @@ for (const width of widths) {
     await expectPanelsUseFullLane(page, `${width}px initial`);
     await expect(page.getByRole("button", { name: /start guided selections/i })).toHaveCount(0);
     await expect(page.getByLabel(/describe the task/i)).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /continue/i })).toHaveCount(0);
     await expect(page.locator("#guided-finder-question")).toHaveText(/who are you/i);
+    await expect(page.locator("#guided-finder-status")).not.toContainText(/matching SOP/i);
+    await expect(page.locator(".guided-workflow__policy-note")).toBeVisible();
     await expect(page.getByRole("button", { name: /^back$/i })).toBeHidden();
     await expect(page.locator("#guided-finder-restart")).toBeHidden();
 

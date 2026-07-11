@@ -501,6 +501,174 @@ async function requireSopOwnership(context, user, sopId) {
 }
 __name(requireSopOwnership, "requireSopOwnership");
 
+// _shared/sop-steps.ts
+function normalizeRelationship(value) {
+  const relationship = String(value || "Instructional Media").trim();
+  return ["Instructional Media", "Evidence", "Example", "Warning"].includes(relationship) ? relationship : "Instructional Media";
+}
+__name(normalizeRelationship, "normalizeRelationship");
+async function ensureMediaAccessibilityColumn(db) {
+  const info = await db.prepare("PRAGMA table_info(media_assets)").all();
+  const columns = new Set((info.results || []).map((row) => row.name));
+  if (!columns.has("is_decorative")) {
+    await db.prepare("ALTER TABLE media_assets ADD COLUMN is_decorative INTEGER NOT NULL DEFAULT 0").run();
+  }
+}
+__name(ensureMediaAccessibilityColumn, "ensureMediaAccessibilityColumn");
+function normalizeAttachment(attachment, index) {
+  const id = optionalText(attachment.mediaAssetId || attachment.id, 160);
+  if (!id) return null;
+  const isDecorative = attachment.accessibilityStatus === "decorative" || attachment.isDecorative === true || attachment.isDecorative === 1;
+  const altText = optionalText(attachment.altText, 125);
+  if (attachment.altText && String(attachment.altText).trim().length > 125) {
+    throw new Error("Attachment alternative text must be 125 characters or fewer.");
+  }
+  if (!isDecorative && !altText) {
+    throw new Error("Each step attachment must be marked decorative or include alternative text.");
+  }
+  return {
+    id,
+    relationship: normalizeRelationship(attachment.relationship),
+    sortOrder: Number.isFinite(Number(attachment.sortOrder)) ? Number(attachment.sortOrder) : index,
+    altText: isDecorative ? "" : altText,
+    caption: optionalText(attachment.caption, 500),
+    isDecorative
+  };
+}
+__name(normalizeAttachment, "normalizeAttachment");
+function validateProcedureStepAttachments(steps = []) {
+  for (const step of steps) {
+    const attachments = Array.isArray(step.attachments) ? step.attachments : [];
+    attachments.forEach((attachment, index) => normalizeAttachment(attachment, index));
+  }
+}
+__name(validateProcedureStepAttachments, "validateProcedureStepAttachments");
+async function syncProcedureSteps(db, sopId, versionId, steps = []) {
+  if (!versionId) return;
+  await ensureMediaAccessibilityColumn(db);
+  await db.prepare(
+    `DELETE FROM procedure_step_media
+       WHERE procedure_step_id IN (
+        SELECT id FROM procedure_steps WHERE sop_version_id = ?
+       )`
+  ).bind(versionId).run();
+  await db.prepare("DELETE FROM procedure_steps WHERE sop_version_id = ?").bind(versionId).run();
+  await db.prepare("DELETE FROM sop_version_media WHERE sop_version_id = ?").bind(versionId).run();
+  if (sopId) {
+    await db.prepare("DELETE FROM sop_media WHERE sop_id = ? AND relationship IN ('Screenshot', 'Attachment')").bind(sopId).run();
+  }
+  for (const [index, step] of steps.entries()) {
+    const title = optionalText(step.title, 220);
+    const instructions = optionalText(step.instructions, 12e3);
+    if (!title && !instructions) continue;
+    const stepId = newId("step");
+    await db.prepare(
+      `INSERT INTO procedure_steps (
+          id, sop_version_id, step_number, title, instructions, note, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+    ).bind(
+      stepId,
+      versionId,
+      index + 1,
+      title || `Step ${index + 1}`,
+      instructions || title,
+      optionalText(step.note, 4e3) || null
+    ).run();
+    const attachments = Array.isArray(step.attachments) ? step.attachments : [];
+    for (const [attachmentIndex, attachment] of attachments.entries()) {
+      const normalized = normalizeAttachment(attachment, attachmentIndex);
+      if (!normalized) continue;
+      await db.prepare(
+        `UPDATE media_assets
+           SET alt_text = ?,
+               is_decorative = ?,
+               caption = COALESCE(NULLIF(?, ''), caption),
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = ?
+             AND status = 'Active'
+             AND asset_type IN ('Image', 'Video')`
+      ).bind(normalized.altText, normalized.isDecorative ? 1 : 0, normalized.caption, normalized.id).run();
+      await db.prepare(
+        `INSERT OR IGNORE INTO procedure_step_media (
+            procedure_step_id, media_asset_id, relationship, sort_order
+          ) VALUES (?, ?, ?, ?)`
+      ).bind(stepId, normalized.id, normalized.relationship, normalized.sortOrder).run();
+      await db.prepare(
+        `INSERT OR IGNORE INTO sop_version_media (
+            sop_version_id, media_asset_id, relationship, sort_order
+          ) VALUES (?, ?, 'Attachment', ?)`
+      ).bind(versionId, normalized.id, normalized.sortOrder).run();
+      if (sopId) {
+        await db.prepare(
+          `INSERT OR IGNORE INTO sop_media (
+              sop_id, media_asset_id, relationship, sort_order
+            ) VALUES (?, ?, ?, ?)`
+        ).bind(sopId, normalized.id, normalized.relationship === "Instructional Media" ? "Screenshot" : "Attachment", normalized.sortOrder).run();
+      }
+    }
+  }
+}
+__name(syncProcedureSteps, "syncProcedureSteps");
+async function listProcedureSteps(db, versionId) {
+  if (!versionId) return [];
+  await ensureMediaAccessibilityColumn(db);
+  const result = await db.prepare(
+    `SELECT
+        steps.id,
+        steps.step_number AS stepNumber,
+        steps.title,
+        steps.instructions,
+        steps.note,
+        media.id AS mediaAssetId,
+        media.asset_type AS assetType,
+        media.original_file_name AS fileName,
+        media.mime_type AS mimeType,
+        media.public_url AS url,
+        media.alt_text AS altText,
+        COALESCE(media.is_decorative, 0) AS isDecorative,
+        media.caption,
+        step_media.relationship,
+        step_media.sort_order AS attachmentSortOrder
+       FROM procedure_steps steps
+       LEFT JOIN procedure_step_media step_media ON step_media.procedure_step_id = steps.id
+       LEFT JOIN media_assets media ON media.id = step_media.media_asset_id
+        AND media.status = 'Active'
+       WHERE steps.sop_version_id = ?
+       ORDER BY steps.step_number ASC, step_media.sort_order ASC, media.created_at ASC`
+  ).bind(versionId).all();
+  const byStep = /* @__PURE__ */ new Map();
+  for (const row of result.results || []) {
+    const id = String(row.id || "");
+    if (!byStep.has(id)) {
+      byStep.set(id, {
+        id,
+        title: row.title || "",
+        instructions: row.instructions || "",
+        note: row.note || "",
+        attachments: []
+      });
+    }
+    if (row.mediaAssetId) {
+      byStep.get(id).attachments.push({
+        id: row.mediaAssetId,
+        mediaAssetId: row.mediaAssetId,
+        assetType: row.assetType,
+        fileName: row.fileName,
+        mimeType: row.mimeType,
+        url: row.url || `/api/media/?id=${encodeURIComponent(String(row.mediaAssetId))}`,
+        altText: row.altText || "",
+        accessibilityStatus: Number(row.isDecorative || 0) === 1 ? "decorative" : row.altText ? "meaningful" : "",
+        isDecorative: Number(row.isDecorative || 0) === 1,
+        caption: row.caption || "",
+        relationship: row.relationship || "Instructional Media",
+        sortOrder: Number(row.attachmentSortOrder || 0)
+      });
+    }
+  }
+  return Array.from(byStep.values());
+}
+__name(listProcedureSteps, "listProcedureSteps");
+
 // _shared/sop-data.ts
 var publishedStatus = "Published";
 function normalizeLimit(value) {
@@ -823,7 +991,12 @@ async function getSopById(db, id, publicOnly = true) {
        GROUP BY sops.id
        LIMIT 1`
   ).bind(...publicOnly ? [id, publishedStatus] : [id]).first();
-  return row ? normalizeSop(row) : null;
+  if (!row) return null;
+  const sop = normalizeSop(row);
+  return {
+    ...sop,
+    procedureSteps: await listProcedureSteps(db, String(sop.currentVersionId || ""))
+  };
 }
 __name(getSopById, "getSopById");
 async function getSopBySlug(db, slug, publicOnly = true) {
@@ -833,7 +1006,12 @@ async function getSopBySlug(db, slug, publicOnly = true) {
        GROUP BY sops.id
        LIMIT 1`
   ).bind(...publicOnly ? [slug, publishedStatus] : [slug]).first();
-  return row ? normalizeSop(row) : null;
+  if (!row) return null;
+  const sop = normalizeSop(row);
+  return {
+    ...sop,
+    procedureSteps: await listProcedureSteps(db, String(sop.currentVersionId || ""))
+  };
 }
 __name(getSopBySlug, "getSopBySlug");
 async function listCategories(db, filters = {}) {
@@ -1755,6 +1933,49 @@ var onRequestDelete = /* @__PURE__ */ __name(async (context) => {
   return jsonResponse({ ok: true });
 }, "onRequestDelete");
 
+// _shared/departments.ts
+async function ensureDepartmentSchema(db) {
+  const info = await db.prepare("PRAGMA table_info(teams)").all();
+  const columns = new Set((info.results || []).map((row) => row.name));
+  if (!columns.has("status")) {
+    await db.prepare("ALTER TABLE teams ADD COLUMN status TEXT NOT NULL DEFAULT 'Active'").run();
+  }
+}
+__name(ensureDepartmentSchema, "ensureDepartmentSchema");
+async function listActiveDepartments(db) {
+  await ensureDepartmentSchema(db);
+  const result = await db.prepare(
+    `SELECT id, name, description, status
+       FROM teams
+       WHERE status = 'Active'
+       ORDER BY name ASC`
+  ).all();
+  return result.results || [];
+}
+__name(listActiveDepartments, "listActiveDepartments");
+async function getActiveDepartment(db, id) {
+  await ensureDepartmentSchema(db);
+  if (!id.trim()) return null;
+  return await db.prepare(
+    `SELECT id, name, description, status
+       FROM teams
+       WHERE id = ?
+        AND status = 'Active'
+       LIMIT 1`
+  ).bind(id.trim()).first();
+}
+__name(getActiveDepartment, "getActiveDepartment");
+
+// api/admin/departments.ts
+var onRequestGet5 = /* @__PURE__ */ __name(async (context) => {
+  const missingDb = requireDb(context.env.DB);
+  if (missingDb) return missingDb;
+  const auth = await requirePermission(context, "Manage Users");
+  if (auth.response) return auth.response;
+  const departments = await listActiveDepartments(context.env.DB);
+  return jsonResponse({ departments });
+}, "onRequestGet");
+
 // api/admin/tags.ts
 var allowedStatuses = /* @__PURE__ */ new Set(["Active", "Needs Review", "Deprecated"]);
 function tagSelect() {
@@ -1771,7 +1992,7 @@ function tagSelect() {
   LEFT JOIN sop_tags ON sop_tags.tag_id = tags.id`;
 }
 __name(tagSelect, "tagSelect");
-var onRequestGet5 = /* @__PURE__ */ __name(async (context) => {
+var onRequestGet6 = /* @__PURE__ */ __name(async (context) => {
   const { env } = context;
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
@@ -1854,7 +2075,9 @@ function usersSelect() {
     users.id,
     users.name,
     users.email,
-    users.department,
+    COALESCE(teams.name, users.department) AS department,
+    users.team_id AS departmentId,
+    users.team_id AS teamId,
     users.title,
     users.access_level AS accessLevel,
     users.status,
@@ -1863,7 +2086,8 @@ function usersSelect() {
     users.created_at AS createdAt,
     users.updated_at AS updatedAt
   FROM users
-  LEFT JOIN roles ON roles.id = users.role_id`;
+  LEFT JOIN roles ON roles.id = users.role_id
+  LEFT JOIN teams ON teams.id = users.team_id`;
 }
 __name(usersSelect, "usersSelect");
 function rolesSelect() {
@@ -1909,7 +2133,7 @@ async function replaceUserRole(db, userId, roleId) {
   }
 }
 __name(replaceUserRole, "replaceUserRole");
-var onRequestGet6 = /* @__PURE__ */ __name(async (context) => {
+var onRequestGet7 = /* @__PURE__ */ __name(async (context) => {
   const { env } = context;
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
@@ -1971,16 +2195,28 @@ async function saveUser(request, db, isUpdate) {
   const status = statuses.has(String(payload?.status)) ? String(payload?.status) : "Active";
   const id = payload?.id || idFrom(email, "user");
   const role = await roleForAccessLevel(db, accessLevel);
+  const departmentId = String(payload?.departmentId || payload?.teamId || "").trim();
+  const department = await getActiveDepartment(db, departmentId);
+  if (!department) {
+    return jsonResponse(
+      {
+        error: "Select an active department from the list.",
+        fields: { departmentId: "Select an active department." }
+      },
+      400
+    );
+  }
   if (isUpdate) {
     await db.prepare(
       `UPDATE users
-       SET name = ?, email = ?, department = ?, title = ?, access_level = ?, role_id = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+       SET name = ?, email = ?, department = ?, title = ?, team_id = ?, access_level = ?, role_id = ?, status = ?, updated_at = CURRENT_TIMESTAMP
        WHERE id = ?`
     ).bind(
       name,
       email,
-      String(payload?.department || ""),
+      department.name,
       String(payload?.title || ""),
+      department.id,
       accessLevel,
       role?.id || null,
       status,
@@ -1988,14 +2224,15 @@ async function saveUser(request, db, isUpdate) {
     ).run();
   } else {
     await db.prepare(
-      `INSERT INTO users (id, name, email, department, title, access_level, role_id, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+      `INSERT INTO users (id, name, email, department, title, team_id, access_level, role_id, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
     ).bind(
       id,
       name,
       email,
-      String(payload?.department || ""),
+      department.name,
       String(payload?.title || ""),
+      department.id,
       accessLevel,
       role?.id || null,
       status
@@ -2067,7 +2304,7 @@ async function safeFirst(env, query) {
   }
 }
 __name(safeFirst, "safeFirst");
-var onRequestGet7 = /* @__PURE__ */ __name(async (context) => {
+var onRequestGet8 = /* @__PURE__ */ __name(async (context) => {
   const { env } = context;
   if (!env.DB) return jsonResponse({ error: "D1 database binding DB is not available." }, 503);
   const auth = await requirePermission(context, "View Analytics");
@@ -2260,7 +2497,7 @@ var onRequestPost13 = /* @__PURE__ */ __name(async ({ request, env }) => {
 }, "onRequestPost");
 
 // api/search/facets.ts
-var onRequestGet8 = /* @__PURE__ */ __name(async ({ request, env }) => {
+var onRequestGet9 = /* @__PURE__ */ __name(async ({ request, env }) => {
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
   try {
@@ -2302,7 +2539,7 @@ var onRequestPost14 = /* @__PURE__ */ __name(async ({ request, env }) => {
 }, "onRequestPost");
 
 // api/sops/popular.ts
-var onRequestGet9 = /* @__PURE__ */ __name(async ({ request, env }) => {
+var onRequestGet10 = /* @__PURE__ */ __name(async ({ request, env }) => {
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
   try {
@@ -2329,7 +2566,7 @@ var onRequestGet9 = /* @__PURE__ */ __name(async ({ request, env }) => {
 }, "onRequestGet");
 
 // api/sops/recent.ts
-var onRequestGet10 = /* @__PURE__ */ __name(async ({ request, env }) => {
+var onRequestGet11 = /* @__PURE__ */ __name(async ({ request, env }) => {
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
   try {
@@ -2362,7 +2599,7 @@ function routeParam2(context, key) {
   return Array.isArray(value) ? value[0] : value || "";
 }
 __name(routeParam2, "routeParam");
-var onRequestGet11 = /* @__PURE__ */ __name(async (context) => {
+var onRequestGet12 = /* @__PURE__ */ __name(async (context) => {
   const missingDb = requireDb(context.env.DB);
   if (missingDb) return missingDb;
   try {
@@ -2416,7 +2653,7 @@ function selectRequest() {
   WHERE sop_requests.id = ?`;
 }
 __name(selectRequest, "selectRequest");
-var onRequestGet12 = /* @__PURE__ */ __name(async (context) => {
+var onRequestGet13 = /* @__PURE__ */ __name(async (context) => {
   const missingDb = requireDb(context.env.DB);
   if (missingDb) return missingDb;
   const user = await getAuthUser(context);
@@ -2450,7 +2687,7 @@ var onRequestPut4 = /* @__PURE__ */ __name(async (context) => {
 }, "onRequestPut");
 
 // api/sops/[id].ts
-var onRequestGet13 = /* @__PURE__ */ __name(async (context) => {
+var onRequestGet14 = /* @__PURE__ */ __name(async (context) => {
   const missingDb = requireDb(context.env.DB);
   if (missingDb) return missingDb;
   const id = getRouteParam(context, "id");
@@ -2508,6 +2745,16 @@ var onRequestPut5 = /* @__PURE__ */ __name(async (context) => {
   const content = optionalText(payload?.content || existing.bodyMarkdown || purpose, 5e4);
   const estimatedMinutes = Number(payload?.estimatedMinutes || existing.estimatedMinutes || 0) || null;
   const reviewDueAt = typeof payload?.reviewDueAt === "number" ? payload.reviewDueAt : payload?.reviewDueAt ? Math.floor(new Date(String(payload.reviewDueAt)).getTime() / 1e3) : payload?.reviewDate ? Math.floor((/* @__PURE__ */ new Date(`${String(payload.reviewDate)}T00:00:00`)).getTime() / 1e3) : null;
+  try {
+    validateProcedureStepAttachments(Array.isArray(payload?.procedureSteps) ? payload.procedureSteps : []);
+  } catch (error) {
+    return failure(
+      "VALIDATION_ERROR",
+      error instanceof Error ? error.message : "Please complete attachment accessibility details.",
+      400,
+      { procedureSteps: "Each attachment must be marked decorative or include alt text of 125 characters or fewer." }
+    );
+  }
   await context.env.DB.prepare(
     `UPDATE sops
      SET title = ?, summary = ?, purpose = ?, category_id = ?, owner_id = ?, owner_user_id = ?,
@@ -2555,6 +2802,9 @@ var onRequestPut5 = /* @__PURE__ */ __name(async (context) => {
       now,
       existing.currentVersionId
     ).run();
+    if (Array.isArray(payload?.procedureSteps)) {
+      await syncProcedureSteps(context.env.DB, id, String(existing.currentVersionId), payload.procedureSteps);
+    }
   }
   await context.env.DB.prepare(
     `INSERT INTO audit_logs (id, actor_user_id, action, entity_type, entity_id, after_json, details, created_at)
@@ -2791,7 +3041,7 @@ async function logAssist(db, user, action, sourceId, status) {
   ).run().catch(() => void 0);
 }
 __name(logAssist, "logAssist");
-var onRequestGet14 = /* @__PURE__ */ __name(async (context) => {
+var onRequestGet15 = /* @__PURE__ */ __name(async (context) => {
   const missingDb = requireDb(context.env.DB);
   if (missingDb) return missingDb;
   const resolved = await resolveAssistContext(context.env.DB, context);
@@ -2893,7 +3143,7 @@ var onRequestPost15 = /* @__PURE__ */ __name(async (context) => {
 }, "onRequestPost");
 
 // api/categories.ts
-var onRequestGet15 = /* @__PURE__ */ __name(async ({ request, env }) => {
+var onRequestGet16 = /* @__PURE__ */ __name(async ({ request, env }) => {
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
   try {
@@ -3060,7 +3310,7 @@ function jsonResponse2(body, status = 200) {
 }
 __name(jsonResponse2, "jsonResponse");
 function tokenize(value) {
-  const stopWords2 = /* @__PURE__ */ new Set([
+  const stopWords3 = /* @__PURE__ */ new Set([
     "about",
     "after",
     "again",
@@ -3083,7 +3333,7 @@ function tokenize(value) {
     "with",
     "you"
   ]);
-  return value.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((word) => word.length > 2 && !stopWords2.has(word));
+  return value.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((word) => word.length > 2 && !stopWords3.has(word));
 }
 __name(tokenize, "tokenize");
 function sourceText(source) {
@@ -3208,7 +3458,7 @@ ${buildContext(matches)}`;
     );
   }
 }, "onRequestPost");
-var onRequestGet16 = /* @__PURE__ */ __name(() => jsonResponse2({
+var onRequestGet17 = /* @__PURE__ */ __name(() => jsonResponse2({
   ok: true,
   service: "SOP Knowledge Hub AI Chat",
   model: MODEL2,
@@ -3216,7 +3466,7 @@ var onRequestGet16 = /* @__PURE__ */ __name(() => jsonResponse2({
 }), "onRequestGet");
 
 // api/create-options.ts
-var onRequestGet17 = /* @__PURE__ */ __name(async (context) => {
+var onRequestGet18 = /* @__PURE__ */ __name(async (context) => {
   const missingDb = requireDb(context.env.DB);
   if (missingDb) return missingDb;
   const auth = await requirePermission(context, "Create SOPs");
@@ -3513,31 +3763,750 @@ var onRequestPost17 = /* @__PURE__ */ __name(async (context) => {
     );
   }
 }, "onRequestPost");
-var onRequestGet18 = /* @__PURE__ */ __name(() => success({
+var onRequestGet19 = /* @__PURE__ */ __name(() => success({
   service: "AI Guided SOP Finder",
   model: MODEL3,
   sourcePolicy: "AI extracts search criteria; final results are published SOP records from D1."
 }), "onRequestGet");
 
+// api/guided-finder.ts
+var MODEL4 = "@cf/meta/llama-3.1-8b-instruct-fast";
+var LOW_CONFIDENCE = 35;
+var CATEGORY_OPTION_LIMIT = 8;
+var stopWords2 = /* @__PURE__ */ new Set([
+  "about",
+  "after",
+  "again",
+  "also",
+  "and",
+  "are",
+  "can",
+  "for",
+  "from",
+  "have",
+  "help",
+  "how",
+  "into",
+  "need",
+  "that",
+  "the",
+  "this",
+  "what",
+  "when",
+  "where",
+  "with",
+  "you"
+]);
+function unique(values) {
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+}
+__name(unique, "unique");
+function textList2(value) {
+  if (Array.isArray(value)) return value.map(String).map((item) => item.trim()).filter(Boolean);
+  return String(value || "").split(/[\n,|]/).map((item) => item.trim()).filter(Boolean);
+}
+__name(textList2, "textList");
+function tokenize3(value) {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).map((word) => word.trim()).filter((word) => word.length > 2 && !stopWords2.has(word));
+}
+__name(tokenize3, "tokenize");
+function extractAiText4(value) {
+  if (typeof value === "string") return value;
+  const response = value;
+  const text = response.response || response.result?.response || "";
+  return typeof text === "string" ? text : JSON.stringify(text);
+}
+__name(extractAiText4, "extractAiText");
+function parseJsonObject2(value) {
+  const trimmed = value.trim();
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    const match2 = trimmed.match(/\{[\s\S]*\}/);
+    if (!match2) return {};
+    try {
+      return JSON.parse(match2[0]);
+    } catch {
+      return {};
+    }
+  }
+}
+__name(parseJsonObject2, "parseJsonObject");
+function sopUrl2(sop) {
+  if (sop.slug) return `/sops/detail/?slug=${encodeURIComponent(String(sop.slug))}`;
+  return `/sops/detail/?id=${encodeURIComponent(String(sop.id || ""))}`;
+}
+__name(sopUrl2, "sopUrl");
+function normalizeDate(value) {
+  return value ? String(value) : "";
+}
+__name(normalizeDate, "normalizeDate");
+function matchesText(value, expected) {
+  if (!expected) return true;
+  const source = String(value || "").toLowerCase();
+  const target = expected.toLowerCase();
+  return source === target || source.includes(target) || target.includes(source);
+}
+__name(matchesText, "matchesText");
+function includesAny(values, expected) {
+  if (!expected) return true;
+  const target = expected.toLowerCase();
+  const list = Array.isArray(values) ? values.map(String) : String(values || "").split(/[,|]/);
+  return list.some((item) => {
+    const source = item.trim().toLowerCase();
+    return source === target || source.includes(target) || target.includes(source);
+  });
+}
+__name(includesAny, "includesAny");
+function searchableText2(sop) {
+  const version = sop.version || {};
+  return [
+    sop.title,
+    sop.summary,
+    sop.purpose,
+    sop.category,
+    sop.owner,
+    sop.ownerDepartment,
+    sop.ownerTeam,
+    ...Array.isArray(sop.tags) ? sop.tags : [],
+    ...Array.isArray(sop.tools) ? sop.tools : [],
+    version.summary,
+    version.content
+  ].join(" ").toLowerCase();
+}
+__name(searchableText2, "searchableText");
+function departmentName(value, departments) {
+  if (!value) return "";
+  const match2 = departments.find(
+    (department) => department.id === value || department.name.toLowerCase() === value.toLowerCase()
+  );
+  return match2?.name || value;
+}
+__name(departmentName, "departmentName");
+function optionFromValue(value, hint = "") {
+  return {
+    value,
+    label: value,
+    hint
+  };
+}
+__name(optionFromValue, "optionFromValue");
+var guidedNeedOptions = [
+  { value: "Use a system or tool", label: "Use a system or tool" },
+  { value: "Complete a process", label: "Complete a process" },
+  { value: "Learn how to perform a task", label: "Learn how to perform a task" },
+  { value: "Review or approve work", label: "Review or approve work" },
+  { value: "Troubleshoot a problem", label: "Troubleshoot a problem" }
+];
+function buildNeedOptions() {
+  return guidedNeedOptions;
+}
+__name(buildNeedOptions, "buildNeedOptions");
+function categorySignalScore(name, count) {
+  const normalized = name.toLowerCase();
+  let score = count * 20;
+  if (/(brightspace|cengage|course build|quality|qa|template|troubleshoot|ticket|ivanti|accessibility|multimedia|project|planning|ai)/i.test(name)) {
+    score += 14;
+  }
+  if (/^(archive|uncategorized)$/i.test(name) || /\barchive\b/i.test(name)) score -= 40;
+  if (/\b(other|miscellaneous|general)\b/i.test(name)) score -= count > 2 ? 8 : 22;
+  if (/^\d+\.\s*/.test(name)) score -= 6;
+  if (normalized.length > 42) score -= 4;
+  return score;
+}
+__name(categorySignalScore, "categorySignalScore");
+function isLowSignalCategory(name) {
+  return /^(archive|uncategorized)$/i.test(name) || /\b(archive|uncategorized|other|miscellaneous)\b/i.test(name);
+}
+__name(isLowSignalCategory, "isLowSignalCategory");
+function buildCategoryOptions(sops, fallbackCategories) {
+  const counts = /* @__PURE__ */ new Map();
+  for (const sop of sops) {
+    const category = String(sop.category || "").trim();
+    if (!category) continue;
+    counts.set(category, (counts.get(category) || 0) + 1);
+  }
+  const ranked = Array.from(counts.entries()).map(([category, count]) => ({
+    category,
+    count,
+    score: categorySignalScore(category, count)
+  })).sort((a, b) => b.score - a.score || b.count - a.count || a.category.localeCompare(b.category));
+  const selected = (ranked.length ? ranked : fallbackCategories.map((category) => ({ category, count: 0, score: categorySignalScore(category, 0) }))).filter((item) => item.category && !isLowSignalCategory(item.category) && item.score > 0).slice(0, CATEGORY_OPTION_LIMIT);
+  return selected.map((item) => ({
+    value: item.category,
+    label: item.category,
+    hint: item.count ? `${item.count} published SOP${item.count === 1 ? "" : "s"}` : "Published SOP category"
+  }));
+}
+__name(buildCategoryOptions, "buildCategoryOptions");
+function buildGuidedSteps(input) {
+  const knownDepartment = input.user?.selectedSubRole?.department || input.selectedSubRole?.department || "";
+  const departmentOptions = input.departments.map((department) => ({
+    value: department.name,
+    label: department.name,
+    hint: department.description || "Active backend department"
+  }));
+  const roleOptions = unique(input.sops.flatMap((sop) => Array.isArray(sop.audience) ? sop.audience.map(String) : [])).map(
+    (role) => optionFromValue(role, "Audience from published SOP metadata")
+  );
+  const categoryOptions = buildCategoryOptions(input.sops, input.facets.categories);
+  const toolOptions = input.facets.tools.map((tool) => optionFromValue(tool, "System or tool from SOP metadata"));
+  const steps = [
+    {
+      key: "department",
+      number: 1,
+      shortLabel: "Role",
+      question: "Who are you?",
+      help: knownDepartment ? "Your department context is preselected from your active role. Change it only if your access allows broader searching." : "Choose the department or team most related to the SOP you need.",
+      options: departmentOptions,
+      preselected: knownDepartment,
+      locked: Boolean(knownDepartment && input.user?.role === "creator")
+    },
+    {
+      key: "task",
+      number: 2,
+      shortLabel: "Need",
+      question: "What do you need?",
+      help: "Choose the kind of work you are trying to complete.",
+      options: buildNeedOptions()
+    },
+    {
+      key: "tool",
+      number: 3,
+      shortLabel: "Tool",
+      question: "Which system or tool are you using?",
+      help: "Pick the platform, system, or tool involved. This question is skipped when it would not narrow results.",
+      options: toolOptions
+    },
+    {
+      key: "category",
+      number: 4,
+      shortLabel: "Category",
+      question: "Which category best matches the work?",
+      help: "Categories come from the live Cloudflare database.",
+      options: categoryOptions
+    },
+    {
+      key: "userRole",
+      number: 5,
+      shortLabel: "Audience",
+      question: "Who is this SOP for?",
+      help: "Use this when the SOP depends on a specific audience or role.",
+      options: roleOptions
+    }
+  ];
+  return steps.filter((step) => step.options.length > 0);
+}
+__name(buildGuidedSteps, "buildGuidedSteps");
+async function logGuidedFinderNoResult(db, query, filters) {
+  try {
+    await db.prepare(
+      `INSERT INTO search_logs (id, query, filters_json, results_count, no_results, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)`
+    ).bind(`search-${Date.now()}-${Math.random().toString(36).slice(2)}`, query.slice(0, 500), JSON.stringify(filters), 0, 1, (/* @__PURE__ */ new Date()).toISOString()).run();
+  } catch {
+  }
+}
+__name(logGuidedFinderNoResult, "logGuidedFinderNoResult");
+function deterministicIntent(description, filters = {}) {
+  const keywords = unique([
+    ...tokenize3(description),
+    ...tokenize3(filters.department),
+    ...tokenize3(filters.category),
+    ...tokenize3(filters.tool),
+    ...tokenize3(filters.task),
+    ...tokenize3(filters.userRole)
+  ]).slice(0, 10);
+  return {
+    department: filters.department,
+    category: filters.category,
+    tool: filters.tool,
+    system: filters.tool,
+    task: filters.task || description,
+    keywords,
+    confidence: keywords.length >= 3 ? 55 : 25,
+    missingFields: keywords.length >= 3 ? [] : ["task", "system/tool"],
+    suggestedNextQuestion: keywords.length >= 3 ? "" : "Which system, tool, or process is this about?"
+  };
+}
+__name(deterministicIntent, "deterministicIntent");
+function validateIntent(intent, description, filters) {
+  const fallback = deterministicIntent(description, filters);
+  const keywords = unique([
+    ...textList2(intent.keywords),
+    ...tokenize3(intent.task),
+    ...tokenize3(intent.system),
+    ...tokenize3(intent.tool),
+    ...tokenize3(intent.category),
+    ...tokenize3(description)
+  ]).slice(0, 10);
+  const rawConfidence = Number(intent.confidence);
+  const normalizedConfidence = rawConfidence > 0 && rawConfidence <= 1 ? rawConfidence * 100 : rawConfidence;
+  const confidence = Number.isFinite(normalizedConfidence) ? Math.max(0, Math.min(100, normalizedConfidence)) : fallback.confidence;
+  return {
+    department: String(intent.department || filters.department || "").trim(),
+    system: String(intent.system || filters.tool || "").trim(),
+    tool: String(intent.tool || intent.system || filters.tool || "").trim(),
+    category: String(intent.category || filters.category || "").trim(),
+    task: String(intent.task || filters.task || description || "").trim(),
+    processType: String(intent.processType || "").trim(),
+    keywords: keywords.length ? keywords : fallback.keywords,
+    confidence,
+    missingFields: textList2(intent.missingFields).slice(0, 4),
+    suggestedNextQuestion: String(intent.suggestedNextQuestion || fallback.suggestedNextQuestion || "").trim()
+  };
+}
+__name(validateIntent, "validateIntent");
+async function classifyIntent(env, description, filters) {
+  if (!description.trim() || !env.AI) return deterministicIntent(description, filters);
+  try {
+    const aiResult = await env.AI.run(MODEL4, {
+      messages: [
+        {
+          role: "system",
+          content: "You extract structured intent for an SOP Guided Finder. Return valid JSON only. Do not recommend SOP titles. Do not invent database records."
+        },
+        {
+          role: "user",
+          content: `Return compact JSON with keys department, system, tool, category, task, processType, keywords, confidence, missingFields, suggestedNextQuestion.
+Known selections:
+${JSON.stringify(filters)}
+
+User description:
+${description.slice(0, 1200)}`
+        }
+      ],
+      max_tokens: 500,
+      temperature: 0.1
+    });
+    return validateIntent(parseJsonObject2(extractAiText4(aiResult)), description, filters);
+  } catch {
+    return deterministicIntent(description, filters);
+  }
+}
+__name(classifyIntent, "classifyIntent");
+function scoreSop(sop, intent, description, filters) {
+  const haystack = searchableText2(sop);
+  const title = String(sop.title || "").toLowerCase();
+  const category = String(sop.category || "").toLowerCase();
+  const tool = String(intent.tool || filters.tool || "").toLowerCase();
+  const selectedCategory = String(intent.category || filters.category || "").toLowerCase();
+  const tokens = unique([
+    ...tokenize3(description),
+    ...tokenize3(intent.task),
+    ...tokenize3(intent.system),
+    ...tokenize3(intent.tool),
+    ...tokenize3(intent.category),
+    ...intent.keywords || []
+  ]).slice(0, 18);
+  let score = 0;
+  tokens.forEach((token) => {
+    if (title.includes(token)) score += 5;
+    else if (category.includes(token)) score += 4;
+    else if (haystack.includes(token)) score += 1;
+  });
+  if (selectedCategory && (category.includes(selectedCategory) || selectedCategory.includes(category))) score += 8;
+  if (tool && haystack.includes(tool)) score += 6;
+  if (filters.userRole && includesAny(sop.audience, filters.userRole)) score += 3;
+  score += Math.min(Number(sop.viewCount || 0) / 100, 2);
+  return score;
+}
+__name(scoreSop, "scoreSop");
+async function rankWithAi(env, candidates, intent, description) {
+  if (!env.AI || candidates.length < 2) return [];
+  const candidateSet = new Set(candidates.map((sop) => String(sop.id)));
+  try {
+    const aiResult = await env.AI.run(MODEL4, {
+      messages: [
+        {
+          role: "system",
+          content: 'Rank only the supplied SOP candidates. Return JSON only: {"ranked":[{"id":"...","relevance":"short reason"}]}. Never add IDs that are not supplied.'
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            intent,
+            description,
+            candidates: candidates.slice(0, 12).map((sop) => ({
+              id: sop.id,
+              title: sop.title,
+              summary: sop.summary || sop.purpose,
+              department: sop.ownerTeam || sop.ownerDepartment,
+              category: sop.category,
+              tools: sop.tools || [],
+              tags: sop.tags || [],
+              updatedAt: sop.updatedAt
+            }))
+          })
+        }
+      ],
+      max_tokens: 700,
+      temperature: 0.1
+    });
+    const parsed = parseJsonObject2(extractAiText4(aiResult));
+    const ranked = Array.isArray(parsed.ranked) ? parsed.ranked : [];
+    return ranked.filter((item) => candidateSet.has(String(item.id))).map((item) => ({
+      id: String(item.id),
+      relevance: String(item.relevance || "Matches your selected Guided Finder criteria.").slice(0, 220),
+      rank: Number(item.rank || 0)
+    }));
+  } catch {
+    return [];
+  }
+}
+__name(rankWithAi, "rankWithAi");
+function summarizeSop2(sop, relevance, matchScore) {
+  return {
+    id: sop.id,
+    title: sop.title,
+    summary: sop.summary || sop.purpose,
+    department: sop.ownerTeam || sop.ownerDepartment || "All departments",
+    category: sop.category || "Uncategorized",
+    tools: Array.isArray(sop.tools) ? sop.tools : [],
+    lastReviewed: normalizeDate(sop.reviewDate || sop.reviewDueAt),
+    updatedAt: normalizeDate(sop.updatedAt || sop.publishedAt),
+    status: sop.status || "Published",
+    relevance,
+    href: sopUrl2(sop),
+    matchScore: Math.round(matchScore)
+  };
+}
+__name(summarizeSop2, "summarizeSop");
+async function publishedSops(context, filters, departments) {
+  const selectedSubRole = await resolveRequestedCreatorSubRole(context.env.DB, context.request);
+  const department = departmentName(filters.department, departments);
+  const category = filters.category || void 0;
+  const tool = filters.tool || void 0;
+  const initial = await listSops(context.env.DB, {
+    publicOnly: true,
+    sort: "recent",
+    limit: 100,
+    category,
+    tool,
+    ownerSubRoleId: selectedSubRole?.id
+  });
+  const filtered = initial.filter((sop) => {
+    const departmentAllowed = !department || matchesText(sop.ownerDepartment, department) || matchesText(sop.ownerTeam, department);
+    const roleAllowed = includesAny(sop.audience, filters.userRole || "");
+    return departmentAllowed && roleAllowed;
+  });
+  return filtered.length ? filtered : initial.filter((sop) => includesAny(sop.audience, filters.userRole || ""));
+}
+__name(publishedSops, "publishedSops");
+async function guidedFinderOptionsResponse(context) {
+  const missingDb = requireDb(context.env.DB);
+  if (missingDb) return missingDb;
+  try {
+    const selectedSubRole = await resolveRequestedCreatorSubRole(context.env.DB, context.request);
+    const [facets, departments, sops, user] = await Promise.all([
+      listSopFacets(context.env.DB, { ownerSubRoleId: selectedSubRole?.id }),
+      listActiveDepartments(context.env.DB),
+      listSops(context.env.DB, { publicOnly: true, sort: "recent", limit: 100, ownerSubRoleId: selectedSubRole?.id }),
+      getAuthUser(context)
+    ]);
+    const roles = unique(sops.flatMap((sop) => Array.isArray(sop.audience) ? sop.audience.map(String) : []));
+    const tasks = unique([
+      ...facets.tags,
+      ...sops.flatMap((sop) => [String(sop.type || ""), ...Array.isArray(sop.tags) ? sop.tags.map(String) : []])
+    ]).slice(0, 80);
+    const steps = buildGuidedSteps({ departments, facets, sops, user, selectedSubRole });
+    return new Response(
+      JSON.stringify({
+        success: true,
+        data: {
+          user: user ? {
+            role: user.role,
+            accessLevel: user.accessLevel,
+            department: user.selectedSubRole?.department || selectedSubRole?.department || "",
+            subRole: user.selectedSubRole ? { id: user.selectedSubRole.id, label: user.selectedSubRole.label, department: user.selectedSubRole.department } : selectedSubRole ? { id: selectedSubRole.id, label: selectedSubRole.label, department: selectedSubRole.department } : null,
+            permissions: {
+              canCreateSop: user.role === "admin" || user.permissions.includes("Create SOPs")
+            }
+          } : null,
+          options: {
+            departments: departments.map((department) => ({ id: department.id, name: department.name })),
+            categories: facets.categories,
+            tools: facets.tools,
+            tasks,
+            roles
+          },
+          steps,
+          sourcePolicy: "Guided Finder options are loaded from published SOP records and active backend departments.",
+          model: context.env.AI ? MODEL4 : "deterministic-fallback"
+        }
+      }),
+      {
+        status: 200,
+        headers: {
+          "content-type": "application/json; charset=utf-8",
+          ...cacheHeaders("private"),
+          vary: "x-sop-sub-role"
+        }
+      }
+    );
+  } catch (error) {
+    return failure("GUIDED_FINDER_OPTIONS_FAILED", error instanceof Error ? error.message : "Unable to load Guided Finder options.", 500);
+  }
+}
+__name(guidedFinderOptionsResponse, "guidedFinderOptionsResponse");
+var onRequestGet20 = /* @__PURE__ */ __name(async (context) => {
+  return guidedFinderOptionsResponse(context);
+}, "onRequestGet");
+var onRequestPost18 = /* @__PURE__ */ __name(async (context) => {
+  const missingDb = requireDb(context.env.DB);
+  if (missingDb) return missingDb;
+  const [payload, parseError] = await readBody(context.request);
+  if (parseError) return parseError;
+  if (payload?.mode === "options") {
+    return guidedFinderOptionsResponse(context);
+  }
+  const description = String(payload?.description || "").trim().slice(0, 1200);
+  const filters = payload?.filters || {};
+  try {
+    const departments = await listActiveDepartments(context.env.DB);
+    const normalizedFilters = {
+      ...filters,
+      department: departmentName(filters.department, departments)
+    };
+    const intent = await classifyIntent(context.env, description, normalizedFilters);
+    const candidates = await publishedSops(context, normalizedFilters, departments);
+    const scored = candidates.map((sop) => ({
+      sop,
+      score: scoreSop(sop, intent, description, normalizedFilters)
+    })).filter((match2) => match2.score > 0 || Object.values(normalizedFilters).some(Boolean)).sort((a, b) => b.score - a.score || String(a.sop.title || "").localeCompare(String(b.sop.title || "")));
+    const candidateRows = scored.length ? scored : candidates.map((sop) => ({ sop, score: 1 }));
+    const aiRanking = await rankWithAi(
+      context.env,
+      candidateRows.map((match2) => match2.sop),
+      intent,
+      description
+    );
+    const rankingById = new Map(aiRanking.map((item, index) => [item.id, { ...item, index }]));
+    const finalRows = candidateRows.sort((a, b) => {
+      const aiA = rankingById.get(String(a.sop.id));
+      const aiB = rankingById.get(String(b.sop.id));
+      if (aiA && aiB) return aiA.index - aiB.index;
+      if (aiA) return -1;
+      if (aiB) return 1;
+      return b.score - a.score;
+    });
+    const results = finalRows.slice(0, 5).map((match2) => {
+      const ai = rankingById.get(String(match2.sop.id));
+      const relevance = ai?.relevance || (match2.score >= 8 ? "Matches your selected task, system, category, or keywords." : "Closest published SOP match based on your Guided Finder answers.");
+      return summarizeSop2(match2.sop, relevance, match2.score);
+    });
+    const needsFollowUp = !results.length && Boolean((intent.confidence || 0) < LOW_CONFIDENCE || (intent.missingFields || []).length);
+    if (!results.length) {
+      await logGuidedFinderNoResult(context.env.DB, description || Object.values(normalizedFilters).filter(Boolean).join(" "), normalizedFilters);
+    }
+    return success({
+      mode: results.length ? "results" : needsFollowUp ? "follow_up" : "no_results",
+      intent,
+      results,
+      total: finalRows.length,
+      nextQuestion: needsFollowUp ? intent.suggestedNextQuestion || "Which system, tool, or process is this about?" : "",
+      sourcePolicy: "Only active published SOP records authorized by the backend are returned.",
+      model: context.env.AI ? MODEL4 : "deterministic-fallback"
+    });
+  } catch (error) {
+    return failure("GUIDED_FINDER_SEARCH_FAILED", error instanceof Error ? error.message : "Unable to search Guided Finder results.", 500);
+  }
+}, "onRequestPost");
+
+// api/home-dashboard.ts
+var NORMAL_USER_LIMIT = 5;
+async function userProfile(db, userId) {
+  if (!userId) return null;
+  return db.prepare(
+    `SELECT id, access_level AS accessLevel, department, team_id AS teamId
+       FROM users
+       WHERE id = ?
+       LIMIT 1`
+  ).bind(userId).first().catch(() => null);
+}
+__name(userProfile, "userProfile");
+async function querySops(db, whereSql, values, limit = NORMAL_USER_LIMIT) {
+  const result = await db.prepare(
+    `SELECT
+        sops.id,
+        sops.title,
+        sops.slug,
+        COALESCE(sops.summary, sops.purpose) AS summary,
+        sops.purpose,
+        sops.status,
+        sops.type,
+        sops.estimated_completion_time AS estimatedCompletionTime,
+        sops.estimated_minutes AS estimatedMinutes,
+        sops.review_date AS reviewDate,
+        sops.review_due_at AS reviewDueAt,
+        sops.visibility,
+        sops.source_type AS sourceType,
+        sops.current_version_id AS currentVersionId,
+        sops.published_at AS publishedAt,
+        sops.updated_at AS updatedAt,
+        sops.view_count AS viewCount,
+        sops.helpful_count AS helpfulCount,
+        sops.not_helpful_count AS notHelpfulCount,
+        categories.id AS categoryId,
+        categories.name AS category,
+        categories.slug AS categorySlug,
+        owner.id AS ownerId,
+        owner.name AS owner,
+        sops.owner_sub_role_id AS ownerSubRoleId,
+        sub_roles.label AS ownerSubRole,
+        sub_roles.department AS ownerDepartment,
+        teams.name AS ownerTeam,
+        versions.id AS versionId,
+        COALESCE(versions.version_number, versions.version_label) AS versionNumber,
+        versions.title AS versionTitle,
+        versions.summary AS versionSummary,
+        COALESCE(versions.content, versions.body_markdown) AS content,
+        versions.body_markdown AS bodyMarkdown,
+        versions.before_you_begin AS beforeYouBegin,
+        versions.checklist,
+        versions.troubleshooting,
+        versions.change_summary AS changeSummary,
+        versions.status AS versionStatus,
+        versions.metadata_json AS metadataJson,
+        GROUP_CONCAT(DISTINCT tags.name) AS tagsCsv
+       FROM sops
+       LEFT JOIN categories ON categories.id = sops.category_id
+       LEFT JOIN users owner ON owner.id = COALESCE(sops.owner_id, sops.owner_user_id)
+       LEFT JOIN creator_sub_roles sub_roles ON sub_roles.id = sops.owner_sub_role_id
+       LEFT JOIN teams ON teams.id = sops.owner_team_id
+       LEFT JOIN sop_versions versions ON versions.id = sops.current_version_id
+       LEFT JOIN sop_tags ON sop_tags.sop_id = sops.id
+       LEFT JOIN tags ON tags.id = sop_tags.tag_id
+       ${whereSql}
+       GROUP BY sops.id
+       ORDER BY sops.updated_at DESC, sops.title ASC
+       LIMIT ?`
+  ).bind(...values, limit).all();
+  return (result.results || []).map(normalizeSop);
+}
+__name(querySops, "querySops");
+async function recentlyViewed(db, userId) {
+  if (!userId) return [];
+  return querySops(
+    db,
+    `JOIN (
+       SELECT sop_id, MAX(created_at) AS viewed_at
+       FROM sop_view_events
+       WHERE user_id = ?
+       GROUP BY sop_id
+     ) recent_views ON recent_views.sop_id = sops.id
+     WHERE sops.status = 'Published'
+       AND COALESCE(sops.is_active, 1) = 1`,
+    [userId]
+  );
+}
+__name(recentlyViewed, "recentlyViewed");
+async function savedSops(db, userId) {
+  if (!userId) return [];
+  return querySops(
+    db,
+    `JOIN sop_favorites ON sop_favorites.sop_id = sops.id
+     WHERE sop_favorites.user_id = ?
+       AND sops.status = 'Published'
+       AND COALESCE(sops.is_active, 1) = 1`,
+    [userId]
+  );
+}
+__name(savedSops, "savedSops");
+async function updatedForUser(db, userId, department, teamId) {
+  if (!userId && !department && !teamId) return [];
+  const signals = [];
+  const values = [];
+  if (userId) {
+    signals.push("sops.id IN (SELECT sop_id FROM sop_favorites WHERE user_id = ?)");
+    values.push(userId);
+    signals.push("sops.id IN (SELECT sop_id FROM sop_view_events WHERE user_id = ?)");
+    values.push(userId);
+    signals.push("sops.id IN (SELECT sop_id FROM sop_assignments WHERE user_id = ? AND status = 'Active')");
+    values.push(userId);
+  }
+  if (teamId) {
+    signals.push("(sops.owner_team_id = ? OR sops.id IN (SELECT sop_id FROM sop_assignments WHERE team_id = ? AND status = 'Active'))");
+    values.push(teamId, teamId);
+  }
+  if (department) {
+    signals.push("(sub_roles.department = ? OR teams.name = ?)");
+    values.push(department, department);
+  }
+  return querySops(
+    db,
+    `WHERE sops.status = 'Published'
+       AND COALESCE(sops.is_active, 1) = 1
+       AND (${signals.join(" OR ")})`,
+    values
+  );
+}
+__name(updatedForUser, "updatedForUser");
+function importantUpdates(recent) {
+  return recent.slice(0, 3).map((sop) => ({
+    id: sop.id,
+    title: sop.title,
+    body: sop.summary || sop.purpose || "A published SOP was updated.",
+    href: sop.slug ? `/sops/detail/?slug=${encodeURIComponent(String(sop.slug))}` : `/sops/detail/?id=${encodeURIComponent(String(sop.id))}`,
+    updatedAt: sop.updatedAt || sop.publishedAt || ""
+  }));
+}
+__name(importantUpdates, "importantUpdates");
+var onRequestGet21 = /* @__PURE__ */ __name(async (context) => {
+  const missingDb = requireDb(context.env.DB);
+  if (missingDb) return missingDb;
+  try {
+    const user = await getAuthUser(context);
+    const profile = await userProfile(context.env.DB, user?.id);
+    const [viewed, saved, updated, recentPublished] = await Promise.all([
+      recentlyViewed(context.env.DB, user?.id),
+      savedSops(context.env.DB, user?.id),
+      updatedForUser(context.env.DB, user?.id, profile?.department, profile?.teamId),
+      listSops(context.env.DB, { publicOnly: true, sort: "recent", limit: 3 })
+    ]);
+    return new Response(
+      JSON.stringify({
+        success: true,
+        data: {
+          user: user ? {
+            id: user.id,
+            role: user.role,
+            accessLevel: user.accessLevel,
+            department: profile?.department || "",
+            teamId: profile?.teamId || "",
+            permissions: {
+              canCreateSop: user.role === "admin" || user.permissions.includes("Create SOPs")
+            }
+          } : null,
+          activity: {
+            recentlyViewed: viewed,
+            savedSops: saved,
+            recentlyUpdatedForYou: updated
+          },
+          importantUpdates: importantUpdates(recentPublished)
+        }
+      }),
+      {
+        status: 200,
+        headers: {
+          "content-type": "application/json; charset=utf-8",
+          ...cacheHeaders(user ? "private" : "public")
+        }
+      }
+    );
+  } catch (error) {
+    return failure("HOME_DASHBOARD_FAILED", error instanceof Error ? error.message : "Unable to load the home dashboard.", 500);
+  }
+}, "onRequestGet");
+
 // api/media.ts
 var MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
-var ALLOWED_MIME_PREFIXES = ["image/", "video/"];
-var ALLOWED_MIME_TYPES = /* @__PURE__ */ new Set([
-  "application/pdf",
-  "text/plain",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.ms-powerpoint",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-]);
+var MAX_ALT_TEXT_LENGTH = 125;
+var ALLOWED_MIME_TYPES = /* @__PURE__ */ new Set(["image/png", "image/jpeg", "image/webp", "video/mp4"]);
+var ALLOWED_EXTENSIONS = /* @__PURE__ */ new Set(["png", "jpg", "jpeg", "webp", "mp4"]);
 function inferAssetType(mimeType) {
   if (mimeType.startsWith("image/")) return "Image";
   if (mimeType.startsWith("video/")) return "Video";
-  if (mimeType === "application/pdf" || mimeType.startsWith("text/") || mimeType.includes("document")) {
-    return "Document";
-  }
   return "Other";
 }
 __name(inferAssetType, "inferAssetType");
@@ -3546,10 +4515,42 @@ function sanitizeFileName(value) {
 }
 __name(sanitizeFileName, "sanitizeFileName");
 function isAllowedFile(file) {
-  return ALLOWED_MIME_PREFIXES.some((prefix) => file.type.startsWith(prefix)) || ALLOWED_MIME_TYPES.has(file.type);
+  const extension = String(file.name || "").split(".").pop()?.toLowerCase() || "";
+  return ALLOWED_MIME_TYPES.has(file.type) && ALLOWED_EXTENSIONS.has(extension);
 }
 __name(isAllowedFile, "isAllowedFile");
-var onRequestPost18 = /* @__PURE__ */ __name(async ({ request, env }) => {
+async function ensureMediaTables(db) {
+  const info = await db.prepare("PRAGMA table_info(media_assets)").all();
+  const columns = new Set((info.results || []).map((row) => row.name));
+  if (!columns.has("is_decorative")) {
+    await db.prepare("ALTER TABLE media_assets ADD COLUMN is_decorative INTEGER NOT NULL DEFAULT 0").run();
+  }
+  await db.prepare(
+    `CREATE TABLE IF NOT EXISTS procedure_steps (
+        id TEXT PRIMARY KEY,
+        sop_version_id TEXT NOT NULL,
+        step_number INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        instructions TEXT NOT NULL,
+        note TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE (sop_version_id, step_number)
+      )`
+  ).run();
+  await db.prepare(
+    `CREATE TABLE IF NOT EXISTS procedure_step_media (
+        procedure_step_id TEXT NOT NULL,
+        media_asset_id TEXT NOT NULL,
+        relationship TEXT NOT NULL DEFAULT 'Instructional Media',
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (procedure_step_id, media_asset_id, relationship)
+      )`
+  ).run();
+}
+__name(ensureMediaTables, "ensureMediaTables");
+var onRequestPost19 = /* @__PURE__ */ __name(async ({ request, env }) => {
   if (!env.DB) {
     return jsonResponse({ error: "D1 database binding DB is not available." }, 503);
   }
@@ -3561,12 +4562,14 @@ var onRequestPost18 = /* @__PURE__ */ __name(async ({ request, env }) => {
   }
   const auth = await requirePermission({ request, env }, "Upload Media");
   if (auth.response) return auth.response;
+  await ensureMediaTables(env.DB);
   const formData = await request.formData();
   const uploadedByUserId = String(formData.get("uploadedByUserId") || auth.user?.id || "") || null;
   const purpose = String(formData.get("purpose") || "Other");
   const entityType = String(formData.get("entityType") || "");
   const entityId = String(formData.get("entityId") || "") || null;
-  const altText = String(formData.get("altText") || "") || null;
+  const isDecorative = String(formData.get("accessibilityStatus") || "") === "decorative";
+  const altText = String(formData.get("altText") || "").trim();
   const caption = String(formData.get("caption") || "") || null;
   const files = formData.getAll("files").filter((value) => value instanceof File);
   if (!files.length) {
@@ -3576,10 +4579,13 @@ var onRequestPost18 = /* @__PURE__ */ __name(async ({ request, env }) => {
   if (!files.length) {
     return jsonResponse({ error: "Attach at least one file." }, 400);
   }
+  if (altText.length > MAX_ALT_TEXT_LENGTH) {
+    return jsonResponse({ error: "Alternative text must be 125 characters or fewer." }, 400);
+  }
   const saved = [];
   for (const file of files) {
     if (!isAllowedFile(file)) {
-      return jsonResponse({ error: `${file.name} is not an allowed image, video, or document type.` }, 400);
+      return jsonResponse({ error: `${file.name} is not an allowed PNG, JPG, JPEG, WebP, or MP4 file.` }, 400);
     }
     if (file.size > MAX_UPLOAD_BYTES) {
       return jsonResponse({ error: `${file.name} is larger than the 50 MB upload limit.` }, 413);
@@ -3602,9 +4608,9 @@ var onRequestPost18 = /* @__PURE__ */ __name(async ({ request, env }) => {
     await env.DB.prepare(
       `INSERT INTO media_assets (
         id, asset_type, purpose, original_file_name, display_name, mime_type, size_bytes,
-        storage_provider, bucket_name, object_key, public_url, alt_text, caption,
+        storage_provider, bucket_name, object_key, public_url, alt_text, is_decorative, caption,
         uploaded_by_user_id, status, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'r2', ?, ?, ?, ?, ?, ?, 'Active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'r2', ?, ?, ?, ?, ?, ?, ?, 'Active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
     ).bind(
       id,
       inferAssetType(file.type),
@@ -3615,8 +4621,9 @@ var onRequestPost18 = /* @__PURE__ */ __name(async ({ request, env }) => {
       file.size,
       "sop-knowledge-hub-media",
       objectKey,
-      `/api/media?id=${encodeURIComponent(id)}`,
-      altText,
+      `/api/media/?id=${encodeURIComponent(id)}`,
+      isDecorative ? "" : altText,
+      isDecorative ? 1 : 0,
       caption,
       uploadedByUserId
     ).run();
@@ -3637,23 +4644,47 @@ var onRequestPost18 = /* @__PURE__ */ __name(async ({ request, env }) => {
       mimeType: file.type,
       sizeBytes: file.size,
       assetType: inferAssetType(file.type),
-      url: `/api/media?id=${encodeURIComponent(id)}`
+      url: `/api/media/?id=${encodeURIComponent(id)}`,
+      altText: isDecorative ? "" : altText,
+      accessibilityStatus: isDecorative ? "decorative" : altText ? "meaningful" : "",
+      isDecorative,
+      caption
     });
   }
   return jsonResponse({ uploaded: saved }, 201);
 }, "onRequestPost");
-var onRequestGet19 = /* @__PURE__ */ __name(async ({ request, env }) => {
+var onRequestGet22 = /* @__PURE__ */ __name(async ({ request, env }) => {
   if (!env.DB || !env.SOP_MEDIA) {
     return jsonResponse({ error: "Media storage is not configured." }, 503);
   }
   const id = new URL(request.url).searchParams.get("id");
   if (!id) return jsonResponse({ error: "Missing media id." }, 400);
   const asset = await env.DB.prepare(
-    `SELECT id, object_key, mime_type, original_file_name, status
+    `SELECT id, object_key, mime_type, original_file_name, uploaded_by_user_id AS uploadedByUserId, status
      FROM media_assets
      WHERE id = ? AND status = 'Active'`
   ).bind(id).first();
   if (!asset) return jsonResponse({ error: "Media asset not found." }, 404);
+  const related = await env.DB.prepare(
+    `SELECT DISTINCT sops.id, sops.status, COALESCE(sops.is_active, 1) AS isActive
+     FROM media_assets
+     LEFT JOIN sop_media ON sop_media.media_asset_id = media_assets.id
+     LEFT JOIN sop_version_media ON sop_version_media.media_asset_id = media_assets.id
+     LEFT JOIN procedure_step_media ON procedure_step_media.media_asset_id = media_assets.id
+     LEFT JOIN procedure_steps ON procedure_steps.id = procedure_step_media.procedure_step_id
+     LEFT JOIN sops ON sops.id = sop_media.sop_id
+       OR sops.current_version_id = sop_version_media.sop_version_id
+       OR sops.current_version_id = procedure_steps.sop_version_id
+     WHERE media_assets.id = ?
+      AND sops.id IS NOT NULL`
+  ).bind(id).all();
+  const relatedSops = related.results || [];
+  const publishedAllowed = relatedSops.some((sop) => sop.status === "Published" && Number(sop.isActive || 0) === 1);
+  const user = await getAuthUser({ request, env });
+  const uploaderAllowed = Boolean(user && (user.role === "admin" || user.id === asset.uploadedByUserId));
+  if (!publishedAllowed && !uploaderAllowed) {
+    return jsonResponse({ error: "You do not have permission to view this media asset." }, 403);
+  }
   const object = await env.SOP_MEDIA.get(asset.object_key);
   if (!object?.body) return jsonResponse({ error: "Media object not found." }, 404);
   const headers = new Headers();
@@ -3664,16 +4695,46 @@ var onRequestGet19 = /* @__PURE__ */ __name(async ({ request, env }) => {
   headers.set("content-disposition", `inline; filename="${sanitizeFileName(asset.original_file_name)}"`);
   return new Response(object.body, { headers });
 }, "onRequestGet");
+var onRequestDelete4 = /* @__PURE__ */ __name(async ({ request, env }) => {
+  if (!env.DB || !env.SOP_MEDIA) {
+    return jsonResponse({ error: "Media storage is not configured." }, 503);
+  }
+  const auth = await requirePermission({ request, env }, "Upload Media");
+  if (auth.response || !auth.user) return auth.response;
+  const url = new URL(request.url);
+  const id = url.searchParams.get("id") || "";
+  const sopId = url.searchParams.get("sopId") || "";
+  if (!id) return jsonResponse({ error: "Missing media id." }, 400);
+  const asset = await env.DB.prepare(
+    `SELECT id, object_key, uploaded_by_user_id AS uploadedByUserId
+     FROM media_assets
+     WHERE id = ? AND status = 'Active'
+     LIMIT 1`
+  ).bind(id).first();
+  if (!asset) return jsonResponse({ error: "Media asset not found." }, 404);
+  if (sopId) {
+    const ownership = await requireSopOwnership({ request, env }, auth.user, sopId);
+    if (ownership.response) return ownership.response;
+  } else if (auth.user.role !== "admin" && auth.user.id !== asset.uploadedByUserId && !hasPermission(auth.user, "Manage Media")) {
+    return failure("FORBIDDEN", "You do not have permission to delete this media asset.", 403);
+  }
+  await env.DB.prepare(
+    `UPDATE media_assets
+     SET status = 'Deleted', deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+     WHERE id = ?`
+  ).bind(id).run();
+  return jsonResponse({ ok: true });
+}, "onRequestDelete");
 
 // api/my-drafts.ts
-function normalizeDate(value) {
+function normalizeDate2(value) {
   if (!value) return "";
   if (typeof value === "number") return new Date(value * 1e3).toISOString().slice(0, 10);
   const raw = String(value);
   if (/^\d+$/.test(raw)) return new Date(Number(raw) * 1e3).toISOString().slice(0, 10);
   return raw.slice(0, 10);
 }
-__name(normalizeDate, "normalizeDate");
+__name(normalizeDate2, "normalizeDate");
 function detailUrl(row) {
   if (row.slug) return `/sops/detail/?slug=${encodeURIComponent(String(row.slug))}`;
   return `/sops/detail/?id=${encodeURIComponent(String(row.id || ""))}`;
@@ -3691,9 +4752,9 @@ function normalizeDraft(row) {
     ownerSubRoleId: row.ownerSubRoleId || "",
     ownerSubRole: row.ownerSubRole || "",
     ownerDepartment: row.ownerDepartment || "",
-    reviewDate: normalizeDate(row.reviewDate || row.reviewDueAt),
+    reviewDate: normalizeDate2(row.reviewDate || row.reviewDueAt),
     assignedReviewer: row.assignedReviewer || "Unassigned",
-    updatedDate: normalizeDate(row.updatedAt || row.createdAt),
+    updatedDate: normalizeDate2(row.updatedAt || row.createdAt),
     detailUrl: detailUrl(row),
     editUrl: `/create/?edit=draft&id=${encodeURIComponent(id)}`
   };
@@ -3836,7 +4897,7 @@ async function queryDrafts(db, subRole, selectedUser) {
   return (result.results || []).map(normalizeDraft);
 }
 __name(queryDrafts, "queryDrafts");
-var onRequestGet20 = /* @__PURE__ */ __name(async (context) => {
+var onRequestGet23 = /* @__PURE__ */ __name(async (context) => {
   const missingDb = requireDb(context.env.DB);
   if (missingDb) return missingDb;
   const db = context.env.DB;
@@ -3907,22 +4968,22 @@ function detailUrl2(row) {
   return `/sops/detail/?id=${encodeURIComponent(String(row.id || row.sopId || ""))}`;
 }
 __name(detailUrl2, "detailUrl");
-function normalizeDate2(value) {
+function normalizeDate3(value) {
   if (!value) return "";
   if (typeof value === "number") return new Date(value * 1e3).toISOString().slice(0, 10);
   const raw = String(value);
   if (/^\d+$/.test(raw)) return new Date(Number(raw) * 1e3).toISOString().slice(0, 10);
   return raw.slice(0, 10);
 }
-__name(normalizeDate2, "normalizeDate");
+__name(normalizeDate3, "normalizeDate");
 function normalizeRequest(row) {
   return {
     id: row.id,
     title: row.title || row.requestedTitle || "Untitled SOP Request",
     status: row.status || "Submitted",
     priority: row.priority || "Medium",
-    updatedDate: normalizeDate2(row.updatedAt || row.createdAt),
-    reviewDate: normalizeDate2(row.desiredCompletionAt || row.assignedAt || row.createdAt),
+    updatedDate: normalizeDate3(row.updatedAt || row.createdAt),
+    reviewDate: normalizeDate3(row.desiredCompletionAt || row.assignedAt || row.createdAt),
     owner: row.assignedToName || row.assignedDepartment || "Unassigned",
     department: row.assignedDepartment || row.departmentName || "",
     category: row.category || "Uncategorized",
@@ -3937,8 +4998,8 @@ function normalizeSop2(row) {
     category: row.category || "Uncategorized",
     status: row.status || "Draft",
     owner: row.owner || row.ownerDepartment || "Unassigned",
-    reviewDate: normalizeDate2(row.reviewDate || row.reviewDueAt || row.dueAt),
-    updatedDate: normalizeDate2(row.updatedAt || row.createdAt),
+    reviewDate: normalizeDate3(row.reviewDate || row.reviewDueAt || row.dueAt),
+    updatedDate: normalizeDate3(row.updatedAt || row.createdAt),
     ownerSubRoleId: row.ownerSubRoleId || "",
     ownerSubRole: row.ownerSubRole || "",
     ownerDepartment: row.ownerDepartment || "",
@@ -3953,7 +5014,7 @@ function normalizeReview(row) {
     title: row.title || row.sopTitle || "Untitled Review",
     status: row.status || "Assigned",
     priority: row.priority || "Medium",
-    reviewDate: normalizeDate2(row.dueDate || row.reviewDate || row.dueAt),
+    reviewDate: normalizeDate3(row.dueDate || row.reviewDate || row.dueAt),
     owner: row.reviewer || row.owner || "Unassigned",
     url: row.sopId ? `/sops/detail/?id=${encodeURIComponent(String(row.sopId))}` : `/admin/needs-review/?review=${encodeURIComponent(String(row.id || ""))}`
   };
@@ -4251,7 +5312,7 @@ function uniqueById(items) {
   return Array.from(map.values());
 }
 __name(uniqueById, "uniqueById");
-var onRequestGet21 = /* @__PURE__ */ __name(async (context) => {
+var onRequestGet24 = /* @__PURE__ */ __name(async (context) => {
   const missingDb = requireDb(context.env.DB);
   if (missingDb) return missingDb;
   const db = context.env.DB;
@@ -4363,14 +5424,14 @@ var legacyRequestStatusMap = {
   published: "Published",
   archived: "Closed"
 };
-function normalizeDate3(value) {
+function normalizeDate4(value) {
   if (!value) return "";
   if (typeof value === "number") return new Date(value * 1e3).toISOString().slice(0, 10);
   const raw = String(value);
   if (/^\d+$/.test(raw)) return new Date(Number(raw) * 1e3).toISOString().slice(0, 10);
   return raw.slice(0, 10);
 }
-__name(normalizeDate3, "normalizeDate");
+__name(normalizeDate4, "normalizeDate");
 function statusKey(status) {
   return String(status || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
@@ -4499,9 +5560,9 @@ function normalizeRequest2(row, user) {
     assignedReviewer: row.assignedToName || row.assignedDepartment || "Unassigned",
     priority: row.priority || "Medium",
     status,
-    reviewDate: normalizeDate3(row.desiredCompletionAt || row.assignedAt || row.createdAt),
-    submittedDate: normalizeDate3(row.submittedAt || row.createdAt),
-    updatedDate: normalizeDate3(row.updatedAt || row.createdAt),
+    reviewDate: normalizeDate4(row.desiredCompletionAt || row.assignedAt || row.createdAt),
+    submittedDate: normalizeDate4(row.submittedAt || row.createdAt),
+    updatedDate: normalizeDate4(row.updatedAt || row.createdAt),
     detailUrl: `/admin/review/?request=${encodeURIComponent(id)}`,
     editUrl: row.draftSopId ? `/create/?edit=draft&id=${encodeURIComponent(String(row.draftSopId))}` : "",
     relatedSopId: row.relatedSopId || row.existingSopId || "",
@@ -4531,9 +5592,9 @@ function normalizeSop3(row, user) {
     assignedReviewer: row.assignedReviewer || "Unassigned",
     priority: row.priority || "Medium",
     status,
-    reviewDate: normalizeDate3(row.dueAt || row.reviewDate || row.reviewDueAt),
-    submittedDate: normalizeDate3(row.createdAt),
-    updatedDate: normalizeDate3(row.updatedAt || row.createdAt),
+    reviewDate: normalizeDate4(row.dueAt || row.reviewDate || row.reviewDueAt),
+    submittedDate: normalizeDate4(row.createdAt),
+    updatedDate: normalizeDate4(row.updatedAt || row.createdAt),
     detailUrl: row.slug ? `/sops/detail/?slug=${encodeURIComponent(String(row.slug))}` : `/sops/detail/?id=${encodeURIComponent(id)}`,
     editUrl: `/create/?edit=draft&id=${encodeURIComponent(id)}`,
     assignmentType: row.assignmentType || "",
@@ -4690,7 +5751,7 @@ function needsReviewStatus(status) {
   ].includes(statusKey(status));
 }
 __name(needsReviewStatus, "needsReviewStatus");
-var onRequestGet22 = /* @__PURE__ */ __name(async (context) => {
+var onRequestGet25 = /* @__PURE__ */ __name(async (context) => {
   const missingDb = requireDb(context.env.DB);
   if (missingDb) return missingDb;
   const db = context.env.DB;
@@ -5246,7 +6307,7 @@ function responseMessage(action) {
   }
 }
 __name(responseMessage, "responseMessage");
-var onRequestGet23 = /* @__PURE__ */ __name(async ({ request, env }) => {
+var onRequestGet26 = /* @__PURE__ */ __name(async ({ request, env }) => {
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
   await ensureRequestWorkflowSchema3(env.DB);
@@ -5293,7 +6354,7 @@ var onRequestGet23 = /* @__PURE__ */ __name(async ({ request, env }) => {
   ).bind(...values).all();
   return success({ requests: result.results || [] });
 }, "onRequestGet");
-var onRequestPost19 = /* @__PURE__ */ __name(async ({ request, env }) => {
+var onRequestPost20 = /* @__PURE__ */ __name(async ({ request, env }) => {
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
   await ensureRequestWorkflowSchema3(env.DB);
@@ -5302,7 +6363,7 @@ var onRequestPost19 = /* @__PURE__ */ __name(async ({ request, env }) => {
   const fields = {};
   const requestType = optionalText(payload?.requestType || "Request a new SOP", 120);
   const requestedTitle = optionalText(payload?.requestedTitle, 180);
-  const departmentName = optionalText(payload?.departmentName, 160);
+  const departmentName2 = optionalText(payload?.departmentName, 160);
   const submittedByName = optionalText(payload?.submittedByName, 160);
   const submittedByEmail = optionalText(payload?.submittedByEmail, 180);
   const description = optionalText(payload?.description, 8e3);
@@ -5310,7 +6371,7 @@ var onRequestPost19 = /* @__PURE__ */ __name(async ({ request, env }) => {
   const route = await routeRequest(env.DB, payload || {}, category.name);
   if (!requestTypes.has(requestType)) fields.requestType = "Choose a valid submission type.";
   if (!requestedTitle) fields.requestedTitle = "Requested title is required.";
-  if (!departmentName) fields.departmentName = "Department name is required.";
+  if (!departmentName2) fields.departmentName = "Department name is required.";
   if (!submittedByName) fields.submittedByName = "Submitted by is required.";
   if (!submittedByEmail || !isEmail(submittedByEmail)) fields.submittedByEmail = "Enter a valid email.";
   if (!description) fields.description = "Description is required.";
@@ -5334,7 +6395,7 @@ var onRequestPost19 = /* @__PURE__ */ __name(async ({ request, env }) => {
     id,
     requestType,
     requestedTitle,
-    departmentName,
+    departmentName2,
     submittedByName,
     submittedByEmail,
     optionalText(payload?.roleTitle, 160),
@@ -5565,7 +6626,7 @@ function readFilters(request, role) {
   };
 }
 __name(readFilters, "readFilters");
-var onRequestGet24 = /* @__PURE__ */ __name(async ({ request, env }) => {
+var onRequestGet27 = /* @__PURE__ */ __name(async ({ request, env }) => {
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
   try {
@@ -5637,7 +6698,7 @@ async function linkTags(db, sopId, tags) {
   }
 }
 __name(linkTags, "linkTags");
-var onRequestPost20 = /* @__PURE__ */ __name(async ({ request, env }) => {
+var onRequestPost21 = /* @__PURE__ */ __name(async ({ request, env }) => {
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
   const auth = await requirePermission({ request, env }, "Create SOPs");
@@ -5655,6 +6716,16 @@ var onRequestPost20 = /* @__PURE__ */ __name(async ({ request, env }) => {
   if (!purpose) fields.purpose = "Purpose is required.";
   if (!content) fields.content = "Content is required.";
   if (Object.keys(fields).length) return failure("VALIDATION_ERROR", "Please correct the highlighted fields.", 400, fields);
+  try {
+    validateProcedureStepAttachments(Array.isArray(payload?.procedureSteps) ? payload.procedureSteps : []);
+  } catch (error) {
+    return failure(
+      "VALIDATION_ERROR",
+      error instanceof Error ? error.message : "Please complete attachment accessibility details.",
+      400,
+      { procedureSteps: "Each attachment must be marked decorative or include alt text of 125 characters or fewer." }
+    );
+  }
   const id = newId("sop");
   const versionId = newId("version");
   const slug = slugify(title, id);
@@ -5744,6 +6815,7 @@ var onRequestPost20 = /* @__PURE__ */ __name(async ({ request, env }) => {
     ).bind(newId("assignment"), id, versionId, payload.reviewerId, ownerTeamId, auth.user?.id || null, reviewDate).run();
   }
   await linkTags(env.DB, id, tags);
+  await syncProcedureSteps(env.DB, id, versionId, Array.isArray(payload?.procedureSteps) ? payload.procedureSteps : []);
   await env.DB.prepare(
     `INSERT INTO audit_logs (id, actor_user_id, action, entity_type, entity_id, after_json, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)`
@@ -5752,7 +6824,7 @@ var onRequestPost20 = /* @__PURE__ */ __name(async ({ request, env }) => {
 }, "onRequestPost");
 
 // api/tags.ts
-var onRequestGet25 = /* @__PURE__ */ __name(async ({ env }) => {
+var onRequestGet28 = /* @__PURE__ */ __name(async ({ env }) => {
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
   try {
@@ -5841,7 +6913,7 @@ function reviewSelect() {
   LEFT JOIN users reviewer ON reviewer.id = reviews.reviewer_user_id`;
 }
 __name(reviewSelect, "reviewSelect");
-var onRequestGet26 = /* @__PURE__ */ __name(async ({ request, env }) => {
+var onRequestGet29 = /* @__PURE__ */ __name(async ({ request, env }) => {
   const context = { request, env };
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
@@ -5868,7 +6940,7 @@ var onRequestGet26 = /* @__PURE__ */ __name(async ({ request, env }) => {
     reviews: reviewsResult.results || []
   });
 }, "onRequestGet");
-var onRequestPost21 = /* @__PURE__ */ __name(async ({ request, env }) => {
+var onRequestPost22 = /* @__PURE__ */ __name(async ({ request, env }) => {
   const context = { request, env };
   const missingDb = requireDb(env.DB);
   if (missingDb) return missingDb;
@@ -5994,7 +7066,7 @@ async function updateReview(request, db) {
 }
 __name(updateReview, "updateReview");
 
-// ../.wrangler/tmp/pages-meHn2k/functionsRoutes-0.25580426438639436.mjs
+// ../.wrangler/tmp/pages-UFosEr/functionsRoutes-0.9436608591079833.mjs
 var routes = [
   {
     routePath: "/api/sops/slug/:slug",
@@ -6109,6 +7181,13 @@ var routes = [
     modules: [onRequestPut]
   },
   {
+    routePath: "/api/admin/departments",
+    mountPath: "/api/admin",
+    method: "GET",
+    middlewares: [],
+    modules: [onRequestGet5]
+  },
+  {
     routePath: "/api/admin/tags",
     mountPath: "/api/admin",
     method: "DELETE",
@@ -6120,7 +7199,7 @@ var routes = [
     mountPath: "/api/admin",
     method: "GET",
     middlewares: [],
-    modules: [onRequestGet5]
+    modules: [onRequestGet6]
   },
   {
     routePath: "/api/admin/tags",
@@ -6148,7 +7227,7 @@ var routes = [
     mountPath: "/api/admin",
     method: "GET",
     middlewares: [],
-    modules: [onRequestGet6]
+    modules: [onRequestGet7]
   },
   {
     routePath: "/api/admin/users",
@@ -6169,7 +7248,7 @@ var routes = [
     mountPath: "/api/analytics",
     method: "GET",
     middlewares: [],
-    modules: [onRequestGet7]
+    modules: [onRequestGet8]
   },
   {
     routePath: "/api/analytics/track",
@@ -6183,7 +7262,7 @@ var routes = [
     mountPath: "/api/search",
     method: "GET",
     middlewares: [],
-    modules: [onRequestGet8]
+    modules: [onRequestGet9]
   },
   {
     routePath: "/api/search/log",
@@ -6197,28 +7276,28 @@ var routes = [
     mountPath: "/api/sops",
     method: "GET",
     middlewares: [],
-    modules: [onRequestGet9]
+    modules: [onRequestGet10]
   },
   {
     routePath: "/api/sops/recent",
     mountPath: "/api/sops",
     method: "GET",
     middlewares: [],
-    modules: [onRequestGet10]
+    modules: [onRequestGet11]
   },
   {
     routePath: "/api/guides/:slug",
     mountPath: "/api/guides",
     method: "GET",
     middlewares: [],
-    modules: [onRequestGet11]
+    modules: [onRequestGet12]
   },
   {
     routePath: "/api/sop-requests/:id",
     mountPath: "/api/sop-requests",
     method: "GET",
     middlewares: [],
-    modules: [onRequestGet12]
+    modules: [onRequestGet13]
   },
   {
     routePath: "/api/sop-requests/:id",
@@ -6232,7 +7311,7 @@ var routes = [
     mountPath: "/api/sops",
     method: "GET",
     middlewares: [],
-    modules: [onRequestGet13]
+    modules: [onRequestGet14]
   },
   {
     routePath: "/api/sops/:id",
@@ -6246,7 +7325,7 @@ var routes = [
     mountPath: "/api",
     method: "GET",
     middlewares: [],
-    modules: [onRequestGet14]
+    modules: [onRequestGet15]
   },
   {
     routePath: "/api/ai-assist",
@@ -6260,14 +7339,14 @@ var routes = [
     mountPath: "/api",
     method: "GET",
     middlewares: [],
-    modules: [onRequestGet15]
+    modules: [onRequestGet16]
   },
   {
     routePath: "/api/chat",
     mountPath: "/api",
     method: "GET",
     middlewares: [],
-    modules: [onRequestGet16]
+    modules: [onRequestGet17]
   },
   {
     routePath: "/api/chat",
@@ -6281,14 +7360,14 @@ var routes = [
     mountPath: "/api",
     method: "GET",
     middlewares: [],
-    modules: [onRequestGet17]
+    modules: [onRequestGet18]
   },
   {
     routePath: "/api/finder",
     mountPath: "/api",
     method: "GET",
     middlewares: [],
-    modules: [onRequestGet18]
+    modules: [onRequestGet19]
   },
   {
     routePath: "/api/finder",
@@ -6298,39 +7377,67 @@ var routes = [
     modules: [onRequestPost17]
   },
   {
-    routePath: "/api/media",
-    mountPath: "/api",
-    method: "GET",
-    middlewares: [],
-    modules: [onRequestGet19]
-  },
-  {
-    routePath: "/api/media",
-    mountPath: "/api",
-    method: "POST",
-    middlewares: [],
-    modules: [onRequestPost18]
-  },
-  {
-    routePath: "/api/my-drafts",
+    routePath: "/api/guided-finder",
     mountPath: "/api",
     method: "GET",
     middlewares: [],
     modules: [onRequestGet20]
   },
   {
-    routePath: "/api/my-work",
+    routePath: "/api/guided-finder",
+    mountPath: "/api",
+    method: "POST",
+    middlewares: [],
+    modules: [onRequestPost18]
+  },
+  {
+    routePath: "/api/home-dashboard",
     mountPath: "/api",
     method: "GET",
     middlewares: [],
     modules: [onRequestGet21]
   },
   {
-    routePath: "/api/review-queue",
+    routePath: "/api/media",
+    mountPath: "/api",
+    method: "DELETE",
+    middlewares: [],
+    modules: [onRequestDelete4]
+  },
+  {
+    routePath: "/api/media",
     mountPath: "/api",
     method: "GET",
     middlewares: [],
     modules: [onRequestGet22]
+  },
+  {
+    routePath: "/api/media",
+    mountPath: "/api",
+    method: "POST",
+    middlewares: [],
+    modules: [onRequestPost19]
+  },
+  {
+    routePath: "/api/my-drafts",
+    mountPath: "/api",
+    method: "GET",
+    middlewares: [],
+    modules: [onRequestGet23]
+  },
+  {
+    routePath: "/api/my-work",
+    mountPath: "/api",
+    method: "GET",
+    middlewares: [],
+    modules: [onRequestGet24]
+  },
+  {
+    routePath: "/api/review-queue",
+    mountPath: "/api",
+    method: "GET",
+    middlewares: [],
+    modules: [onRequestGet25]
   },
   {
     routePath: "/api/review-queue",
@@ -6344,14 +7451,14 @@ var routes = [
     mountPath: "/api",
     method: "GET",
     middlewares: [],
-    modules: [onRequestGet23]
+    modules: [onRequestGet26]
   },
   {
     routePath: "/api/sop-requests",
     mountPath: "/api",
     method: "POST",
     middlewares: [],
-    modules: [onRequestPost19]
+    modules: [onRequestPost20]
   },
   {
     routePath: "/api/sop-requests",
@@ -6365,35 +7472,35 @@ var routes = [
     mountPath: "/api",
     method: "GET",
     middlewares: [],
-    modules: [onRequestGet24]
+    modules: [onRequestGet27]
   },
   {
     routePath: "/api/sops",
     mountPath: "/api",
     method: "POST",
     middlewares: [],
-    modules: [onRequestPost20]
+    modules: [onRequestPost21]
   },
   {
     routePath: "/api/tags",
     mountPath: "/api",
     method: "GET",
     middlewares: [],
-    modules: [onRequestGet25]
+    modules: [onRequestGet28]
   },
   {
     routePath: "/api/workflow",
     mountPath: "/api",
     method: "GET",
     middlewares: [],
-    modules: [onRequestGet26]
+    modules: [onRequestGet29]
   },
   {
     routePath: "/api/workflow",
     mountPath: "/api",
     method: "POST",
     middlewares: [],
-    modules: [onRequestPost21]
+    modules: [onRequestPost22]
   },
   {
     routePath: "/api/workflow",
