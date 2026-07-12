@@ -24,6 +24,7 @@ const checks = [
   ["component listens for role context changes", files.component.includes("sop-role-context-change")],
   ["component omits the removed left progress rail", !files.component.includes("guided-finder-rail") && !files.component.includes("guided-workflow__rail")],
   ["api returns backend-built steps", files.api.includes("buildGuidedSteps") && files.api.includes("steps,")],
+  ["api excludes low-value specialist team labels from Step 1", files.api.includes("GUIDED_FINDER_EXCLUDED_DEPARTMENTS") && files.api.includes("instructional technologists") && files.api.includes("quality assurance specialists")],
   ["api restricts Need options to approved intent labels", files.api.includes("const guidedNeedOptions") && files.api.includes("Use a system or tool") && !files.api.includes("Matches ${item.terms.size} live taxonomy terms")],
   ["api caps category options for a focused decision step", files.api.includes("CATEGORY_OPTION_LIMIT") && files.api.includes("buildCategoryOptions")],
   ["component narrows category options from current matches", files.component.includes("narrowCategoryOptions") && files.component.includes("state.lastResults")],

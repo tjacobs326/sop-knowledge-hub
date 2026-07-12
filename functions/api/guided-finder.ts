@@ -9,6 +9,10 @@ import { listSopFacets, listSops } from "../_shared/sop-data";
 const MODEL = "@cf/meta/llama-3.1-8b-instruct-fast";
 const LOW_CONFIDENCE = 35;
 const CATEGORY_OPTION_LIMIT = 8;
+const GUIDED_FINDER_EXCLUDED_DEPARTMENTS = new Set([
+  "instructional technologists",
+  "quality assurance specialists",
+]);
 
 interface GuidedFinderFilters {
   department?: string;
@@ -260,11 +264,13 @@ function buildGuidedSteps(input: {
   selectedSubRole: Awaited<ReturnType<typeof resolveRequestedCreatorSubRole>>;
 }) {
   const knownDepartment = input.user?.selectedSubRole?.department || input.selectedSubRole?.department || "";
-  const departmentOptions = input.departments.map((department) => ({
-    value: department.name,
-    label: department.name,
-    hint: department.description || "Active backend department",
-  }));
+  const departmentOptions = input.departments
+    .filter((department) => !GUIDED_FINDER_EXCLUDED_DEPARTMENTS.has(department.name.trim().toLowerCase()))
+    .map((department) => ({
+      value: department.name,
+      label: department.name,
+      hint: department.description || "Active backend department",
+    }));
   const roleOptions = unique(input.sops.flatMap((sop) => (Array.isArray(sop.audience) ? sop.audience.map(String) : []))).map((role) =>
     optionFromValue(role, "Audience from published SOP metadata"),
   );
