@@ -44,6 +44,7 @@ export interface PlatformEnv {
   DB?: D1DatabaseBinding;
   SOP_MEDIA?: R2BucketBinding;
   SOP_ANALYTICS?: AnalyticsEngineBinding;
+  HELPDOCS_API_KEY?: string;
   AI?: {
     run: (model: string, input: unknown) => Promise<unknown>;
   };

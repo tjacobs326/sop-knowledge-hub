@@ -299,7 +299,7 @@ import AppIllustration from "./AppIllustration.astro";
     return params;
   }
 
-  function renderEmptyState(message = "No published SOP matched those answers.") {
+  function renderEmptyState(message = "No SOPs match all of your current selections.") {
     const params = selectedQueryParams();
     const query = params.toString();
     const requestUrl = `/submit/${query ? `?${query}` : ""}`;
@@ -307,7 +307,7 @@ import AppIllustration from "./AppIllustration.astro";
     if (!resultsEl) return;
     resultsEl.innerHTML = `
       <div class="ticket-guide-empty guided-workflow__no-results">
-        <h2>No exact match found</h2>
+        <h2>No SOPs match those answers</h2>
         <p>${escapeHtml(message)}</p>
         <div class="ticket-guide-actions">
           <button class="button button--secondary" type="button" id="guided-finder-change">Change answers</button>
@@ -399,7 +399,7 @@ import AppIllustration from "./AppIllustration.astro";
       setStatus(
         payload.data.results?.length
           ? `${payload.data.results.length} matching SOP${payload.data.results.length === 1 ? "" : "s"} found.`
-          : "No exact match found. Try changing the answers or request a missing SOP.",
+          : "No SOPs match all current selections. Change an answer, search manually, or request a missing SOP.",
         payload.data.results?.length ? "ready" : "error",
       );
       renderResults(payload.data);

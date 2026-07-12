@@ -1,10 +1,10 @@
-import { cacheHeaders, failure, readBody, success } from "../_shared/api";
-import { requireDb } from "../_shared/admin";
-import { getAuthUser } from "../_shared/auth";
-import { type PagesFunctionContext } from "../_shared/cloudflare";
-import { listActiveDepartments, type DepartmentRow } from "../_shared/departments";
-import { resolveRequestedCreatorSubRole } from "../_shared/ownership";
-import { listSopFacets, listSops } from "../_shared/sop-data";
+import { cacheHeaders, failure, readBody, success } from "../../_shared/api";
+import { requireDb } from "../../_shared/admin";
+import { getAuthUser } from "../../_shared/auth";
+import { type PagesFunctionContext } from "../../_shared/cloudflare";
+import { listActiveDepartments, type DepartmentRow } from "../../_shared/departments";
+import { resolveRequestedCreatorSubRole } from "../../_shared/ownership";
+import { listSopFacets, listSops } from "../../_shared/sop-data";
 
 const MODEL = "@cf/meta/llama-3.1-8b-instruct-fast";
 const LOW_CONFIDENCE = 35;

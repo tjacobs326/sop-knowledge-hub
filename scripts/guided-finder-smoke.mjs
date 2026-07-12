@@ -2,7 +2,15 @@ import { readFileSync } from "node:fs";
 
 const files = {
   component: readFileSync("src/components/GuidedFinder.astro", "utf8"),
-  api: readFileSync("functions/api/guided-finder.ts", "utf8"),
+  api: readFileSync("functions/api/guided-finder/index.ts", "utf8"),
+  adaptive: readFileSync("functions/_shared/guided-finder-adaptive.ts", "utf8"),
+  helpdocs: readFileSync("functions/_shared/helpdocs-sync.ts", "utf8"),
+  startApi: readFileSync("functions/api/guided-finder/start.ts", "utf8"),
+  answerApi: readFileSync("functions/api/guided-finder/answer.ts", "utf8"),
+  resultsApi: readFileSync("functions/api/guided-finder/results/[sessionId].ts", "utf8"),
+  helpdocsSyncApi: readFileSync("functions/api/admin/helpdocs/sync.ts", "utf8"),
+  helpdocsStatusApi: readFileSync("functions/api/admin/helpdocs/sync-status.ts", "utf8"),
+  migration: readFileSync("migrations/0014_adaptive_guided_finder_helpdocs.sql", "utf8"),
   styles: readFileSync("src/styles/global.css", "utf8"),
   header: readFileSync("src/components/Header.astro", "utf8"),
   home: readFileSync("src/pages/index.astro", "utf8"),
@@ -21,6 +29,7 @@ const checks = [
   ["component advances to the next question after selecting an answer", files.component.includes("state.stepIndex < state.steps.length - 1") && files.component.includes("state.stepIndex += 1")],
   ["component does not render a guided-step Continue button", !files.component.includes("guided-finder-next") && !files.component.includes(">Continue</button>")],
   ["component does not search before the first answer", Boolean(startGuidedFlowBody) && !startGuidedFlowBody.includes("searchGuidedFinder")],
+  ["component removes premature no-exact-match wording", !files.component.includes("No exact match found")],
   ["component listens for role context changes", files.component.includes("sop-role-context-change")],
   ["component omits the removed left progress rail", !files.component.includes("guided-finder-rail") && !files.component.includes("guided-workflow__rail")],
   ["api returns backend-built steps", files.api.includes("buildGuidedSteps") && files.api.includes("steps,")],
@@ -33,6 +42,12 @@ const checks = [
   ["api verifies AI ranked IDs against candidate set", files.api.includes("candidateSet.has")],
   ["api queries public published SOPs", files.api.includes("publicOnly: true")],
   ["api logs no-result searches without blocking", files.api.includes("logGuidedFinderNoResult")],
+  ["adaptive session APIs are implemented", files.startApi.includes("createGuidedFinderSession") && files.answerApi.includes("updateGuidedFinderSession") && files.resultsApi.includes("readGuidedFinderSession")],
+  ["adaptive questions are selected from current candidates", files.adaptive.includes("nextQuestion") && files.adaptive.includes("optionCounts") && files.adaptive.includes("matchesAnswers")],
+  ["adaptive zero-result state is not used before answers", files.adaptive.includes("Answer a few questions to narrow the available SOPs.") && files.adaptive.includes("No SOPs match all of your current selections.")],
+  ["HelpDocs sync endpoints are admin protected", files.helpdocsSyncApi.includes('requirePermission(context, "Settings")') && files.helpdocsStatusApi.includes('requirePermission(context, "Settings")')],
+  ["HelpDocs sync stores normalized metadata without exposing secrets", files.helpdocs.includes("HELPDOCS_API_KEY") && files.helpdocs.includes("sop_normalized_metadata") && files.helpdocs.includes("helpdocs_sync_runs")],
+  ["adaptive Guided Finder migration is present", files.migration.includes("guided_finder_sessions") && files.migration.includes("sop_normalized_metadata") && files.migration.includes("helpdocs_sync_runs")],
 ];
 
 const failed = checks.filter(([, passed]) => !passed);
