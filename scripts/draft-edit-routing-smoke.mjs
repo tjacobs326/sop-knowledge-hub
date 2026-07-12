@@ -1,0 +1,62 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+const root = resolve(import.meta.dirname, "..");
+const myWorkPage = readFileSync(resolve(root, "src/pages/my-work/index.astro"), "utf8");
+const myDraftsPage = readFileSync(resolve(root, "src/pages/drafts/index.astro"), "utf8");
+const createForm = readFileSync(resolve(root, "src/components/CreateSopForm.astro"), "utf8");
+const myDraftsApi = readFileSync(resolve(root, "functions/api/my-drafts.ts"), "utf8");
+const reviewQueueApi = readFileSync(resolve(root, "functions/api/review-queue.ts"), "utf8");
+const sopDetailApi = readFileSync(resolve(root, "functions/api/sops/[id].ts"), "utf8");
+
+function assert(condition, message) {
+  if (!condition) {
+    throw new Error(message);
+  }
+}
+
+assert(
+  myWorkPage.includes("/create/?edit=draft&id=${encodeURIComponent(item.id)}"),
+  "My Work draft rows must route Edit Draft with the selected draft id.",
+);
+assert(
+  myDraftsPage.includes('href="${escapeHtml(draft.editUrl)}"'),
+  "My Drafts rows must use the backend-provided draft edit URL.",
+);
+assert(
+  myDraftsApi.includes("editUrl: `/create/?edit=draft&id=${encodeURIComponent(id)}`"),
+  "My Drafts API must return edit URLs that include the draft id.",
+);
+assert(
+  reviewQueueApi.includes("editUrl: `/create/?edit=draft&id=${encodeURIComponent(id)}`") ||
+    reviewQueueApi.includes("`/create/?edit=draft&id=${encodeURIComponent(String(row.draftSopId))}`"),
+  "Review Queue API must return edit URLs that include the draft id.",
+);
+assert(
+  createForm.includes("async function loadBackendEditSource(id)") &&
+    createForm.includes("fetch(`/api/sops/${encodeURIComponent(id)}`") &&
+    createForm.includes("fillFormFromSource(data.sop || data)"),
+  "Create SOP form edit mode must fetch and load the selected backend draft.",
+);
+assert(
+  createForm.includes("method: \"PUT\"") &&
+    createForm.includes("fetch(`/api/sops/${encodeURIComponent(currentSop.id)}`"),
+  "Saving an edited draft must update the existing SOP instead of creating a duplicate.",
+);
+assert(
+  createForm.includes('createHeading.textContent = isEdit ? "Edit Draft SOP"') &&
+    createForm.includes('saveDraftButton.textContent = isEdit ? "Save Changes"'),
+  "Edit mode must clearly label the form as editing an existing draft.",
+);
+assert(
+  createForm.includes('const id = params.get("id") ||') &&
+    createForm.includes('editMode !== "draft"'),
+  "Create SOP form must support legacy /create/?edit=<id> links without opening a blank form.",
+);
+assert(
+  sopDetailApi.includes('requirePermission(context, "Edit Drafts")') &&
+    sopDetailApi.includes("requireSopOwnership(context, auth.user!, id)"),
+  "The draft update endpoint must enforce edit permission and SOP ownership.",
+);
+
+console.log("Draft edit routing smoke checks passed.");

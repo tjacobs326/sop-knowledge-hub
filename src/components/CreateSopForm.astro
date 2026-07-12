@@ -132,10 +132,13 @@ const sopTypes = [
 <script>
   // @ts-nocheck
   const form = document.getElementById("create-sop-form");
+  const createHeading = document.getElementById("create-heading");
+  const createDescription = document.getElementById("create-description");
   const errorsEl = document.getElementById("create-errors");
   const confirmation = document.getElementById("create-confirmation");
   const stepContainer = document.getElementById("procedure-steps");
   const publishPermission = document.getElementById("publish-permission");
+  const saveDraftButton = document.getElementById("save-draft");
   const publishButton = document.getElementById("publish-sop");
   const approveButton = document.getElementById("approve-sop");
   const changesButton = document.getElementById("request-changes");
@@ -611,6 +614,19 @@ const sopTypes = [
     confirmation.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
+  function setCreateMode(mode = "create") {
+    const isEdit = mode === "edit";
+    document.body.dataset.sopEditorMode = isEdit ? "edit" : "create";
+    if (createHeading) createHeading.textContent = isEdit ? "Edit Draft SOP" : "Create New SOP";
+    if (createDescription) {
+      createDescription.textContent = isEdit
+        ? "Edit the selected backend draft, save changes, continue later, or submit it for review."
+        : "Create, preview, save, submit, and publish SOP drafts through the backend workflow.";
+    }
+    if (saveDraftButton) saveDraftButton.textContent = isEdit ? "Save Changes" : "Save Draft";
+    if (cancelLink) cancelLink.href = isEdit ? "/drafts/" : "/my-work/";
+  }
+
   async function parseApiResponse(response) {
     const data = await response.json().catch(() => ({}));
     if (!response.ok || data?.success === false) {
@@ -749,12 +765,14 @@ const sopTypes = [
     });
     const data = await parseApiResponse(response);
     fillFormFromSource(data.sop || data);
+    setCreateMode("edit");
   }
 
   async function loadEditSource() {
     const params = new URLSearchParams(window.location.search);
     if (!params.has("edit")) return;
-    const id = params.get("id");
+    const editMode = params.get("edit") || "";
+    const id = params.get("id") || (editMode && editMode !== "draft" && editMode !== "published" ? editMode : "");
     if (id) {
       await loadBackendEditSource(id);
       return;
@@ -763,6 +781,7 @@ const sopTypes = [
       const source = JSON.parse(sessionStorage.getItem(EDIT_SOP_STORAGE_KEY) || "null");
       if (!source) return;
       fillFormFromSource(source);
+      setCreateMode("edit");
     } catch {
       // If edit context is unavailable, start a clean backend draft.
     }
@@ -960,6 +979,7 @@ const sopTypes = [
     }
   });
 
+  setCreateMode("create");
   renderSteps([{}]);
   loadOptions().then(() => loadEditSource()).catch((error) => {
     if (errorsEl) {
