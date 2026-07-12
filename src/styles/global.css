@@ -9421,7 +9421,7 @@ button.home-action-card {
 }
 
 .guided-workflow__choices[data-step-key="task"] {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
 }
 
 .guided-workflow__choice {
@@ -9437,6 +9437,12 @@ button.home-action-card {
   border-radius: 10px;
   background: #ffffff;
   box-shadow: 0 10px 24px rgba(7, 29, 72, 0.035);
+}
+
+.guided-workflow__choice > span:last-child {
+  min-width: 0;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .guided-workflow__choice:hover,
@@ -9499,8 +9505,9 @@ button.home-action-card {
   color: #071d48;
   font-size: clamp(1.02rem, 1.25vw, 1.2rem);
   line-height: 1.25;
-  overflow-wrap: break-word;
-  text-wrap: balance;
+  hyphens: none;
+  overflow-wrap: normal;
+  text-wrap: pretty;
   word-break: normal;
 }
 
@@ -9592,13 +9599,13 @@ button.home-action-card {
   }
 
   .guided-workflow__choices[data-step-key="task"] {
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 13.5rem), 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
   }
 }
 
 @media (min-width: 901px) {
   .guided-workflow__choices[data-step-key="task"] {
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 13.5rem), 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
   }
 }
 
