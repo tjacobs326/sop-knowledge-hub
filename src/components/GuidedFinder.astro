@@ -264,7 +264,9 @@ import AppIllustration from "./AppIllustration.astro";
               data-value="${escapeHtml(option.value)}"
               aria-pressed="${active ? "true" : "false"}"
             >
-              <span class="ticket-guide-choice__icon guided-workflow__choice-mark" aria-hidden="true"></span>
+              <span class="ticket-guide-choice__icon guided-workflow__choice-mark" aria-hidden="true">
+                <img src="/assets/tabler-vocate/tabler-icons/icons/outline/circle-check.svg" alt="" loading="lazy" decoding="async" />
+              </span>
               <span>
                 <strong>${escapeHtml(option.label)}</strong>
                 ${option.hint ? `<small>${escapeHtml(option.hint)}</small>` : ""}

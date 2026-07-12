@@ -5593,34 +5593,27 @@ legend {
 }
 
 .guided-workflow__choice-mark {
-  position: relative;
-  width: 2.7rem;
-  height: 2.7rem;
-  flex: 0 0 2.7rem;
-}
-
-.guided-workflow__choice-mark::before,
-.guided-workflow__choice-mark::after {
-  content: "";
-  position: absolute;
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: 0 0 2.75rem;
+  place-items: center;
+  border: 1px solid #d8e0ed;
   border-radius: 999px;
+  background: #f8fbff;
 }
 
-.guided-workflow__choice-mark::before {
-  inset: 0;
-  background: #eef5ff;
-  border: 2px solid #071d48;
+.guided-workflow__choice-mark img {
+  display: block;
+  width: 1.45rem;
+  height: 1.45rem;
+  object-fit: contain;
 }
 
-.guided-workflow__choice-mark::after {
-  inset: 0.75rem;
-  background: #f97316;
-  box-shadow: 0.8rem -0.8rem 0 -0.35rem #1aa8d5;
-}
-
-.guided-workflow__choice.is-active .guided-workflow__choice-mark::before {
+.guided-workflow__choice.is-active .guided-workflow__choice-mark {
+  border-color: #b84a12;
   background: #fff4df;
-  border-color: #f97316;
+  box-shadow: inset 0 0 0 3px #ffffff;
 }
 
 .guided-workflow__nav {
@@ -9340,6 +9333,7 @@ button.home-action-card {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
+  position: relative;
   overflow: hidden;
   min-height: clamp(5.8rem, 8vw, 7rem);
   gap: clamp(0.75rem, 1.7vw, 1rem);
@@ -9351,17 +9345,63 @@ button.home-action-card {
 }
 
 .guided-workflow__choice:hover,
-.guided-workflow__choice:focus-visible,
-.guided-workflow__choice.is-active {
+.guided-workflow__choice:focus-visible {
   border-color: #f97316;
   background: #fffdfa;
   box-shadow: 0 14px 28px rgba(249, 115, 22, 0.11);
 }
 
+.guided-workflow__choice:focus-visible {
+  outline: 3px solid rgba(184, 74, 18, 0.42);
+  outline-offset: 3px;
+}
+
+.guided-workflow__choice.is-active {
+  border-color: #b84a12;
+  background: #fff7ec;
+  box-shadow: 0 14px 28px rgba(184, 74, 18, 0.14), inset 0 0 0 2px rgba(184, 74, 18, 0.16);
+}
+
+.guided-workflow__choice.is-active::after {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.65rem;
+  padding: 0.18rem 0.48rem;
+  color: #071d48;
+  background: #fff4df;
+  border: 1px solid rgba(184, 74, 18, 0.34);
+  border-radius: 999px;
+  content: "Selected";
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+
 .guided-workflow__choice-mark {
-  width: clamp(2.65rem, 4.5vw, 3.1rem);
-  height: clamp(2.65rem, 4.5vw, 3.1rem);
-  flex-basis: clamp(2.65rem, 4.5vw, 3.1rem);
+  display: grid;
+  width: clamp(2.75rem, 4.5vw, 3.15rem);
+  height: clamp(2.75rem, 4.5vw, 3.15rem);
+  flex: 0 0 clamp(2.75rem, 4.5vw, 3.15rem);
+  place-items: center;
+  border: 1px solid #d8e0ed;
+  border-radius: 999px;
+  background: #f8fbff;
+}
+
+.guided-workflow__choice-mark img {
+  display: block;
+  width: 58%;
+  height: 58%;
+  object-fit: contain;
+}
+
+.guided-workflow__choice.is-active .guided-workflow__choice-mark {
+  border-color: #b84a12;
+  background: #fff4df;
+  box-shadow: inset 0 0 0 3px #ffffff;
+}
+
+.guided-workflow__choice.is-active > span:last-child {
+  padding-right: 4.9rem;
 }
 
 .guided-workflow__choice strong {
