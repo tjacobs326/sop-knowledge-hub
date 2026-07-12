@@ -1,6 +1,6 @@
 <section class="draft-preview sop-document" id="draft-preview" hidden aria-live="polite">
   <div class="sop-document__header">
-    <p class="eyebrow">Draft Preview</p>
+    <p class="eyebrow">Review SOP</p>
     <h2 id="preview-title"></h2>
     <p id="preview-purpose" class="lede"></p>
   </div>
@@ -26,7 +26,10 @@
         <ul id="preview-related"></ul>
       </section>
       <div class="form-actions no-print">
-        <button class="button button--secondary" type="button" data-draft-action="save">
+        <button class="button button--ghost" type="button" data-draft-action="edit">
+          Back to Edit
+        </button>
+        <button class="button button--secondary" id="save-draft" type="button" data-draft-action="save">
           Save Draft
         </button>
         <button class="button button--primary" type="button" data-draft-action="submit">
@@ -34,9 +37,6 @@
         </button>
         <button class="button button--primary" id="publish-sop" type="button" data-draft-action="publish" disabled>
           Publish SOP
-        </button>
-        <button class="button button--ghost" type="button" data-draft-action="clear">
-          Clear Form
         </button>
       </div>
       <div class="confirmation" id="create-confirmation" role="status" hidden></div>

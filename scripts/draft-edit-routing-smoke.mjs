@@ -4,7 +4,9 @@ import { resolve } from "node:path";
 const root = resolve(import.meta.dirname, "..");
 const myWorkPage = readFileSync(resolve(root, "src/pages/my-work/index.astro"), "utf8");
 const myDraftsPage = readFileSync(resolve(root, "src/pages/drafts/index.astro"), "utf8");
+const reviewQueue = readFileSync(resolve(root, "src/components/ReviewQueue.astro"), "utf8");
 const createForm = readFileSync(resolve(root, "src/components/CreateSopForm.astro"), "utf8");
+const draftPreview = readFileSync(resolve(root, "src/components/SopDraftPreview.astro"), "utf8");
 const myDraftsApi = readFileSync(resolve(root, "functions/api/my-drafts.ts"), "utf8");
 const reviewQueueApi = readFileSync(resolve(root, "functions/api/review-queue.ts"), "utf8");
 const sopDetailApi = readFileSync(resolve(root, "functions/api/sops/[id].ts"), "utf8");
@@ -47,6 +49,48 @@ assert(
   createForm.includes('createHeading.textContent = isEdit ? "Edit Draft SOP"') &&
     createForm.includes('saveDraftButton.textContent = isEdit ? "Save Changes"'),
   "Edit mode must clearly label the form as editing an existing draft.",
+);
+assert(
+  createForm.includes('id="review-sop"') &&
+    createForm.includes('data-create-action="preview"') &&
+    createForm.includes(">Review</button>") &&
+    !createForm.includes('data-create-action="save"') &&
+    !createForm.includes('data-create-action="submit"') &&
+    !createForm.includes('data-create-action="publish"'),
+  "Create/Edit SOP form actions must only offer Review and Cancel before backend workflow actions.",
+);
+assert(
+  draftPreview.includes('data-draft-action="edit"') &&
+    draftPreview.includes("Back to Edit") &&
+    !draftPreview.includes("Clear Form"),
+  "The SOP review step must let users return to editing instead of clearing the form.",
+);
+assert(
+  !createForm.includes('data-create-action="approve"') &&
+    !createForm.includes('data-create-action="changes"') &&
+    !createForm.includes('data-create-action="reject"') &&
+    !createForm.includes('id="approve-sop"') &&
+    !createForm.includes('id="request-changes"') &&
+    !createForm.includes('id="reject-sop"'),
+  "Create/Edit SOP must not render reviewer decision actions.",
+);
+assert(
+  draftPreview.includes('id="publish-sop"') &&
+    draftPreview.includes('data-draft-action="publish"') &&
+    createForm.includes('permissions.has("Publish SOPs")') &&
+    createForm.includes('workflow("publish"'),
+  "Create/Edit SOP must expose Publish only on the review step through the backend publish workflow and permission check.",
+);
+assert(
+  reviewQueue.includes('"revision"') &&
+    reviewQueue.includes('"Request Changes"') &&
+    reviewQueue.includes('"approve"') &&
+    reviewQueue.includes('"Approve"') &&
+    reviewQueue.includes('"publish"') &&
+    reviewQueue.includes('"Publish"') &&
+    reviewQueue.includes('"archive"') &&
+    reviewQueue.includes('"Archive"'),
+  "Review decision actions must remain available in the review queue workflow.",
 );
 assert(
   createForm.includes('const id = params.get("id") ||') &&

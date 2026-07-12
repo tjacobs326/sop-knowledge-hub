@@ -212,27 +212,54 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
       <label for="additional-notes">Additional notes</label>
       <textarea id="additional-notes" name="additionalNotes" rows="3"></textarea>
     </div>
-    <div class="form-actions field--full">
-      <button class="button button--primary" type="submit">Submit SOP Request</button>
-      <button class="button button--ghost" type="reset">Clear Form</button>
+    <div class="form-actions form-actions--request-intake field--full">
+      <button class="button button--primary" id="review-request" type="submit">Review</button>
+      <button class="button button--ghost" id="cancel-request" type="button">Cancel</button>
     </div>
     <div class="form-errors field--full" id="request-errors" role="alert" hidden></div>
     <div class="confirmation field--full" id="request-confirmation" role="status" hidden></div>
   </form>
+
+  <section class="request-review-panel" id="request-review-panel" aria-labelledby="request-review-heading" hidden>
+    <div class="dashboard-panel request-review-panel__card">
+      <div class="dashboard-panel__heading">
+        <div>
+          <p class="eyebrow">Review before submitting</p>
+          <h2 id="request-review-heading">Confirm SOP request details</h2>
+        </div>
+      </div>
+      <p class="request-review-panel__intro">
+        Review the information below. Nothing has been submitted yet.
+      </p>
+      <div class="request-review-summary" id="request-review-summary"></div>
+      <div class="form-actions form-actions--request-review">
+        <button class="button button--secondary" id="edit-request" type="button">Back to Edit</button>
+        <button class="button button--primary" id="confirm-request-submit" type="button">Submit SOP Request</button>
+        <button class="button button--ghost" id="cancel-request-review" type="button">Cancel</button>
+      </div>
+    </div>
+  </section>
 </section>
 
 <script is:inline>
   const form = document.getElementById("request-form");
   const errorsEl = document.getElementById("request-errors");
   const confirmationEl = document.getElementById("request-confirmation");
+  const reviewPanel = document.getElementById("request-review-panel");
+  const reviewSummary = document.getElementById("request-review-summary");
+  const editRequestButton = document.getElementById("edit-request");
+  const confirmSubmitButton = document.getElementById("confirm-request-submit");
+  const cancelRequestButton = document.getElementById("cancel-request");
+  const cancelRequestReviewButton = document.getElementById("cancel-request-review");
   const attachmentsInput = document.getElementById("attachments");
   const attachmentFileInput = document.getElementById("attachments-file");
   const attachmentList = document.querySelector("[data-attachment-list]");
   const attachmentPasteTarget = document.querySelector("[data-attachment-paste]");
-  const submitButton = form?.querySelector('button[type="submit"]');
   const categorySelect = document.getElementById("request-category");
 
   const attachments = [];
+  let pendingSubmission = null;
+  let hasUnsavedChanges = false;
 
   const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (character) => {
@@ -357,6 +384,8 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
   function addAttachment(attachment) {
     attachments.push(attachment);
     renderAttachments();
+    hasUnsavedChanges = true;
+    hideReviewStep();
     if (errorsEl) {
       errorsEl.hidden = true;
       errorsEl.innerHTML = "";
@@ -416,6 +445,94 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
     errorsEl.innerHTML = errors.map((error) => `<p>${escapeHtml(error)}</p>`).join("");
 
     return errors.length === 0;
+  }
+
+  function displayValue(value) {
+    if (Array.isArray(value)) return value.length ? value.join(", ") : "Not provided";
+    return value ? String(value) : "Not provided";
+  }
+
+  function renderReviewSummary(submission) {
+    if (!(reviewSummary instanceof HTMLElement)) return;
+    const groups = [
+      {
+        title: "Submission",
+        rows: [
+          ["Submission type", submission.submissionType],
+          ["Requested SOP title", submission.title],
+          ["Priority", submission.priority],
+          ["Desired completion", submission.desiredCompletionDate],
+        ],
+      },
+      {
+        title: "Department and contact",
+        rows: [
+          ["Department", submission.department],
+          ["Submitted by", submission.submittedBy],
+          ["Email", submission.submitterEmail],
+          ["Role or title", submission.submitterRole],
+          ["Best contact", submission.bestContactMethod],
+        ],
+      },
+      {
+        title: "Process details",
+        rows: [
+          ["Category", submission.category],
+          ["System or tool", submission.toolOrSystem],
+          ["Audience", submission.audience],
+          ["Business need", submission.businessNeed],
+          ["Frequency", submission.frequency],
+          ["Purpose", submission.purpose],
+          ["Before you begin", submission.beforeYouBegin],
+          ["Procedure steps", submission.procedureSteps],
+          ["Known issues", submission.knownIssues],
+          ["Related resources", submission.relatedResources],
+          ["Documentation location", submission.documentationLocation],
+          ["Attachments", submission.screenshots],
+          ["Additional notes", submission.additionalNotes],
+        ],
+      },
+    ];
+    reviewSummary.innerHTML = groups
+      .map(
+        (group) => `
+          <section class="request-review-summary__group">
+            <h3>${escapeHtml(group.title)}</h3>
+            <dl>
+              ${group.rows
+                .map(
+                  ([label, value]) => `
+                    <div>
+                      <dt>${escapeHtml(label)}</dt>
+                      <dd>${escapeHtml(displayValue(value))}</dd>
+                    </div>
+                  `,
+                )
+                .join("")}
+            </dl>
+          </section>
+        `,
+      )
+      .join("");
+  }
+
+  function showReviewStep(submission) {
+    pendingSubmission = submission;
+    renderReviewSummary(submission);
+    if (reviewPanel instanceof HTMLElement) reviewPanel.hidden = false;
+    if (confirmationEl instanceof HTMLElement) confirmationEl.hidden = true;
+    reviewPanel?.scrollIntoView({ behavior: "smooth", block: "start" });
+    editRequestButton?.focus({ preventScroll: true });
+  }
+
+  function hideReviewStep() {
+    pendingSubmission = null;
+    if (reviewPanel instanceof HTMLElement) reviewPanel.hidden = true;
+  }
+
+  function cancelRequestFlow() {
+    if (hasUnsavedChanges && !window.confirm("Cancel this SOP request without submitting?")) return;
+    window.location.href = "/";
   }
 
   function buildSubmission() {
@@ -532,15 +649,25 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
     }
   }
 
-  form?.addEventListener("submit", async (event) => {
+  form?.addEventListener("submit", (event) => {
     event.preventDefault();
 
     const submission = buildSubmission();
     if (!validateSubmission(submission)) return;
 
-    if (submitButton instanceof HTMLButtonElement) {
-      submitButton.disabled = true;
-      submitButton.textContent = "Submitting...";
+    showReviewStep(submission);
+  });
+
+  confirmSubmitButton?.addEventListener("click", async () => {
+    const submission = pendingSubmission || buildSubmission();
+    if (!validateSubmission(submission)) {
+      hideReviewStep();
+      return;
+    }
+
+    if (confirmSubmitButton instanceof HTMLButtonElement) {
+      confirmSubmitButton.disabled = true;
+      confirmSubmitButton.textContent = "Submitting...";
     }
 
     try {
@@ -554,6 +681,8 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
       if (attachmentFileInput instanceof HTMLInputElement) {
         attachmentFileInput.value = "";
       }
+      hasUnsavedChanges = false;
+      hideReviewStep();
       confirmationEl.hidden = false;
       confirmationEl.innerHTML = `<strong>Your SOP submission has been saved.</strong><p>Tracking ID: ${escapeHtml(
         backendRequest?.id || submission.id,
@@ -573,12 +702,30 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
         )}</p>`;
       }
     } finally {
-      if (submitButton instanceof HTMLButtonElement) {
-        submitButton.disabled = false;
-        submitButton.textContent = "Submit SOP Request";
+      if (confirmSubmitButton instanceof HTMLButtonElement) {
+        confirmSubmitButton.disabled = false;
+        confirmSubmitButton.textContent = "Submit SOP Request";
       }
     }
   });
+
+  form?.addEventListener("input", () => {
+    hasUnsavedChanges = true;
+    hideReviewStep();
+  });
+
+  form?.addEventListener("change", () => {
+    hasUnsavedChanges = true;
+    hideReviewStep();
+  });
+
+  editRequestButton?.addEventListener("click", () => {
+    hideReviewStep();
+    form?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+
+  cancelRequestButton?.addEventListener("click", cancelRequestFlow);
+  cancelRequestReviewButton?.addEventListener("click", cancelRequestFlow);
 
   attachmentFileInput?.addEventListener("change", (event) => {
     const target = event.target;
@@ -610,12 +757,16 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
 
     attachments.splice(index, 1);
     renderAttachments();
+    hasUnsavedChanges = true;
+    hideReviewStep();
   });
 
   form?.addEventListener("reset", () => {
     window.setTimeout(() => {
       attachments.splice(0, attachments.length);
       renderAttachments();
+      hasUnsavedChanges = false;
+      hideReviewStep();
     }, 0);
   });
 

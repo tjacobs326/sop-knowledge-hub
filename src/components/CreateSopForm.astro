@@ -110,19 +110,12 @@ const sopTypes = [
       <input id="workflow-notes" name="workflowNotes" type="text" placeholder="Reviewer instructions or approval notes" />
     </div>
 
-    <div class="field publish-permission" id="publish-permission" role="status"></div>
     <div class="form-errors field--full" id="create-errors" role="alert" hidden></div>
     <div class="confirmation field--full" id="create-confirmation" role="status" hidden></div>
 
-    <div class="form-actions field--full">
-      <button class="button button--secondary" id="save-draft" type="button" data-create-action="save">Save Draft</button>
-      <button class="button button--primary" id="preview-sop" type="button" data-create-action="preview">Preview</button>
-      <button class="button button--primary" id="submit-review" type="button" data-create-action="submit">Submit for Review</button>
-      <button class="button button--primary" id="publish-sop" type="button" data-create-action="publish" hidden>Publish</button>
-      <button class="button button--secondary" id="approve-sop" type="button" data-create-action="approve" hidden>Approve</button>
-      <button class="button button--secondary" id="request-changes" type="button" data-create-action="changes" hidden>Request Changes</button>
-      <button class="button button--danger" id="reject-sop" type="button" data-create-action="reject" hidden>Reject</button>
-      <a class="button button--ghost" id="cancel-create" href="/my-work/">Cancel</a>
+    <div class="form-actions form-actions--create-sop field--full">
+      <button class="button button--primary" id="review-sop" type="button" data-create-action="preview">Review</button>
+      <a class="button button--secondary" id="cancel-create" href="/my-work/">Cancel</a>
     </div>
   </form>
 </section>
@@ -137,12 +130,8 @@ const sopTypes = [
   const errorsEl = document.getElementById("create-errors");
   const confirmation = document.getElementById("create-confirmation");
   const stepContainer = document.getElementById("procedure-steps");
-  const publishPermission = document.getElementById("publish-permission");
   const saveDraftButton = document.getElementById("save-draft");
   const publishButton = document.getElementById("publish-sop");
-  const approveButton = document.getElementById("approve-sop");
-  const changesButton = document.getElementById("request-changes");
-  const rejectButton = document.getElementById("reject-sop");
   const cancelLink = document.getElementById("cancel-create");
   const SUB_ROLE_KEY = "sopHubSelectedCreatorSubRole";
   const EDIT_SOP_STORAGE_KEY = "sopHubEditSop";
@@ -620,8 +609,8 @@ const sopTypes = [
     if (createHeading) createHeading.textContent = isEdit ? "Edit Draft SOP" : "Create New SOP";
     if (createDescription) {
       createDescription.textContent = isEdit
-        ? "Edit the selected backend draft, save changes, continue later, or submit it for review."
-        : "Create, preview, save, submit, and publish SOP drafts through the backend workflow.";
+        ? "Edit the selected backend draft, review your changes, then save, submit, or publish from the confirmation step."
+        : "Create the SOP details, review them for accuracy, then choose the correct backend workflow action.";
     }
     if (saveDraftButton) saveDraftButton.textContent = isEdit ? "Save Changes" : "Save Draft";
     if (cancelLink) cancelLink.href = isEdit ? "/drafts/" : "/my-work/";
@@ -681,14 +670,7 @@ const sopTypes = [
       const saved = await saveDraft(action === "publish" ? "Published" : "Draft");
       if (!saved) return null;
     }
-    const endpoint =
-      action === "submit"
-        ? "submit-review"
-        : action === "changes"
-          ? "request-changes"
-          : action === "reject"
-            ? "archive"
-            : action;
+    const endpoint = action === "submit" ? "submit-review" : action;
     const response = await fetch(`/api/sops/${encodeURIComponent(currentSop.id)}/${endpoint}`, {
       method: "POST",
       headers: apiHeaders(),
@@ -717,19 +699,11 @@ const sopTypes = [
     if (currentUser?.id) setField("ownerId", currentUser.id);
     const tagList = document.getElementById("tag-options");
     if (tagList) tagList.innerHTML = (options.tags || []).map((tag) => `<option value="${escapeHtml(tag.name)}"></option>`).join("");
-
     const permissions = new Set(currentUser?.permissions || []);
     const canPublish = currentUser?.role === "admin" || permissions.has("Publish SOPs");
-    const canApprove = currentUser?.role === "admin" || permissions.has("Approve SOPs");
-    const canRequestChanges = currentUser?.role === "admin" || permissions.has("Request Changes");
-    if (publishButton) publishButton.hidden = !canPublish;
-    if (approveButton) approveButton.hidden = !canApprove;
-    if (changesButton) changesButton.hidden = !canRequestChanges;
-    if (rejectButton) rejectButton.hidden = !canRequestChanges;
-    if (publishPermission) {
-      publishPermission.innerHTML = canPublish
-        ? `<strong>Publish enabled:</strong> ${escapeHtml(currentUser?.name || "This user")} has publish permission.`
-        : "<strong>Publish disabled:</strong> publish permission is required.";
+    if (publishButton) {
+      publishButton.hidden = !canPublish;
+      publishButton.disabled = !canPublish;
     }
   }
 
@@ -938,12 +912,10 @@ const sopTypes = [
         renderPreview(draft);
         return;
       }
-      if (action === "clear") {
-        if (hasUnsavedChanges && !window.confirm("Clear the form without saving?")) return;
-        form?.reset();
-        currentSop = null;
-        hasUnsavedChanges = false;
-        renderSteps([{}]);
+      if (action === "edit") {
+        const preview = document.getElementById("draft-preview");
+        if (preview) preview.hidden = true;
+        form?.scrollIntoView({ behavior: "smooth", block: "start" });
         return;
       }
       if (action === "save") {
@@ -963,13 +935,8 @@ const sopTypes = [
         const saved = await saveDraft("Draft");
         if (!saved) return;
         await workflow("publish", "Published from Create SOP.");
-        showConfirmation("<strong>SOP published.</strong><p>It will appear in Search SOPs, Categories, Home counts, and role/sub-role SOP lists.</p>");
+        showConfirmation("<strong>SOP published.</strong><p>The backend workflow published the current draft and updated its status history.</p>");
         return;
-      }
-      if (action === "approve" || action === "changes" || action === "reject") {
-        await workflow(action, getField("workflowNotes"));
-        const label = action === "approve" ? "approved" : action === "changes" ? "sent back for changes" : "rejected and archived";
-        showConfirmation(`<strong>SOP ${label}.</strong><p>The backend workflow status has been updated.</p>`);
       }
     } catch (error) {
       if (errorsEl) {
