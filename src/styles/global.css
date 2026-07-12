@@ -8625,8 +8625,14 @@ button.home-action-card {
 
 .home-activity-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
   gap: 1rem;
+}
+
+.home-activity-grid .dashboard-panel:first-child,
+.home-update-grid .dashboard-panel:first-child,
+.home-help-grid .dashboard-panel:first-child {
+  grid-column: auto;
 }
 
 .home-activity-card h3 {
@@ -9364,16 +9370,15 @@ button.home-action-card {
 
 .guided-workflow__choice.is-active::after {
   position: absolute;
-  top: 0.55rem;
+  top: 0.65rem;
   right: 0.65rem;
-  padding: 0.18rem 0.48rem;
-  color: #071d48;
-  background: #fff4df;
-  border: 1px solid rgba(184, 74, 18, 0.34);
+  width: 0.9rem;
+  height: 0.9rem;
+  background: #b84a12;
+  border: 2px solid #ffffff;
   border-radius: 999px;
-  content: "Selected";
-  font-size: 0.7rem;
-  font-weight: 900;
+  box-shadow: 0 0 0 1px rgba(184, 74, 18, 0.42);
+  content: "";
 }
 
 .guided-workflow__choice-mark {
@@ -9400,17 +9405,13 @@ button.home-action-card {
   box-shadow: inset 0 0 0 3px #ffffff;
 }
 
-.guided-workflow__choice.is-active > span:last-child {
-  padding-right: 4.9rem;
-}
-
 .guided-workflow__choice strong {
   max-width: 100%;
   color: #071d48;
   font-size: clamp(1.02rem, 1.25vw, 1.2rem);
   line-height: 1.25;
   overflow-wrap: break-word;
-  text-wrap: pretty;
+  text-wrap: balance;
   word-break: normal;
 }
 
@@ -9494,21 +9495,21 @@ button.home-action-card {
 
 @media (min-width: 1180px) {
   .guided-workflow__choices {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
   }
 
   .guided-workflow__choices[data-step-key="department"] {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
   }
 
   .guided-workflow__choices[data-step-key="task"] {
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 13.5rem), 1fr));
   }
 }
 
 @media (min-width: 901px) {
   .guided-workflow__choices[data-step-key="task"] {
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 13.5rem), 1fr));
   }
 }
 
