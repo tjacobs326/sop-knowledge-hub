@@ -1,14 +1,18 @@
 ---
 import Layout from "../../components/Layout.astro";
+import AppIllustration from "../../components/AppIllustration.astro";
 import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badges";
 ---
 
 <Layout title="My Work" wide>
   <section class="tool-surface" aria-labelledby="my-work-heading">
-    <div class="section-heading">
-      <p class="eyebrow">Workflow Dashboard</p>
-      <h1 id="my-work-heading">My Work</h1>
-      <p>See the requests, drafts, assignments, owned SOPs, reviews, and overdue work tied to the current Creator / Reviewer sub-role.</p>
+    <div class="section-heading surface-intro">
+      <div>
+        <p class="eyebrow">Workflow Dashboard</p>
+        <h1 id="my-work-heading">My Work</h1>
+        <p>See the requests, drafts, assignments, owned SOPs, reviews, and overdue work tied to the current Creator / Reviewer sub-role.</p>
+      </div>
+      <AppIllustration name="work" size="md" />
     </div>
 
     <div class="form-grid work-user-panel">

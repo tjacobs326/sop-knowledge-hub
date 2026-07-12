@@ -1,5 +1,6 @@
 ---
 import type { SopEntry } from "../lib/sops";
+import AppIllustration from "./AppIllustration.astro";
 import { getSopUrl } from "../lib/sops";
 import { formatDate, daysUntil } from "../lib/dates";
 import type { ReviewQueueItem } from "../types";
@@ -47,9 +48,13 @@ const quickLinks = [
 ---
 
 <section class="tool-surface" aria-labelledby="admin-heading">
-  <div class="section-heading">
-    <p class="eyebrow">Admin Dashboard</p>
-    <h1 id="admin-heading">SOP Operations</h1>
+  <div class="section-heading surface-intro">
+    <div>
+      <p class="eyebrow">Admin Dashboard</p>
+      <h1 id="admin-heading">SOP Operations</h1>
+      <p>Monitor SOP volume, review activity, publishing status, and operational health.</p>
+    </div>
+    <AppIllustration name="admin" size="md" />
   </div>
 
   <div class="stat-grid" id="admin-dashboard-stats">

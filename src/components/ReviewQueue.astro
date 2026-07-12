@@ -1,5 +1,6 @@
 ---
 import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../lib/badges";
+import AppIllustration from "./AppIllustration.astro";
 
 interface Props {
   mode?: "queue" | "needs-review";
@@ -38,10 +39,13 @@ const description = isNeedsReviewMode
 ---
 
 <section class="tool-surface review-queue" aria-labelledby="review-heading">
-  <div class="section-heading">
-    <p class="eyebrow">{eyebrow}</p>
-    <h1 id="review-heading">{heading}</h1>
-    <p>{description}</p>
+  <div class="section-heading surface-intro">
+    <div>
+      <p class="eyebrow">{eyebrow}</p>
+      <h1 id="review-heading">{heading}</h1>
+      <p>{description}</p>
+    </div>
+    <AppIllustration name={isNeedsReviewMode ? "needsReview" : "review"} size="md" />
   </div>
 
   <div class="drafts-context" id="review-context" role="status">Loading review queue context...</div>

@@ -1,5 +1,6 @@
 ---
 import Layout from "../../../components/Layout.astro";
+import AppIllustration from "../../../components/AppIllustration.astro";
 import { adminSettings, adminSettingStatusOptions } from "../../../data/platform-config";
 
 // Future access note: restrict this route to admins with Cloudflare Access.
@@ -9,10 +10,13 @@ const statusOptions = adminSettingStatusOptions;
 
 <Layout title="Settings" wide>
   <section class="tool-surface" aria-labelledby="settings-heading">
-    <div class="section-heading">
-      <p class="eyebrow">Admin</p>
-      <h1 id="settings-heading">Settings</h1>
-      <p>Configuration areas for the internal SOP system.</p>
+    <div class="section-heading surface-intro">
+      <div>
+        <p class="eyebrow">Admin</p>
+        <h1 id="settings-heading">Settings</h1>
+        <p>Configuration areas for the internal SOP system.</p>
+      </div>
+      <AppIllustration name="settings" size="md" />
     </div>
 
     <div class="quick-link-grid" id="settings-list">

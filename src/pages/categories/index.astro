@@ -1,6 +1,7 @@
 ---
 import Layout from "../../components/Layout.astro";
 import AppIcon from "../../components/AppIcon.astro";
+import AppIllustration from "../../components/AppIllustration.astro";
 ---
 
 <Layout title="Categories" wide>
@@ -12,19 +13,7 @@ import AppIcon from "../../components/AppIcon.astro";
         <p>Browse live SOP categories from the knowledge hub database.</p>
       </div>
       <div class="categories-hero__visual" aria-hidden="true">
-        <div class="categories-visual">
-          <span class="categories-visual__spark categories-visual__spark--one">+</span>
-          <span class="categories-visual__spark categories-visual__spark--two">+</span>
-          <div class="categories-visual__orbit"></div>
-          <div class="categories-visual__folder"><span></span></div>
-          <div class="categories-visual__paper categories-visual__paper--one"></div>
-          <div class="categories-visual__paper categories-visual__paper--two"></div>
-          <span class="categories-visual__tile categories-visual__tile--book"><AppIcon name="d2l" /></span>
-          <span class="categories-visual__tile categories-visual__tile--users"><AppIcon name="users" /></span>
-          <span class="categories-visual__tile categories-visual__tile--qa"><AppIcon name="qa" /></span>
-          <span class="categories-visual__tile categories-visual__tile--list"><AppIcon name="review" /></span>
-          <div class="categories-visual__plant"><span></span><span></span><span></span></div>
-        </div>
+        <AppIllustration name="categories" size="hero" />
       </div>
     </div>
 

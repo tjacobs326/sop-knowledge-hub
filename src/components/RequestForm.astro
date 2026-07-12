@@ -1,5 +1,6 @@
 ---
 import AppIcon from "./AppIcon.astro";
+import AppIllustration from "./AppIllustration.astro";
 
 const submissionTypes = [
   "Request a new SOP",
@@ -23,28 +24,7 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
       </p>
     </div>
     <div class="submit-request-hero__visual" aria-hidden="true">
-      <div class="submit-visual">
-        <span class="submit-visual__spark submit-visual__spark--left">+</span>
-        <span class="submit-visual__spark submit-visual__spark--right">+</span>
-        <div class="submit-visual__mail">
-          <span></span>
-        </div>
-        <div class="submit-visual__bubble">
-          <span></span><span></span><span></span>
-        </div>
-        <div class="submit-visual__clipboard">
-          <div class="submit-visual__clip"></div>
-          <strong>SOP REQUEST</strong>
-          <span></span>
-          <span></span>
-          <span></span>
-          <span></span>
-        </div>
-        <div class="submit-visual__plus">+</div>
-        <div class="submit-visual__plant">
-          <span></span><span></span><span></span>
-        </div>
-      </div>
+      <AppIllustration name="request" size="hero" />
     </div>
   </div>
 

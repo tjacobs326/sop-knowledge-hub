@@ -59,7 +59,8 @@ img {
 }
 
 .app-icon--tabler,
-.category-art-icon {
+.category-art-icon,
+.app-illustration {
   display: block;
   object-fit: contain;
   flex: 0 0 auto;
@@ -83,6 +84,42 @@ img {
 .app-icon--tabler[data-size="xl"] {
   width: 3rem;
   height: 3rem;
+}
+
+.app-illustration {
+  width: min(100%, 12rem);
+  max-height: 10rem;
+}
+
+.app-illustration[data-size="sm"] {
+  width: min(100%, 7.5rem);
+  max-height: 6rem;
+}
+
+.app-illustration[data-size="lg"] {
+  width: min(100%, 16rem);
+  max-height: 13rem;
+}
+
+.app-illustration[data-size="hero"] {
+  width: min(100%, 20rem);
+  max-height: 17rem;
+}
+
+.surface-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: clamp(1rem, 2.5vw, 2rem);
+}
+
+.surface-intro > div {
+  min-width: 0;
+}
+
+.surface-intro .app-illustration {
+  justify-self: end;
+  opacity: 0.95;
 }
 
 .main-nav__icon,
@@ -111,6 +148,27 @@ img {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.home-browse-panel__icon .app-illustration,
+.home-ask-panel__icon .app-illustration {
+  width: clamp(5.25rem, 8vw, 6.75rem);
+  max-height: clamp(4.5rem, 7vw, 5.75rem);
+}
+
+.search-page-hero__visual,
+.categories-hero__visual,
+.submit-request-hero__visual {
+  display: grid;
+  min-height: clamp(12rem, 22vw, 20.5rem);
+  place-items: center;
+  padding: clamp(1rem, 3vw, 2rem);
+}
+
+.search-page-hero__visual .app-illustration,
+.categories-hero__visual .app-illustration,
+.submit-request-hero__visual .app-illustration {
+  filter: drop-shadow(0 18px 26px rgba(26, 50, 99, 0.10));
 }
 
 .app-icon[data-variant="illustrated"] {
@@ -2638,16 +2696,11 @@ dd {
 
 .empty-state::before {
   display: inline-grid;
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 5.25rem;
+  height: 4.5rem;
   place-items: center;
-  color: var(--color-ink);
-  background: var(--color-linen);
-  border: 1px solid var(--color-dune);
-  border-radius: 999px;
-  content: "i";
-  font-weight: 900;
-  line-height: 1;
+  background: url("/assets/tabler-vocate/tabler-illustrations/illustrations/neutral-info.svg") center / contain no-repeat;
+  content: "";
 }
 
 .empty-state strong {
@@ -2662,10 +2715,19 @@ dd {
   margin: 1rem 0;
 }
 
+.empty-state--search::before {
+  background-image: url("/assets/tabler-vocate/tabler-illustrations/illustrations/not-found.svg");
+}
+
 .empty-state--table {
   margin: 0;
   background: transparent;
   border-style: solid;
+}
+
+.empty-state--table::before {
+  width: 4.5rem;
+  height: 3.75rem;
 }
 
 .form-grid,
@@ -4035,8 +4097,23 @@ legend {
 
 .form-errors,
 .confirmation {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.85rem;
   padding: 0.8rem 1rem;
   border-radius: var(--radius);
+}
+
+.form-errors::before,
+.confirmation::before {
+  display: block;
+  width: 3.6rem;
+  height: 3rem;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  content: "";
 }
 
 .form-errors {
@@ -4045,10 +4122,18 @@ legend {
   border: 1px solid #fecaca;
 }
 
+.form-errors::before {
+  background-image: url("/assets/tabler-vocate/tabler-illustrations/illustrations/error.svg");
+}
+
 .confirmation {
   color: var(--color-success);
   background: #dcfce7;
   border: 1px solid #86efac;
+}
+
+.confirmation::before {
+  background-image: url("/assets/tabler-vocate/tabler-illustrations/illustrations/good-news.svg");
 }
 
 .sop-document__header {
@@ -6056,6 +6141,45 @@ legend {
 }
 
 @media (max-width: 640px) {
+  .surface-intro {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .surface-intro .app-illustration {
+    display: none;
+  }
+
+  .search-page-hero__visual,
+  .categories-hero__visual,
+  .submit-request-hero__visual {
+    min-height: 8rem;
+    padding: 0.85rem;
+  }
+
+  .search-page-hero__visual .app-illustration,
+  .categories-hero__visual .app-illustration,
+  .submit-request-hero__visual .app-illustration {
+    width: min(100%, 10rem);
+    max-height: 8rem;
+  }
+
+  .home-browse-panel__icon .app-illustration,
+  .home-ask-panel__icon .app-illustration {
+    width: 4.8rem;
+    max-height: 4rem;
+  }
+
+  .form-errors,
+  .confirmation {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .form-errors::before,
+  .confirmation::before {
+    width: 3rem;
+    height: 2.5rem;
+  }
+
   .ticket-guide-hero {
     padding: 1.4rem;
     border-radius: 12px;
@@ -9075,9 +9199,11 @@ button.home-action-card {
   height: clamp(4rem, 8vw, 5.6rem);
 }
 
-.guided-workflow__hero-icon .app-icon {
+.guided-workflow__hero-icon .app-icon,
+.guided-workflow__hero-icon .app-illustration {
   width: 72%;
   height: 72%;
+  max-height: 72%;
 }
 
 .guided-workflow .ticket-guide-hero__content {

@@ -1,6 +1,7 @@
 ---
 import Layout from "../components/Layout.astro";
 import AppIcon from "../components/AppIcon.astro";
+import AppIllustration from "../components/AppIllustration.astro";
 ---
 
 <Layout title="Search SOPs" wide>
@@ -44,30 +45,7 @@ import AppIcon from "../components/AppIcon.astro";
         </div>
       </div>
       <div class="search-page-hero__visual" aria-hidden="true">
-        <div class="search-visual">
-          <span class="search-visual__spark search-visual__spark--left">+</span>
-          <span class="search-visual__spark search-visual__spark--right">+</span>
-          <div class="search-visual__document">
-            <span></span>
-            <span></span>
-            <span></span>
-          </div>
-          <div class="search-visual__window">
-            <div class="search-visual__bar"><span></span><span></span><span></span></div>
-            <div class="search-visual__search-line"></div>
-            <div class="search-visual__line search-visual__line--wide"></div>
-            <div class="search-visual__line"></div>
-            <div class="search-visual__line search-visual__line--short"></div>
-          </div>
-          <span class="search-visual__magnifier">
-            <AppIcon name="search" size="xl" />
-          </span>
-          <div class="search-visual__checklist">
-            <span></span>
-            <span></span>
-            <span></span>
-          </div>
-        </div>
+        <AppIllustration name="search" size="hero" />
       </div>
     </div>
 

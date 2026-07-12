@@ -1,0 +1,48 @@
+---
+interface Props {
+  name?: string;
+  label?: string;
+  size?: "sm" | "md" | "lg" | "hero";
+}
+
+const { name = "neutral-info", label, size = "md" } = Astro.props;
+
+const illustrationMap: Record<string, string> = {
+  home: "dart",
+  search: "search",
+  categories: "folders",
+  finder: "map-destination",
+  request: "message",
+  create: "contract",
+  edit: "version-control",
+  drafts: "contract",
+  work: "project",
+  review: "to-do",
+  needsReview: "good-info",
+  ai: "ai",
+  admin: "chart",
+  users: "device-security",
+  permissions: "shield",
+  departments: "building",
+  settings: "device-security",
+  success: "good-news",
+  error: "error",
+  empty: "not-found",
+  info: "neutral-info",
+};
+
+const safeName = illustrationMap[name] ?? name;
+const src = `/assets/tabler-vocate/tabler-illustrations/illustrations/${safeName}.svg`;
+const decorative = !label;
+---
+
+<img
+  class="app-illustration"
+  data-illustration={name}
+  data-size={size}
+  src={src}
+  alt={label ?? ""}
+  aria-hidden={decorative ? "true" : undefined}
+  loading="lazy"
+  decoding="async"
+/>

@@ -1,5 +1,6 @@
 ---
 import Layout from "../../components/Layout.astro";
+import AppIllustration from "../../components/AppIllustration.astro";
 
 const assistActions = [
   {
@@ -42,13 +43,16 @@ const assistActions = [
 
 <Layout title="AI Assist" wide>
   <section class="tool-surface" aria-labelledby="ai-assist-heading">
-    <div class="section-heading">
-      <p class="eyebrow">Controlled AI</p>
-      <h1 id="ai-assist-heading">AI Assist</h1>
-      <p>
-        Use Cloudflare Workers AI for SOP drafting, cleanup, review, and discovery. Every
-        answer is limited to the backend records available to your current role and department.
-      </p>
+    <div class="section-heading surface-intro">
+      <div>
+        <p class="eyebrow">Controlled AI</p>
+        <h1 id="ai-assist-heading">AI Assist</h1>
+        <p>
+          Use Cloudflare Workers AI for SOP drafting, cleanup, review, and discovery. Every
+          answer is limited to the backend records available to your current role and department.
+        </p>
+      </div>
+      <AppIllustration name="ai" size="md" />
     </div>
 
     <div class="analytics-note ai-policy" role="note">

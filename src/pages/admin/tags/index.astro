@@ -1,5 +1,6 @@
 ---
 import Layout from "../../../components/Layout.astro";
+import AppIllustration from "../../../components/AppIllustration.astro";
 
 // Future access note: restrict this route to admins with Cloudflare Access.
 const statusOptions = ["Active", "Needs Review", "Deprecated"];
@@ -7,10 +8,13 @@ const statusOptions = ["Active", "Needs Review", "Deprecated"];
 
 <Layout title="Tags" wide>
   <section class="tool-surface" aria-labelledby="tags-heading">
-    <div class="section-heading">
-      <p class="eyebrow">Admin</p>
-      <h1 id="tags-heading">Tags</h1>
-      <p>Review the tags currently used to organize SOPs.</p>
+    <div class="section-heading surface-intro">
+      <div>
+        <p class="eyebrow">Admin</p>
+        <h1 id="tags-heading">Tags</h1>
+        <p>Review the tags currently used to organize SOPs.</p>
+      </div>
+      <AppIllustration name="categories" size="md" />
     </div>
 
     <div class="form-actions">

@@ -1,15 +1,19 @@
 ---
 import Layout from "../../../components/Layout.astro";
+import AppIllustration from "../../../components/AppIllustration.astro";
 
 // Future access note: restrict this route to admins with Cloudflare Access.
 ---
 
 <Layout title="Admin Categories" wide>
   <section class="tool-surface" aria-labelledby="admin-categories-heading">
-    <div class="section-heading">
-      <p class="eyebrow">Admin</p>
-      <h1 id="admin-categories-heading">Categories</h1>
-      <p>Manage the SOP category structure used across search, finder, and request intake.</p>
+    <div class="section-heading surface-intro">
+      <div>
+        <p class="eyebrow">Admin</p>
+        <h1 id="admin-categories-heading">Categories</h1>
+        <p>Manage the SOP category structure used across search, finder, and request intake.</p>
+      </div>
+      <AppIllustration name="categories" size="md" />
     </div>
 
     <div class="form-actions">

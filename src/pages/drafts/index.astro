@@ -1,14 +1,18 @@
 ---
 import Layout from "../../components/Layout.astro";
+import AppIllustration from "../../components/AppIllustration.astro";
 import { statusBadgeDefinitions } from "../../lib/badges";
 ---
 
 <Layout title="My Drafts" wide>
   <section class="tool-surface" aria-labelledby="drafts-heading">
-    <div class="section-heading">
-      <p class="eyebrow">Creators / Reviewers</p>
-      <h1 id="drafts-heading">My Drafts</h1>
-      <p>Review backend SOP drafts you are allowed to edit, continue, submit, preview, or archive.</p>
+    <div class="section-heading surface-intro">
+      <div>
+        <p class="eyebrow">Creators / Reviewers</p>
+        <h1 id="drafts-heading">My Drafts</h1>
+        <p>Review backend SOP drafts you are allowed to edit, continue, submit, preview, or archive.</p>
+      </div>
+      <AppIllustration name="drafts" size="md" />
     </div>
 
     <div class="form-actions">

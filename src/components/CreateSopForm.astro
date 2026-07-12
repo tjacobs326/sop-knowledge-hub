@@ -1,5 +1,6 @@
 ---
 import SopDraftPreview from "./SopDraftPreview.astro";
+import AppIllustration from "./AppIllustration.astro";
 
 const sopTypes = [
   "Process",
@@ -12,10 +13,13 @@ const sopTypes = [
 ---
 
 <section class="tool-surface" aria-labelledby="create-heading">
-  <div class="section-heading">
-    <p class="eyebrow">Internal Creator Workflow</p>
-    <h1 id="create-heading">Create New SOP</h1>
-    <p id="create-description">Create, preview, save, submit, and publish SOP drafts through the backend workflow.</p>
+  <div class="section-heading surface-intro">
+    <div>
+      <p class="eyebrow">Internal Creator Workflow</p>
+      <h1 id="create-heading">Create New SOP</h1>
+      <p id="create-description">Create, preview, save, submit, and publish SOP drafts through the backend workflow.</p>
+    </div>
+    <AppIllustration name="create" size="md" />
   </div>
 
   <form class="form-grid" id="create-sop-form" novalidate>

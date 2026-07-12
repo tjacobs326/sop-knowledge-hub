@@ -1,5 +1,6 @@
 ---
 import Layout from "../../../components/Layout.astro";
+import AppIllustration from "../../../components/AppIllustration.astro";
 
 // Future access note: restrict this route to admins with Cloudflare Access.
 const permissionOptions = [
@@ -27,10 +28,13 @@ const accessLevels = ["Normal User", "Creator / Reviewer", "Admin"];
 
 <Layout title="Users" wide>
   <section class="tool-surface" aria-labelledby="users-heading">
-    <div class="section-heading">
-      <p class="eyebrow">Admin</p>
-      <h1 id="users-heading">Users</h1>
-      <p>Plan role access and user groups for the SOP Knowledge Hub.</p>
+    <div class="section-heading surface-intro">
+      <div>
+        <p class="eyebrow">Admin</p>
+        <h1 id="users-heading">Users</h1>
+        <p>Plan role access and user groups for the SOP Knowledge Hub.</p>
+      </div>
+      <AppIllustration name="users" size="md" />
     </div>
 
     <div class="quick-link-grid" id="role-list">
