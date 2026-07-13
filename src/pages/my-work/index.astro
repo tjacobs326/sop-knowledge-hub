@@ -266,6 +266,12 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
     return `/review-queue/?review=${encodeURIComponent(reviewId)}&origin=${encodeURIComponent(origin)}`;
   }
 
+  function submittedRequestUrl(item) {
+    const rawId = String(item.id || "");
+    const requestId = rawId.startsWith("request:") ? rawId : `request:${rawId}`;
+    return `/review-queue/?review=${encodeURIComponent(requestId)}&origin=my-work-submitted-requests`;
+  }
+
   function badge(definitions, value, fallbackLabel, fallbackClass, baseClass) {
     const key = String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
     const definition = definitions[key] || {
@@ -430,7 +436,7 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
         (item) => statusBadge(item.status),
         (item) => priorityBadge(item.priority),
         (item) => escapeHtml(formatDateClient(item.updatedDate)),
-        (item) => actionButton(item.url || `/admin/review/?request=${encodeURIComponent(item.id)}`, "Review Request"),
+        (item) => actionButton(submittedRequestUrl(item), "Review Request"),
       ],
       "No backend SOP requests are assigned to this sub-role or selected user.",
     );

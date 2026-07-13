@@ -10,11 +10,14 @@ const reviewQueuePage = readFileSync(resolve(root, "src/pages/review-queue/index
 const adminReviewPage = readFileSync(resolve(root, "src/pages/admin/review.astro"), "utf8");
 const reviewQueue = readFileSync(resolve(root, "src/components/ReviewQueue.astro"), "utf8");
 const reviewApi = readFileSync(resolve(root, "functions/api/review-queue.ts"), "utf8");
+const myWorkApi = readFileSync(resolve(root, "functions/api/my-work.ts"), "utf8");
 
 const failures = [];
 
 for (const fragment of [
   "/review-queue/?review=",
+  "submittedRequestUrl(item)",
+  "my-work-submitted-requests",
   "my-work-reviews-needed",
   "my-work-overdue-reviews",
   "reviewUrl(item",
@@ -34,14 +37,22 @@ if (!adminReviewPage.includes("<ReviewQueue />")) failures.push("Admin review pa
 for (const fragment of [
   'mode?: "admin" | "queue" | "creator-reviewer" | "needs-review"',
   'isCreatorReviewMode',
+  'Review Submitted Request',
+  'my-work-submitted-requests',
+  'My Submitted Requests',
   'Review SOP',
   'my-work-reviews-needed',
   'my-work-overdue-reviews',
+  'detailHref(item)',
   'requestedReviewId',
   'item.id === reviewId',
   '["assign", "convert", "archive"].includes(action)',
 ]) {
   if (!reviewQueue.includes(fragment)) failures.push(`Creator/Reviewer review component behavior is missing: ${fragment}`);
+}
+
+for (const fragment of ["reviewQueueNavTarget", 'origin.startsWith("my-work-") ? "/my-work/" : "/review-queue/"']) {
+  if (!header.includes(fragment)) failures.push(`Origin-aware Review Queue navigation is missing: ${fragment}`);
 }
 
 for (const fragment of [
@@ -51,6 +62,18 @@ for (const fragment of [
   "item.id === requestedReviewId",
 ]) {
   if (!reviewApi.includes(fragment)) failures.push(`Review queue API review-id filtering is missing: ${fragment}`);
+}
+
+for (const fragment of [
+  "`request:${id}`",
+  "origin=my-work-submitted-requests",
+  "/review-queue/?review=",
+]) {
+  if (!myWorkApi.includes(fragment)) failures.push(`My Work API submitted-request routing is missing: ${fragment}`);
+}
+
+if (myWorkApi.includes("url: `/admin/review/?request=")) {
+  failures.push("My Work API still exposes the admin review URL for submitted requests.");
 }
 
 if (failures.length) {

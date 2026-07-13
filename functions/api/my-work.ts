@@ -51,8 +51,9 @@ function normalizeDate(value: unknown) {
 }
 
 function normalizeRequest(row: Record<string, unknown>) {
+  const id = String(row.id || "");
   return {
-    id: row.id,
+    id,
     itemType: "request",
     title: row.title || row.requestedTitle || "Untitled SOP Request",
     status: row.status || "Submitted",
@@ -62,7 +63,7 @@ function normalizeRequest(row: Record<string, unknown>) {
     owner: row.assignedToName || row.assignedDepartment || "Unassigned",
     department: row.assignedDepartment || row.departmentName || "",
     category: row.category || "Uncategorized",
-    url: `/admin/review/?request=${encodeURIComponent(String(row.id || ""))}`,
+    url: `/review-queue/?review=${encodeURIComponent(`request:${id}`)}&origin=my-work-submitted-requests`,
   };
 }
 

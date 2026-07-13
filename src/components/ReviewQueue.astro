@@ -106,6 +106,16 @@ const description = isNeedsReviewMode
   const SUB_ROLE_KEY = "sopHubSelectedCreatorSubRole";
   const DEFAULT_FILTER = isNeedsReviewMode ? "summary:needs-review" : "All";
   const safeOrigins = {
+    "my-work-submitted-requests": {
+      label: "My Submitted Requests",
+      href: "/my-work/?workFilter=submitted#work-section-submitted",
+      breadcrumb: `
+        <li><a href="/">Home</a></li>
+        <li><a href="/my-work/?workFilter=submitted#work-section-submitted">My Work</a></li>
+        <li><a href="/my-work/?workFilter=submitted#work-section-submitted">My Submitted Requests</a></li>
+        <li><span aria-current="page">Review Request</span></li>
+      `,
+    },
     "my-work-reviews-needed": {
       label: "Reviews Needed",
       href: "/my-work/?workFilter=review#work-section-review",
@@ -166,6 +176,11 @@ const description = isNeedsReviewMode
     if (origin && Object.prototype.hasOwnProperty.call(safeOrigins, origin)) return origin;
     return isAdminMode ? "admin-review-queue" : "review-queue";
   }
+
+  function isSubmittedRequestOrigin() {
+    return requestedOrigin() === "my-work-submitted-requests";
+  }
+
   let activeFilter = requestedQueueFilter();
   let queueItems = [];
   let queueCounts = {};
@@ -329,7 +344,15 @@ const description = isNeedsReviewMode
   function actionButton(item, action, label, className = "button--secondary") {
     if (!Array.isArray(item.availableActions) || !item.availableActions.includes(action)) return "";
     if (isCreatorReviewMode && ["assign", "convert", "archive"].includes(action)) return "";
+    if (isSubmittedRequestOrigin() && ["approve", "publish"].includes(action)) return "";
     return `<button class="button ${className}" type="button" data-review-action="${escapeHtml(action)}">${escapeHtml(label)}</button>`;
+  }
+
+  function detailHref(item) {
+    if (isCreatorReviewMode && item.itemType === "request") {
+      return `/review-queue/?review=${encodeURIComponent(item.id)}&origin=${encodeURIComponent(requestedOrigin())}`;
+    }
+    return item.detailUrl || "#";
   }
 
   function renderItem(item) {
@@ -369,7 +392,7 @@ const description = isNeedsReviewMode
               item.reviewerNotes || item.denialReason || "",
             )}</textarea>
           </label>
-          <a class="button button--ghost" href="${escapeHtml(item.detailUrl)}">View Details</a>
+          <a class="button button--ghost" href="${escapeHtml(detailHref(item))}">View Details</a>
           ${
             isCreatorReviewMode
               ? `<a class="button button--ghost" href="${escapeHtml(safeOrigins[requestedOrigin()].href)}">Back to ${escapeHtml(safeOrigins[requestedOrigin()].label)}</a>`
@@ -401,7 +424,13 @@ const description = isNeedsReviewMode
     const subRole = context.selectedSubRole?.label || "selected department";
     const visibleItems = queueItems.filter(filterItem);
     if (contextEl) {
-      const itemWord = visibleItems.length === 1 ? "review" : "reviews";
+      const itemWord = isSubmittedRequestOrigin()
+        ? visibleItems.length === 1
+          ? "submitted request"
+          : "submitted requests"
+        : visibleItems.length === 1
+          ? "review"
+          : "reviews";
       contextEl.textContent = `${visibleItems.length} ${itemWord} loaded for ${user} in ${subRole}.`;
     }
   }
@@ -508,8 +537,9 @@ const description = isNeedsReviewMode
     const heading = document.getElementById("review-heading");
     const breadcrumbs = document.querySelector(".breadcrumbs ol");
     if (isCreatorReviewMode && reviewId) {
-      document.title = "Review SOP | SOP Knowledge Hub";
-      if (heading) heading.textContent = "Review SOP";
+      const isRequest = reviewId.startsWith("request:");
+      document.title = `${isRequest ? "Review Submitted Request" : "Review SOP"} | SOP Knowledge Hub`;
+      if (heading) heading.textContent = isRequest ? "Review Submitted Request" : "Review SOP";
       if (breadcrumbs instanceof HTMLOListElement) breadcrumbs.innerHTML = origin.breadcrumb;
     }
   }

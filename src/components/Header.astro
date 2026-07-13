@@ -224,8 +224,14 @@ const roleClass = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, 
     return "/create/";
   }
 
+  function reviewQueueNavTarget() {
+    if (window.location.pathname !== "/review-queue/") return "";
+    const origin = new URLSearchParams(window.location.search).get("origin") || "";
+    return origin.startsWith("my-work-") ? "/my-work/" : "/review-queue/";
+  }
+
   function applyRouteAwareActiveNav() {
-    const targetHref = sopEditorNavTarget();
+    const targetHref = sopEditorNavTarget() || reviewQueueNavTarget();
     if (!targetHref) return;
     document.querySelectorAll(".main-nav a[aria-current='page']").forEach((link) => {
       link.removeAttribute("aria-current");
