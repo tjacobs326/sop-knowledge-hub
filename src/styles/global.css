@@ -6448,32 +6448,65 @@ legend {
   font-size: 2rem;
 }
 
-.work-summary-card {
-  display: block;
-  min-height: 100%;
+.user-summary {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13.5rem), 1fr));
+  align-items: stretch;
+}
+
+.user-summary .work-summary-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.65rem;
+  min-width: 0;
+  min-height: clamp(7.25rem, 12vw, 8.75rem);
+  padding: clamp(0.95rem, 1.6vw, 1.15rem);
   color: inherit;
   text-decoration: none;
   cursor: pointer;
+  border-left-width: 1px;
+  box-sizing: border-box;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
-.work-summary-card:hover,
-.work-summary-card:focus-visible,
-.work-summary-card[aria-current="true"] {
+.user-summary .work-summary-card span {
+  max-width: 100%;
+  color: var(--color-muted);
+  font-size: clamp(0.88rem, 1.15vw, 1rem);
+  line-height: 1.22;
+  text-wrap: balance;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.user-summary .work-summary-card strong {
+  margin-top: 0;
+  max-width: 100%;
+  font-size: clamp(1.75rem, 3vw, 2.25rem);
+  line-height: 1;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.user-summary .work-summary-card:hover,
+.user-summary .work-summary-card:focus-visible,
+.user-summary .work-summary-card[aria-current="true"] {
   border-color: var(--color-beacon);
   box-shadow: 0 16px 32px rgb(10 31 68 / 0.16);
   transform: translateY(-1px);
 }
 
-.work-summary-card:active {
+.user-summary .work-summary-card:active {
   transform: translateY(0);
 }
 
-.work-summary-card:focus-visible {
+.user-summary .work-summary-card:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--color-kindle), var(--color-white) 35%);
   outline-offset: 3px;
 }
 
-.work-summary-card[aria-current="true"] {
+.user-summary .work-summary-card[aria-current="true"] {
   background: #fffaf2;
 }
 
@@ -6491,6 +6524,16 @@ legend {
 .work-section:focus {
   outline: 3px solid color-mix(in srgb, var(--color-kindle), var(--color-white) 35%);
   outline-offset: 0.35rem;
+}
+
+@media (max-width: 520px) {
+  .user-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .user-summary .work-summary-card {
+    min-height: auto;
+  }
 }
 
 .analytics-note {

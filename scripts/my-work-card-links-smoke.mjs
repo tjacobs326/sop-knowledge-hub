@@ -50,7 +50,15 @@ for (const fragment of ["routeFilters", "filterQueueItems", "Unsupported review 
   if (!reviewApi.includes(fragment)) failures.push(`Missing review API filter validation: ${fragment}`);
 }
 
-for (const fragment of [".work-summary-card:hover", ".work-summary-card:focus-visible", ".work-section:focus"]) {
+for (const fragment of [
+  ".user-summary .work-summary-card:hover",
+  ".user-summary .work-summary-card:focus-visible",
+  ".work-section:focus",
+  "grid-template-columns: repeat(auto-fit, minmax(min(100%, 13.5rem), 1fr))",
+  "font-size: clamp(1.75rem, 3vw, 2.25rem)",
+  "word-break: normal",
+  "@media (max-width: 520px)",
+]) {
   if (!styles.includes(fragment)) failures.push(`Missing accessible card styling: ${fragment}`);
 }
 
