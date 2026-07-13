@@ -140,6 +140,7 @@ const sopTypes = [
   const MAX_ALT_TEXT_LENGTH = 125;
   let options = { currentUser: null, categories: [], users: [], reviewers: [], tags: [] };
   let currentSop = null;
+  let currentFormMode = "create";
   let hasUnsavedChanges = false;
 
   const escapeHtml = (value) =>
@@ -643,9 +644,28 @@ const sopTypes = [
     confirmation.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
+  function renderEditorBreadcrumbs(mode = "create") {
+    const breadcrumbs = document.querySelector(".breadcrumbs ol");
+    if (!(breadcrumbs instanceof HTMLOListElement)) return;
+    if (mode === "edit") {
+      breadcrumbs.innerHTML = `
+        <li><a href="/">Home</a></li>
+        <li><a href="/drafts/">My Drafts</a></li>
+        <li><span aria-current="page">Edit Draft</span></li>
+      `;
+      return;
+    }
+    breadcrumbs.innerHTML = `
+      <li><a href="/">Home</a></li>
+      <li><span aria-current="page">Create SOP</span></li>
+    `;
+  }
+
   function setCreateMode(mode = "create") {
     const isEdit = mode === "edit";
+    currentFormMode = isEdit ? "edit" : "create";
     document.body.dataset.sopEditorMode = isEdit ? "edit" : "create";
+    document.title = isEdit ? "Edit Draft SOP | SOP Knowledge Hub" : "Create New SOP | SOP Knowledge Hub";
     if (createHeading) createHeading.textContent = isEdit ? "Edit Draft SOP" : "Create New SOP";
     if (createDescription) {
       createDescription.textContent = isEdit
@@ -654,6 +674,7 @@ const sopTypes = [
     }
     if (saveDraftButton) saveDraftButton.textContent = isEdit ? "Save Changes" : "Save Draft";
     if (cancelLink) cancelLink.href = isEdit ? "/drafts/" : "/my-work/";
+    renderEditorBreadcrumbs(isEdit ? "edit" : "create");
   }
 
   async function parseApiResponse(response) {
@@ -799,6 +820,11 @@ const sopTypes = [
     } catch {
       // If edit context is unavailable, start a clean backend draft.
     }
+  }
+
+  function initialSopFormMode() {
+    const params = new URLSearchParams(window.location.search);
+    return params.has("edit") || params.has("id") ? "edit" : "create";
   }
 
   form?.addEventListener("input", () => {
@@ -960,7 +986,14 @@ const sopTypes = [
       }
       if (action === "save") {
         const saved = await saveDraft("Draft");
-        if (saved) showConfirmation(`<strong>Draft saved.</strong><p>SOP ID: ${escapeHtml(saved.id)}. It is now available to backend My Work and draft workflows.</p>`);
+        if (saved) {
+          showConfirmation(`<strong>Draft saved.</strong><p>SOP ID: ${escapeHtml(saved.id)}. It is now available to backend My Work and draft workflows.</p>`);
+          if (currentFormMode === "edit") {
+            window.setTimeout(() => {
+              window.location.assign("/drafts/");
+            }, 450);
+          }
+        }
         return;
       }
       if (action === "submit") {
@@ -986,7 +1019,7 @@ const sopTypes = [
     }
   });
 
-  setCreateMode("create");
+  setCreateMode(initialSopFormMode());
   renderSteps([{}]);
   loadOptions().then(() => loadEditSource()).catch((error) => {
     if (errorsEl) {

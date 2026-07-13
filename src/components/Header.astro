@@ -81,6 +81,7 @@ const roleClass = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, 
               {group.items.map((item) => (
                 <a
                   href={item.href}
+                  data-nav-href={item.href}
                   aria-current={isCurrent(item.href) ? "page" : undefined}
                 >
                   <span class="main-nav__icon" aria-hidden="true"><AppIcon name={item.icon} /></span>
@@ -213,4 +214,22 @@ const roleClass = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, 
     sidebar.setAttribute("aria-hidden", "true");
     sidebar.inert = true;
   }
+
+  function sopEditorNavTarget() {
+    if (window.location.pathname !== "/create/") return "";
+    const params = new URLSearchParams(window.location.search);
+    return params.has("edit") || params.has("id") ? "/drafts/" : "/create/";
+  }
+
+  function applyRouteAwareActiveNav() {
+    const targetHref = sopEditorNavTarget();
+    if (!targetHref) return;
+    document.querySelectorAll(".main-nav a[aria-current='page']").forEach((link) => {
+      link.removeAttribute("aria-current");
+    });
+    const target = document.querySelector(`.main-nav a[data-nav-href="${targetHref}"]`);
+    target?.setAttribute("aria-current", "page");
+  }
+
+  applyRouteAwareActiveNav();
 </script>
