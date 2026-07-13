@@ -252,7 +252,7 @@ const description = isNeedsReviewMode
           <div><dt>Submission type</dt><dd>${escapeHtml(item.submissionType)}</dd></div>
           <div><dt>Category</dt><dd>${escapeHtml(item.category)}</dd></div>
           <div><dt>Department</dt><dd>${escapeHtml(item.department || "Not listed")}</dd></div>
-          <div><dt>Owner</dt><dd>${escapeHtml(item.owner || "Unassigned")}</dd></div>
+          <div><dt>${item.itemType === "request" ? "Responsible SOP team" : "Owner"}</dt><dd>${escapeHtml(item.owner || "Unassigned")}</dd></div>
           <div><dt>Submitted by</dt><dd>${escapeHtml(item.submittedBy || "Unknown")}</dd></div>
           <div><dt>Assigned reviewer</dt><dd>${escapeHtml(item.assignedReviewer || "Unassigned")}</dd></div>
           <div><dt>Priority</dt><dd>${priorityBadge(item.priority)}</dd></div>

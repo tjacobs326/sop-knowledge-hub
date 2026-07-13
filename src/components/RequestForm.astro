@@ -130,6 +130,23 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
       </select>
     </div>
     <div class="field">
+      <label for="responsible-sop-team">Responsible SOP team <span aria-hidden="true">*</span></label>
+      <select
+        id="responsible-sop-team"
+        name="assignedReviewerRoleId"
+        required
+        aria-describedby="responsible-sop-team-help responsible-sop-team-error"
+      >
+        <option value="">Loading responsible teams...</option>
+      </select>
+      <p class="field-help" id="responsible-sop-team-help">
+        Select the Creator/Reviewer team that should receive this request.
+      </p>
+      <p class="field-help field-help--error" id="responsible-sop-team-error" hidden>
+        Select the Creator/Reviewer role responsible for this request.
+      </p>
+    </div>
+    <div class="field">
       <label for="audience">Who uses this process?</label>
       <input id="audience" name="audience" type="text" required />
     </div>
@@ -256,6 +273,9 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
   const attachmentList = document.querySelector("[data-attachment-list]");
   const attachmentPasteTarget = document.querySelector("[data-attachment-paste]");
   const categorySelect = document.getElementById("request-category");
+  const responsibleTeamSelect = document.getElementById("responsible-sop-team");
+  const responsibleTeamError = document.getElementById("responsible-sop-team-error");
+  const reviewRequestButton = document.getElementById("review-request");
 
   const attachments = [];
   let pendingSubmission = null;
@@ -449,6 +469,7 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
       ["submitterEmail", "Submitter email is required."],
       ["title", "Requested SOP title is required."],
       ["category", "Category is required."],
+      ["assignedReviewerRoleId", "Select the Creator/Reviewer role responsible for this request."],
       ["audience", "Who uses this process is required."],
       ["businessNeed", "Why this SOP is needed is required."],
       ["priority", "Priority is required."],
@@ -460,6 +481,12 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
 
     if (submission.submitterEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(submission.submitterEmail)) {
       errors.push("Enter a valid submitter email.");
+    }
+
+    const missingResponsibleTeam = !submission.assignedReviewerRoleId;
+    if (responsibleTeamError instanceof HTMLElement) responsibleTeamError.hidden = !missingResponsibleTeam;
+    if (responsibleTeamSelect instanceof HTMLSelectElement) {
+      responsibleTeamSelect.setAttribute("aria-invalid", missingResponsibleTeam ? "true" : "false");
     }
 
     errorsEl.hidden = errors.length === 0;
@@ -484,6 +511,7 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
         rows: [
           ["Submission type", submission.submissionType],
           ["Requested SOP title", submission.title],
+          ["Responsible SOP team", submission.assignedReviewerRoleName],
           ["Priority", submission.priority],
           ["Desired completion", submission.desiredCompletionDate],
         ],
@@ -565,6 +593,10 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
       categorySelect instanceof HTMLSelectElement
         ? categorySelect.selectedOptions[0]
         : null;
+    const selectedResponsibleTeam =
+      responsibleTeamSelect instanceof HTMLSelectElement
+        ? responsibleTeamSelect.selectedOptions[0]
+        : null;
     return {
       id: `sub-${Date.now()}`,
       source: "Outside Department Submission",
@@ -577,6 +609,9 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
       bestContactMethod: getField("bestContactMethod"),
       categoryId: getField("category"),
       category: selectedCategory?.dataset.categoryName || selectedCategory?.textContent?.trim() || "",
+      assignedReviewerRoleId: getField("assignedReviewerRoleId"),
+      assignedReviewerRoleName:
+        selectedResponsibleTeam?.dataset.roleName || selectedResponsibleTeam?.textContent?.trim() || "",
       toolOrSystem: getField("toolOrSystem"),
       audience: getField("audience"),
       businessNeed: getField("businessNeed"),
@@ -631,6 +666,7 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
         documentationLocation: submission.documentationLocation,
         categoryId: submission.categoryId,
         category: submission.category,
+        assignedReviewerRoleId: submission.assignedReviewerRoleId,
         toolOrSystem: submission.toolOrSystem,
         audience: submission.audience,
         bestContactMethod: submission.bestContactMethod,
@@ -670,6 +706,52 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
       categorySelect.innerHTML = `<option value="">Select category</option>${options}`;
     } catch {
       categorySelect.innerHTML = `<option value="">Categories could not load</option>`;
+    }
+  }
+
+  async function loadResponsibleSopTeams() {
+    if (!(responsibleTeamSelect instanceof HTMLSelectElement)) return;
+    responsibleTeamSelect.disabled = true;
+    responsibleTeamSelect.innerHTML = `<option value="">Loading responsible teams...</option>`;
+    if (reviewRequestButton instanceof HTMLButtonElement) reviewRequestButton.disabled = true;
+
+    try {
+      const response = await fetch("/api/creator-reviewer-roles", { headers: { accept: "application/json" } });
+      if (!response.ok) throw new Error("Responsible teams failed to load.");
+      const payload = await response.json();
+      const roles = payload.roles || payload.data?.roles || [];
+      if (!roles.length) {
+        responsibleTeamSelect.innerHTML =
+          `<option value="">No Creator/Reviewer roles are currently available. Contact an administrator.</option>`;
+        if (responsibleTeamError instanceof HTMLElement) {
+          responsibleTeamError.hidden = false;
+          responsibleTeamError.textContent =
+            "No Creator/Reviewer roles are currently available. Contact an administrator.";
+        }
+        return;
+      }
+
+      responsibleTeamSelect.innerHTML = [
+        `<option value="">Select responsible role</option>`,
+        ...roles.map(
+          (role) =>
+            `<option value="${escapeHtml(role.id)}" data-role-name="${escapeHtml(role.name)}" data-department="${escapeHtml(
+              role.department || "",
+            )}">${escapeHtml(role.name)}</option>`,
+        ),
+      ].join("");
+      responsibleTeamSelect.disabled = false;
+      if (responsibleTeamError instanceof HTMLElement) {
+        responsibleTeamError.hidden = true;
+        responsibleTeamError.textContent = "Select the Creator/Reviewer role responsible for this request.";
+      }
+      if (reviewRequestButton instanceof HTMLButtonElement) reviewRequestButton.disabled = false;
+    } catch {
+      responsibleTeamSelect.innerHTML = `<option value="">Responsible teams could not load</option>`;
+      if (responsibleTeamError instanceof HTMLElement) {
+        responsibleTeamError.hidden = false;
+        responsibleTeamError.textContent = "Responsible SOP teams could not load. Refresh or contact an administrator.";
+      }
     }
   }
 
@@ -718,7 +800,10 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
           )}. Status: ${escapeHtml(
             backendRequest?.status || "Submitted",
           )}. Routing: ${escapeHtml(
-            backendRequest?.assignedDepartment || "SOP review queue",
+            backendRequest?.assignedReviewerRoleName ||
+              backendRequest?.ownerSubRole ||
+              backendRequest?.assignedDepartment ||
+              "SOP review queue",
           )}. The SOP team can now review, assign, accept, decline, convert, approve, and publish this request.</p>
         </div>`;
       confirmationEl.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -801,4 +886,5 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
   });
 
   loadRequestCategories();
+  loadResponsibleSopTeams();
 </script>

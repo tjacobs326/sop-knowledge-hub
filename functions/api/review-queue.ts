@@ -234,7 +234,7 @@ function normalizeRequest(row: Record<string, unknown>, user: AuthUser) {
     submissionType: row.requestType || "Request a new SOP",
     category: row.category || "Uncategorized",
     department: row.departmentName || row.assignedDepartment || "",
-    owner: row.assignedDepartment || row.ownerSubRole || "Unassigned",
+    owner: row.ownerSubRole || row.assignedDepartment || "Unassigned",
     submittedBy: row.submittedByName || row.submittedByEmail || "Unknown",
     assignedTo: row.assignedTo || "",
     assignedReviewer: row.assignedToName || row.assignedDepartment || "Unassigned",

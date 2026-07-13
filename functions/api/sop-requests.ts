@@ -37,6 +37,7 @@ interface SopRequestPayload {
   requestNotes?: string;
   category?: string;
   categoryId?: string;
+  assignedReviewerRoleId?: string;
   toolOrSystem?: string;
   audience?: string;
   bestContactMethod?: string;
@@ -199,7 +200,7 @@ async function findAssigneeForRoute(db: D1DatabaseBinding, route: (typeof depart
     .prepare(
       `SELECT users.id, users.name
        FROM users
-       LEFT JOIN user_creator_sub_roles user_sub_roles ON user_sub_roles.user_id = users.id
+       LEFT JOIN user_sub_roles ON user_sub_roles.user_id = users.id
        WHERE users.status = 'Active'
         AND COALESCE(users.is_active, 1) = 1
         AND (
@@ -216,7 +217,43 @@ async function findAssigneeForRoute(db: D1DatabaseBinding, route: (typeof depart
   return row || null;
 }
 
-async function routeRequest(db: D1DatabaseBinding, payload: SopRequestPayload, categoryName: string | null) {
+async function resolveReviewerSubRole(db: D1DatabaseBinding, subRoleId: string) {
+  if (!subRoleId) return null;
+  return await db
+    .prepare(
+      `SELECT id, label, slug, department, team_id AS teamId
+       FROM creator_sub_roles
+       WHERE id = ?
+        AND status = 'Active'
+       LIMIT 1`,
+    )
+    .bind(subRoleId)
+    .first<{ id: string; label: string; slug: string; department: string; teamId: string | null }>();
+}
+
+async function routeRequest(
+  db: D1DatabaseBinding,
+  payload: SopRequestPayload,
+  categoryName: string | null,
+  selectedSubRole?: { id: string; label: string; department: string; teamId: string | null } | null,
+) {
+  if (selectedSubRole) {
+    const route = {
+      department: selectedSubRole.department,
+      subRoleId: selectedSubRole.id,
+      teamId: selectedSubRole.teamId || "",
+      terms: [],
+    };
+    const assignee = await findAssigneeForRoute(db, route);
+    return {
+      ...route,
+      assignedTo: optionalText(payload.assignedTo, 120) || assignee?.id || null,
+      assignedToName: assignee?.name || "",
+      subRoleLabel: selectedSubRole.label,
+      routingReason: `Requester selected ${selectedSubRole.label} as the responsible SOP team.`,
+    };
+  }
+
   const haystack = [
     payload.requestType,
     payload.departmentName,
@@ -234,6 +271,7 @@ async function routeRequest(db: D1DatabaseBinding, payload: SopRequestPayload, c
     ...route,
     assignedTo: optionalText(payload.assignedTo, 120) || assignee?.id || null,
     assignedToName: assignee?.name || "",
+    subRoleLabel: "",
     routingReason: `Matched ${route.department} from request type, department, category, tool, or keywords.`,
   };
 }
@@ -272,7 +310,10 @@ function selectRequests(where = "") {
     sop_requests.assigned_department AS assignedDepartment,
     sop_requests.assigned_team_id AS assignedTeamId,
     sop_requests.owner_sub_role_id AS ownerSubRoleId,
+    sop_requests.owner_sub_role_id AS assignedReviewerRoleId,
     sub_roles.label AS ownerSubRole,
+    sub_roles.label AS assignedReviewerRoleName,
+    sub_roles.department AS assignedReviewerRoleDepartment,
     sop_requests.reviewer_notes AS reviewerNotes,
     sop_requests.denial_reason AS denialReason,
     sop_requests.request_notes AS requestNotes,
@@ -398,7 +439,10 @@ export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
   const submittedByEmail = optionalText(payload?.submittedByEmail, 180);
   const description = optionalText(payload?.description, 8000);
   const category = await resolveCategory(env.DB!, payload || {});
-  const route = await routeRequest(env.DB!, payload || {}, category.name);
+  const assignedReviewerRoleId = optionalText(payload?.assignedReviewerRoleId, 160);
+  const assignedReviewerRole = assignedReviewerRoleId
+    ? await resolveReviewerSubRole(env.DB!, assignedReviewerRoleId)
+    : null;
 
   if (!requestTypes.has(requestType)) fields.requestType = "Choose a valid submission type.";
   if (!requestedTitle) fields.requestedTitle = "Requested title is required.";
@@ -406,9 +450,16 @@ export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
   if (!submittedByName) fields.submittedByName = "Submitted by is required.";
   if (!submittedByEmail || !isEmail(submittedByEmail)) fields.submittedByEmail = "Enter a valid email.";
   if (!description) fields.description = "Description is required.";
+  if (!assignedReviewerRoleId) {
+    fields.assignedReviewerRoleId = "Select the Creator/Reviewer role responsible for this request.";
+  } else if (!assignedReviewerRole) {
+    fields.assignedReviewerRoleId = "Select an active Creator/Reviewer role that can receive SOP requests.";
+  }
   if (Object.keys(fields).length) {
     return failure("VALIDATION_ERROR", "Please correct the highlighted fields.", 400, fields);
   }
+
+  const route = await routeRequest(env.DB!, payload || {}, category.name, assignedReviewerRole);
 
   const now = nowStamp();
   const id = newId("sop-request");
@@ -472,7 +523,13 @@ export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
       "submit_request",
       "sop_request",
       id,
-      JSON.stringify({ requestType, submittedByEmail, assignedDepartment: route.department }),
+      JSON.stringify({
+        requestType,
+        submittedByEmail,
+        assignedDepartment: route.department,
+        assignedReviewerRoleId: route.subRoleId,
+        assignedReviewerRoleName: route.subRoleLabel || assignedReviewerRole?.label || "",
+      }),
       now,
     )
     .run();
@@ -616,7 +673,20 @@ async function updateSopRequest(
   if (action === "close") status = "Closed";
 
   const assignedTo = optionalText(payload.assignedTo, 120) || String(existing.assignedTo || "") || null;
-  const assignedDepartment = optionalText(payload.assignedDepartment, 160) || String(existing.assignedDepartment || "") || null;
+  const assignedReviewerRoleId = optionalText(payload.assignedReviewerRoleId, 160);
+  const assignedReviewerRole = assignedReviewerRoleId ? await resolveReviewerSubRole(db, assignedReviewerRoleId) : null;
+  if (assignedReviewerRoleId && !assignedReviewerRole) {
+    return failure(
+      "VALIDATION_ERROR",
+      "Select an active Creator/Reviewer role that can receive SOP requests.",
+      400,
+      { assignedReviewerRoleId: "Invalid or inactive Creator/Reviewer role." },
+    );
+  }
+  const assignedDepartment =
+    assignedReviewerRole?.department || optionalText(payload.assignedDepartment, 160) || String(existing.assignedDepartment || "") || null;
+  const assignedTeamId = assignedReviewerRole?.teamId || String(existing.assignedTeamId || "") || null;
+  const ownerSubRoleId = assignedReviewerRole?.id || String(existing.ownerSubRoleId || "") || null;
   const priority = priorities.has(String(payload.priority)) ? String(payload.priority) : String(existing.priority || "Medium");
 
   await db
@@ -626,9 +696,12 @@ async function updateSopRequest(
         priority = ?,
         assigned_to = ?,
         assigned_department = ?,
+        assigned_team_id = ?,
+        owner_sub_role_id = ?,
         reviewer_notes = ?,
         denial_reason = ?,
         request_notes = ?,
+        routing_reason = ?,
         draft_sop_id = ?,
         related_sop_id = ?,
         reviewed_at = COALESCE(reviewed_at, ?),
@@ -646,9 +719,14 @@ async function updateSopRequest(
       priority,
       assignedTo,
       assignedDepartment,
+      assignedTeamId,
+      ownerSubRoleId,
       optionalText(payload.reviewerNotes, 6000) || existing.reviewerNotes || "",
       optionalText(payload.denialReason, 3000) || existing.denialReason || "",
       optionalText(payload.requestNotes, 6000) || existing.requestNotes || "",
+      assignedReviewerRole
+        ? `Reassigned to ${assignedReviewerRole.label} by reviewer/admin.`
+        : String(existing.routingReason || ""),
       draftSopId,
       relatedSopId,
       now,
@@ -681,7 +759,14 @@ async function updateSopRequest(
       `INSERT INTO audit_logs (id, action, entity_type, entity_id, details, created_at)
        VALUES (?, ?, ?, ?, ?, ?)`,
     )
-    .bind(newId("audit"), `request_${action}`, "sop_request", id, JSON.stringify({ status, actorId }), now)
+    .bind(
+      newId("audit"),
+      `request_${action}`,
+      "sop_request",
+      id,
+      JSON.stringify({ status, actorId, assignedReviewerRoleId: ownerSubRoleId }),
+      now,
+    )
     .run();
 
   const saved = await db.prepare(`${selectRequests("WHERE sop_requests.id = ?")}`).bind(id).first();
