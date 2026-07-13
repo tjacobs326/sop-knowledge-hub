@@ -383,7 +383,7 @@ async function querySopReviews(db: D1DatabaseBinding, subRole: CreatorSubRole, s
         AND assignments.assignment_type IN ('Reviewer', 'Approver', 'Publisher')
        LEFT JOIN users reviewer ON reviewer.id = assignments.user_id
        WHERE COALESCE(sops.is_active, 1) = 1
-        AND sops.status IN ('In Review', 'Needs Revision', 'Approved', 'Published', 'Archived')
+        AND sops.status IN ('In Review', 'Approved')
         AND (${scopeClauses.join(" OR ")})
         ${userClauses.length ? `AND (${userClauses.join(" OR ")})` : ""}
        GROUP BY sops.id

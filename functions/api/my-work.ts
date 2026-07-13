@@ -287,9 +287,9 @@ async function queryAssignments(db: D1DatabaseBinding, workScope: ResolvedWorkSc
        LEFT JOIN users owner ON owner.id = COALESCE(sops.owner_id, sops.owner_user_id)
        LEFT JOIN creator_sub_roles sub_roles ON sub_roles.id = sops.owner_sub_role_id
        WHERE sop_assignments.status = 'Active'
-        AND sop_assignments.assignment_type IN ('Owner', 'Subject Matter Expert')
+        AND sop_assignments.assignment_type IN ('Reviewer', 'Approver', 'Publisher')
         AND COALESCE(sops.is_active, 1) = 1
-        AND sops.status NOT IN ('Published', 'Archived')
+        AND sops.status IN ('In Review', 'Approved')
         AND ${sopScope.sql}
         AND (${clauses.join(" OR ")})
        ORDER BY sop_assignments.due_at ASC, sops.updated_at DESC
