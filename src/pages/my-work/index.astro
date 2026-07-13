@@ -23,7 +23,7 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
         </select>
       </div>
       <div class="field">
-        <label>Access level</label>
+        <label>Current work scope</label>
         <input id="current-access-level" type="text" readonly value="Loading..." />
       </div>
     </div>
@@ -38,15 +38,15 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
         <strong id="count-drafts">0</strong>
       </article>
       <article class="stat-card">
-        <span>Assigned to me</span>
+        <span>Assigned to team</span>
         <strong id="count-assigned">0</strong>
       </article>
       <article class="stat-card">
-        <span>Need my review</span>
+        <span>Team reviews needed</span>
         <strong id="count-review">0</strong>
       </article>
       <article class="stat-card">
-        <span>Overdue reviews</span>
+        <span>Team overdue reviews</span>
         <strong id="count-overdue">0</strong>
       </article>
     </div>
@@ -175,7 +175,7 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
   const currentAccessLevel = document.getElementById("current-access-level");
   const tableIds = ["submitted-list", "draft-list", "assigned-list", "owned-list", "review-list", "overdue-list"];
   let activeRequestId = 0;
-  let selectedUserId = "";
+  let selectedScope = "";
 
   function readJson(id, fallback) {
     const element = document.getElementById(id);
@@ -271,22 +271,39 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
     });
   }
 
-  function renderUserOptions(users, selectedUser) {
+  function parseScopeValue(value) {
+    const raw = String(value || "");
+    if (raw.startsWith("user:")) {
+      return { scope: "user", userId: raw.slice(5) };
+    }
+    return { scope: raw || "team", userId: "" };
+  }
+
+  function currentScopeValue(context) {
+    if (context?.workScope === "user" && context?.selectedUser?.id) {
+      return `user:${context.selectedUser.id}`;
+    }
+    return context?.workScope || "team";
+  }
+
+  function renderUserOptions(payload) {
     if (!(currentUserSelect instanceof HTMLSelectElement)) return;
-    if (!users.length) {
-      currentUserSelect.innerHTML = `<option value="">No backend users for this sub-role</option>`;
-      selectedUserId = "";
+    const context = payload.context || {};
+    const scopes = payload.viewOptions?.scopes || [];
+    if (!scopes.length) {
+      currentUserSelect.innerHTML = `<option value="">No authorized work scopes</option>`;
+      selectedScope = "";
       return;
     }
 
-    const nextSelectedId = selectedUser?.id || users[0]?.id || "";
-    selectedUserId = nextSelectedId;
-    currentUserSelect.innerHTML = users
+    const nextSelectedScope = currentScopeValue(context);
+    selectedScope = nextSelectedScope;
+    currentUserSelect.innerHTML = scopes
       .map(
-        (user) =>
-          `<option value="${escapeHtml(user.id)}" ${user.id === nextSelectedId ? "selected" : ""}>${escapeHtml(
-            user.name,
-          )} - ${escapeHtml(user.department || user.title || "Creator / Reviewer")}</option>`,
+        (scope) =>
+          `<option value="${escapeHtml(scope.id)}" ${scope.id === nextSelectedScope ? "selected" : ""}>${escapeHtml(
+            scope.label,
+          )}</option>`,
       )
       .join("");
   }
@@ -295,18 +312,17 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
     const counts = payload.counts || {};
     const sections = payload.sections || {};
     const context = payload.context || {};
-    const users = payload.viewOptions?.users || [];
-    const selectedUser = context.selectedUser || users[0] || null;
 
-    renderUserOptions(users, selectedUser);
+    renderUserOptions(payload);
     if (currentAccessLevel instanceof HTMLInputElement) {
-      currentAccessLevel.value = context.accessLevel || selectedUser?.accessLevel || "Creator / Reviewer";
+      currentAccessLevel.value = context.workScopeLabel || context.accessLevel || "Creator / Reviewer";
+      currentAccessLevel.title = context.workScopeDescription || "";
     }
 
     setCount("count-submitted", counts.submittedRequests);
     setCount("count-drafts", counts.draftSops);
-    setCount("count-assigned", counts.assignedToMe);
-    setCount("count-review", counts.needMyReview);
+    setCount("count-assigned", counts.assignedToTeam ?? counts.assignedToMe);
+    setCount("count-review", counts.teamReviewsNeeded ?? counts.needMyReview);
     setCount("count-overdue", counts.overdueReviews);
 
     renderRows(
@@ -329,7 +345,7 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
         (item) => escapeHtml(item.title),
         (item) => statusBadge(item.status),
         (item) => escapeHtml(formatDateClient(item.reviewDate)),
-        (item) => actionButton(`/create/?edit=draft&id=${encodeURIComponent(item.id)}`, "Edit Draft"),
+        (item) => actionButton(item.editUrl || `/create/?edit=draft&id=${encodeURIComponent(item.id)}`, "Edit Draft"),
       ],
       "No backend draft SOPs are owned by this sub-role or selected user.",
     );
@@ -391,7 +407,13 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
     const requestId = ++activeRequestId;
     const subRole = localStorage.getItem(SUB_ROLE_KEY) || "";
     const params = new URLSearchParams();
-    if (preserveUser && selectedUserId) params.set("userId", selectedUserId);
+    if (preserveUser && selectedScope) {
+      const parsedScope = parseScopeValue(selectedScope);
+      params.set("scope", parsedScope.scope);
+      if (parsedScope.userId) params.set("userId", parsedScope.userId);
+    } else {
+      params.set("scope", "team");
+    }
     if (subRole) params.set("subRole", subRole);
 
     clearDashboard();
@@ -421,14 +443,14 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
   }
 
   currentUserSelect?.addEventListener("change", () => {
-    selectedUserId = currentUserSelect instanceof HTMLSelectElement ? currentUserSelect.value : "";
+    selectedScope = currentUserSelect instanceof HTMLSelectElement ? currentUserSelect.value : "";
     loadMyWork({ preserveUser: true });
   });
 
   window.addEventListener(ROLE_CONTEXT_EVENT, (event) => {
     const detail = event instanceof CustomEvent ? event.detail || {} : {};
     if (detail.previousSubRole !== detail.subRole || detail.previousRole !== detail.role) {
-      selectedUserId = "";
+      selectedScope = "";
       loadMyWork();
     }
   });

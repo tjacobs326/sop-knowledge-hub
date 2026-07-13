@@ -1,17 +1,8 @@
-import { cacheHeaders, failure, optionalText } from "../_shared/api";
+import { cacheHeaders } from "../_shared/api";
 import { requireDb } from "../_shared/admin";
 import { hasPermission, requirePermission } from "../_shared/auth";
 import { type D1DatabaseBinding, type PagesFunctionContext } from "../_shared/cloudflare";
-import { resolveRequestedCreatorSubRole, type CreatorSubRole } from "../_shared/ownership";
-
-interface DraftUser {
-  id: string;
-  name: string;
-  email: string;
-  accessLevel: string;
-  department?: string | null;
-  teamId?: string | null;
-}
+import { resolveCreatorWorkScope, subRoleSopScopeClause, type ResolvedWorkScope } from "../_shared/work-scope";
 
 function normalizeDate(value: unknown) {
   if (!value) return "";
@@ -46,85 +37,18 @@ function normalizeDraft(row: Record<string, unknown>) {
   };
 }
 
-async function fallbackSubRole(db: D1DatabaseBinding) {
-  return await db
-    .prepare(
-      `SELECT id, label, slug, department, team_id AS teamId
-       FROM creator_sub_roles
-       WHERE status = 'Active'
-       ORDER BY sort_order ASC, label ASC
-       LIMIT 1`,
-    )
-    .first<CreatorSubRole>();
-}
-
-async function usersForSubRole(db: D1DatabaseBinding, subRole: CreatorSubRole) {
-  const result = await db
-    .prepare(
-      `SELECT DISTINCT
-        users.id,
-        users.name,
-        users.email,
-        users.access_level AS accessLevel,
-        users.department,
-        users.team_id AS teamId
-       FROM users
-       LEFT JOIN user_sub_roles ON user_sub_roles.user_id = users.id
-       WHERE users.status = 'Active'
-        AND COALESCE(users.is_active, 1) = 1
-        AND users.access_level IN ('Creator / Reviewer', 'Admin')
-        AND (
-          user_sub_roles.sub_role_id = ?
-          OR users.team_id = ?
-          OR users.department = ?
-        )
-       ORDER BY users.name ASC`,
-    )
-    .bind(subRole.id, subRole.teamId || "", subRole.department)
-    .all<DraftUser>();
-  return result.results || [];
-}
-
 async function resolveDraftContext(db: D1DatabaseBinding, context: PagesFunctionContext) {
   const auth = await requirePermission(context, "Edit Drafts");
   if (auth.response || !auth.user) return { response: auth.response, user: auth.user, subRole: null };
-
-  if (auth.user.role === "normal") {
-    return {
-      response: failure("FORBIDDEN", "My Drafts is available to Creator / Reviewer and Admin users.", 403),
-      user: auth.user,
-      subRole: null,
-    };
-  }
-
-  const requested = await resolveRequestedCreatorSubRole(db, context.request);
-  const subRole = requested || auth.user.selectedSubRole || (auth.user.role === "admin" ? await fallbackSubRole(db) : null);
-  if (!subRole) {
-    return {
-      response: failure("SUB_ROLE_REQUIRED", "Select a Creator / Reviewer department before viewing drafts.", 400),
-      user: auth.user,
-      subRole: null,
-    };
-  }
-
-  if (auth.user.role === "creator" && !auth.user.subRoles.some((item) => item.id === subRole.id)) {
-    return {
-      response: failure("FORBIDDEN", "Your account is not assigned to this Creator / Reviewer department.", 403),
-      user: auth.user,
-      subRole: null,
-    };
-  }
-
-  return { response: null, user: auth.user, subRole };
+  return resolveCreatorWorkScope(db, context);
 }
 
-async function queryDrafts(db: D1DatabaseBinding, subRole: CreatorSubRole, selectedUser: DraftUser | null) {
-  const scopeClauses = ["sops.owner_sub_role_id = ?"];
-  const scopeValues: unknown[] = [subRole.id];
-  if (subRole.teamId) {
-    scopeClauses.push("sops.owner_team_id = ?");
-    scopeValues.push(subRole.teamId);
-    scopeClauses.push(
+async function queryDrafts(db: D1DatabaseBinding, workScope: ResolvedWorkScope) {
+  const scope = subRoleSopScopeClause("sops", workScope.subRole);
+  const clauses: string[] = [];
+  const values: unknown[] = [...scope.values];
+  if (workScope.scope === "team" && workScope.subRole.teamId) {
+    clauses.push(
       `EXISTS (
         SELECT 1 FROM sop_assignments team_assignments
         WHERE team_assignments.sop_id = sops.id
@@ -132,17 +56,14 @@ async function queryDrafts(db: D1DatabaseBinding, subRole: CreatorSubRole, selec
           AND team_assignments.team_id = ?
       )`,
     );
-    scopeValues.push(subRole.teamId);
+    values.push(workScope.subRole.teamId);
   }
-
-  const userClauses: string[] = [];
-  const userValues: unknown[] = [];
-  if (selectedUser?.id) {
-    userClauses.push("COALESCE(sops.owner_id, sops.owner_user_id) = ?");
-    userValues.push(selectedUser.id);
-    userClauses.push("sops.created_by_user_id = ?");
-    userValues.push(selectedUser.id);
-    userClauses.push(
+  if (workScope.selectedUser?.id) {
+    clauses.push("COALESCE(sops.owner_id, sops.owner_user_id) = ?");
+    values.push(workScope.selectedUser.id);
+    clauses.push("sops.created_by_user_id = ?");
+    values.push(workScope.selectedUser.id);
+    clauses.push(
       `EXISTS (
         SELECT 1 FROM sop_assignments user_assignments
         WHERE user_assignments.sop_id = sops.id
@@ -150,8 +71,11 @@ async function queryDrafts(db: D1DatabaseBinding, subRole: CreatorSubRole, selec
           AND user_assignments.user_id = ?
       )`,
     );
-    userValues.push(selectedUser.id);
+    values.push(workScope.selectedUser.id);
   }
+  const scopeFilter = clauses.length
+    ? `(${scope.sql}) AND (${clauses.join(" OR ")})`
+    : scope.sql;
 
   const result = await db
     .prepare(
@@ -185,14 +109,13 @@ async function queryDrafts(db: D1DatabaseBinding, subRole: CreatorSubRole, selec
        LEFT JOIN users owner ON owner.id = COALESCE(sops.owner_id, sops.owner_user_id)
        LEFT JOIN creator_sub_roles sub_roles ON sub_roles.id = sops.owner_sub_role_id
        WHERE COALESCE(sops.is_active, 1) = 1
-        AND sops.status IN ('Draft', 'Needs Revision', 'In Review', 'Approved')
-        AND (${scopeClauses.join(" OR ")})
-        ${userClauses.length ? `AND (${userClauses.join(" OR ")})` : ""}
+        AND sops.status IN ('Draft', 'Needs Revision')
+        AND ${scopeFilter}
        GROUP BY sops.id
        ORDER BY sops.updated_at DESC, sops.title ASC
        LIMIT 150`,
     )
-    .bind(...scopeValues, ...userValues)
+    .bind(...values)
     .all<Record<string, unknown>>();
 
   return (result.results || []).map(normalizeDraft);
@@ -206,15 +129,7 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
   const resolved = await resolveDraftContext(db, context);
   if (resolved.response || !resolved.subRole || !resolved.user) return resolved.response;
 
-  const users = await usersForSubRole(db, resolved.subRole);
-  const url = new URL(context.request.url);
-  const requestedUserId = optionalText(url.searchParams.get("userId"), 160);
-  const selectedUser =
-    users.find((user) => user.id === requestedUserId) ||
-    users.find((user) => user.id === resolved.user?.id) ||
-    users[0] ||
-    null;
-  const drafts = await queryDrafts(db, resolved.subRole, selectedUser);
+  const drafts = await queryDrafts(db, resolved);
 
   return new Response(
     JSON.stringify({
@@ -222,12 +137,30 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
       data: {
         context: {
           role: resolved.user.role,
-          accessLevel: selectedUser?.accessLevel || resolved.user.accessLevel,
-          selectedUser,
+          accessLevel: resolved.selectedUser?.accessLevel || resolved.user.accessLevel,
+          selectedUser: resolved.selectedUser,
           selectedSubRole: resolved.subRole,
+          workScope: resolved.scope,
+          workScopeLabel: resolved.label,
+          workScopeDescription: resolved.description,
           canArchive: hasPermission(resolved.user, "Archive SOPs"),
         },
-        viewOptions: { users, subRoles: [resolved.subRole] },
+        viewOptions: {
+          users: resolved.users,
+          subRoles: [resolved.subRole],
+          scopes: [
+            {
+              id: "team",
+              label: `Team Queue - ${resolved.subRole.department}`,
+              description: `Team drafts assigned to ${resolved.subRole.label}.`,
+            },
+            {
+              id: "mine",
+              label: "My personal drafts",
+              description: "Drafts directly assigned to or owned by me.",
+            },
+          ],
+        },
         counts: { drafts: drafts.length },
         drafts,
       },

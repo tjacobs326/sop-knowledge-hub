@@ -1,18 +1,12 @@
-import { failure, optionalText, success } from "../_shared/api";
+import { success } from "../_shared/api";
 import { requireDb } from "../_shared/admin";
-import { getAuthUser } from "../_shared/auth";
 import { type D1DatabaseBinding, type PagesFunctionContext } from "../_shared/cloudflare";
-import { resolveRequestedCreatorSubRole, type CreatorSubRole } from "../_shared/ownership";
-
-interface WorkUser {
-  id: string;
-  name: string;
-  email: string;
-  title?: string | null;
-  department?: string | null;
-  teamId?: string | null;
-  accessLevel: string;
-}
+import {
+  resolveCreatorWorkScope,
+  subRoleRequestScopeClause,
+  subRoleSopScopeClause,
+  type ResolvedWorkScope,
+} from "../_shared/work-scope";
 
 const requestWorkflowColumns: Record<string, string> = {
   category_id: "TEXT",
@@ -28,6 +22,7 @@ const requestWorkflowColumns: Record<string, string> = {
   routing_reason: "TEXT",
   draft_sop_id: "TEXT",
   related_sop_id: "TEXT",
+  submitted_by_user_id: "TEXT",
   submitted_at: "INTEGER",
   reviewed_at: "INTEGER",
   assigned_at: "INTEGER",
@@ -71,8 +66,9 @@ function normalizeRequest(row: Record<string, unknown>) {
 }
 
 function normalizeSop(row: Record<string, unknown>) {
+  const id = String(row.id || "");
   return {
-    id: row.id,
+    id,
     title: row.title || "Untitled SOP",
     category: row.category || "Uncategorized",
     status: row.status || "Draft",
@@ -84,6 +80,7 @@ function normalizeSop(row: Record<string, unknown>) {
     ownerDepartment: row.ownerDepartment || "",
     assignmentType: row.assignmentType || "",
     url: detailUrl(row),
+    editUrl: `/create/?edit=draft&id=${encodeURIComponent(id)}`,
   };
 }
 
@@ -101,16 +98,6 @@ function normalizeReview(row: Record<string, unknown>) {
   };
 }
 
-function scopeClause(alias: string, subRole: CreatorSubRole) {
-  const clauses = [`${alias}.owner_sub_role_id = ?`];
-  const values: unknown[] = [subRole.id];
-  if (subRole.teamId) {
-    clauses.push(`${alias}.owner_team_id = ?`);
-    values.push(subRole.teamId);
-  }
-  return { sql: `(${clauses.join(" OR ")})`, values };
-}
-
 async function ensureRequestWorkflowSchema(db: D1DatabaseBinding) {
   const info = await db.prepare("PRAGMA table_info(sop_requests)").all<{ name: string }>();
   const existing = new Set((info.results || []).map((row) => row.name));
@@ -121,92 +108,21 @@ async function ensureRequestWorkflowSchema(db: D1DatabaseBinding) {
   }
 }
 
-async function usersForSubRole(db: D1DatabaseBinding, subRole: CreatorSubRole) {
-  const result = await db
-    .prepare(
-      `SELECT DISTINCT
-        users.id,
-        users.name,
-        users.email,
-        users.title,
-        users.department,
-        users.team_id AS teamId,
-        users.access_level AS accessLevel
-       FROM users
-       LEFT JOIN user_sub_roles ON user_sub_roles.user_id = users.id
-       WHERE users.status = 'Active'
-        AND COALESCE(users.is_active, 1) = 1
-        AND users.access_level IN ('Creator / Reviewer', 'Admin')
-        AND (
-          user_sub_roles.sub_role_id = ?
-          OR users.department = ?
-          OR users.team_id = ?
-        )
-       ORDER BY users.name ASC`,
-    )
-    .bind(subRole.id, subRole.department, subRole.teamId || "")
-    .all<WorkUser>();
-
-  return result.results || [];
-}
-
-async function fallbackSubRole(db: D1DatabaseBinding) {
-  const row = await db
-    .prepare(
-      `SELECT id, label, slug, department, team_id AS teamId
-       FROM creator_sub_roles
-       WHERE status = 'Active'
-       ORDER BY sort_order ASC, label ASC
-       LIMIT 1`,
-    )
-    .first<CreatorSubRole>();
-  return row || null;
-}
-
-async function resolveWorkContext(db: D1DatabaseBinding, context: PagesFunctionContext) {
-  const user = await getAuthUser(context);
-  if (user?.role === "normal") {
-    return {
-      response: failure("FORBIDDEN", "My Work is available to Creator / Reviewer and Admin users.", 403),
-      user,
-      subRole: null,
-    };
+async function querySubmittedRequests(db: D1DatabaseBinding, workScope: ResolvedWorkScope) {
+  const scope = subRoleRequestScopeClause("sop_requests", workScope.subRole);
+  const personalClauses: string[] = [];
+  const values: unknown[] = [...scope.values];
+  if (workScope.selectedUser?.email) {
+    personalClauses.push("lower(sop_requests.submitted_by_email) = lower(?)");
+    values.push(workScope.selectedUser.email);
   }
-
-  const requested = await resolveRequestedCreatorSubRole(db, context.request);
-  const authSelected = user?.selectedSubRole || null;
-  const subRole = requested || authSelected || (user?.role === "admin" ? await fallbackSubRole(db) : null);
-
-  if (!subRole) {
-    return {
-      response: failure("SUB_ROLE_REQUIRED", "Select a Creator / Reviewer department before viewing My Work.", 400),
-      user,
-      subRole: null,
-    };
+  if (workScope.selectedUser?.id) {
+    personalClauses.push("sop_requests.submitted_by_user_id = ?");
+    values.push(workScope.selectedUser.id);
   }
-
-  if (user?.role === "creator" && !user.subRoles.some((item) => item.id === subRole.id)) {
-    return {
-      response: failure("FORBIDDEN", "Your account is not assigned to this Creator / Reviewer department.", 403),
-      user,
-      subRole: null,
-    };
-  }
-
-  return { response: null, user, subRole };
-}
-
-async function querySubmittedRequests(db: D1DatabaseBinding, subRole: CreatorSubRole, selectedUser: WorkUser | null) {
-  const clauses = [
-    "sop_requests.owner_sub_role_id = ?",
-    "sop_requests.assigned_department = ?",
-    "sop_requests.assigned_team_id = ?",
-  ];
-  const values: unknown[] = [subRole.id, subRole.department, subRole.teamId || ""];
-  if (selectedUser?.email) {
-    clauses.push("lower(sop_requests.submitted_by_email) = lower(?)");
-    values.push(selectedUser.email);
-  }
+  const scopeFilter = workScope.selectedUser && personalClauses.length
+    ? `(${scope.sql}) AND (${personalClauses.join(" OR ")})`
+    : scope.sql;
 
   const result = await db
     .prepare(
@@ -225,7 +141,8 @@ async function querySubmittedRequests(db: D1DatabaseBinding, subRole: CreatorSub
         sop_requests.updated_at AS updatedAt
        FROM sop_requests
        LEFT JOIN users assignee ON assignee.id = sop_requests.assigned_to
-       WHERE ${clauses.map((clause) => `(${clause})`).join(" OR ")}
+       WHERE ${scopeFilter}
+        AND sop_requests.status NOT IN ('Published', 'Closed', 'Declined', 'Rejected', 'Archived', 'Cancelled')
        ORDER BY sop_requests.updated_at DESC
        LIMIT 100`,
     )
@@ -235,10 +152,24 @@ async function querySubmittedRequests(db: D1DatabaseBinding, subRole: CreatorSub
   return (result.results || []).map(normalizeRequest);
 }
 
-async function queryDraftSops(db: D1DatabaseBinding, subRole: CreatorSubRole, selectedUser: WorkUser | null) {
-  const scope = scopeClause("sops", subRole);
-  const userClause = selectedUser?.id ? "AND (COALESCE(sops.owner_id, sops.owner_user_id) = ? OR sops.created_by_user_id = ? OR ? = '')" : "";
-  const values = selectedUser?.id ? [...scope.values, selectedUser.id, selectedUser.id, selectedUser.id] : scope.values;
+async function queryDraftSops(db: D1DatabaseBinding, workScope: ResolvedWorkScope) {
+  const scope = subRoleSopScopeClause("sops", workScope.subRole);
+  const personalClauses: string[] = [];
+  const values: unknown[] = [...scope.values];
+  if (workScope.selectedUser?.id) {
+    personalClauses.push("COALESCE(sops.owner_id, sops.owner_user_id) = ?");
+    personalClauses.push("sops.created_by_user_id = ?");
+    personalClauses.push(`EXISTS (
+      SELECT 1 FROM sop_assignments user_assignments
+      WHERE user_assignments.sop_id = sops.id
+       AND user_assignments.status = 'Active'
+       AND user_assignments.user_id = ?
+    )`);
+    values.push(workScope.selectedUser.id, workScope.selectedUser.id, workScope.selectedUser.id);
+  }
+  const scopeFilter = workScope.selectedUser && personalClauses.length
+    ? `(${scope.sql}) AND (${personalClauses.join(" OR ")})`
+    : scope.sql;
 
   const result = await db
     .prepare(
@@ -259,10 +190,9 @@ async function queryDraftSops(db: D1DatabaseBinding, subRole: CreatorSubRole, se
        LEFT JOIN categories ON categories.id = sops.category_id
        LEFT JOIN users owner ON owner.id = COALESCE(sops.owner_id, sops.owner_user_id)
        LEFT JOIN creator_sub_roles sub_roles ON sub_roles.id = sops.owner_sub_role_id
-       WHERE ${scope.sql}
+       WHERE ${scopeFilter}
         AND COALESCE(sops.is_active, 1) = 1
-        AND sops.status IN ('Draft', 'Needs Revision', 'In Review', 'Approved')
-        ${userClause}
+        AND sops.status IN ('Draft', 'Needs Revision')
        ORDER BY sops.updated_at DESC
        LIMIT 100`,
     )
@@ -272,8 +202,17 @@ async function queryDraftSops(db: D1DatabaseBinding, subRole: CreatorSubRole, se
   return (result.results || []).map(normalizeSop);
 }
 
-async function queryOwnedSops(db: D1DatabaseBinding, subRole: CreatorSubRole) {
-  const scope = scopeClause("sops", subRole);
+async function queryOwnedSops(db: D1DatabaseBinding, workScope: ResolvedWorkScope) {
+  const scope = subRoleSopScopeClause("sops", workScope.subRole);
+  const personalClauses: string[] = [];
+  const values: unknown[] = [...scope.values];
+  if (workScope.selectedUser?.id) {
+    personalClauses.push("COALESCE(sops.owner_id, sops.owner_user_id) = ?");
+    values.push(workScope.selectedUser.id);
+  }
+  const scopeFilter = workScope.selectedUser && personalClauses.length
+    ? `(${scope.sql}) AND (${personalClauses.join(" OR ")})`
+    : scope.sql;
   const result = await db
     .prepare(
       `SELECT
@@ -293,23 +232,34 @@ async function queryOwnedSops(db: D1DatabaseBinding, subRole: CreatorSubRole) {
        LEFT JOIN categories ON categories.id = sops.category_id
        LEFT JOIN users owner ON owner.id = COALESCE(sops.owner_id, sops.owner_user_id)
        LEFT JOIN creator_sub_roles sub_roles ON sub_roles.id = sops.owner_sub_role_id
-       WHERE ${scope.sql}
+       WHERE ${scopeFilter}
         AND COALESCE(sops.is_active, 1) = 1
+        AND sops.status NOT IN ('Archived')
        ORDER BY sops.updated_at DESC
        LIMIT 100`,
     )
-    .bind(...scope.values)
+    .bind(...values)
     .all<Record<string, unknown>>();
   return (result.results || []).map(normalizeSop);
 }
 
-async function queryAssignments(db: D1DatabaseBinding, subRole: CreatorSubRole, selectedUser: WorkUser | null) {
-  const clauses = ["sop_assignments.team_id = ?"];
-  const values: unknown[] = [subRole.teamId || ""];
-  if (selectedUser?.id) {
-    clauses.push("sop_assignments.user_id = ?");
-    values.push(selectedUser.id);
+async function queryAssignments(db: D1DatabaseBinding, workScope: ResolvedWorkScope) {
+  const sopScope = subRoleSopScopeClause("sops", workScope.subRole);
+  const clauses: string[] = [];
+  const values: unknown[] = [...sopScope.values];
+  if (workScope.scope === "team" && workScope.subRole.teamId) {
+    clauses.push("sop_assignments.team_id = ?");
+    values.push(workScope.subRole.teamId);
   }
+  if (workScope.scope === "team") {
+    clauses.push("sops.owner_sub_role_id = ?");
+    values.push(workScope.subRole.id);
+  }
+  if (workScope.selectedUser?.id) {
+    clauses.push("sop_assignments.user_id = ?");
+    values.push(workScope.selectedUser.id);
+  }
+  if (!clauses.length) return [];
 
   const result = await db
     .prepare(
@@ -337,6 +287,10 @@ async function queryAssignments(db: D1DatabaseBinding, subRole: CreatorSubRole, 
        LEFT JOIN users owner ON owner.id = COALESCE(sops.owner_id, sops.owner_user_id)
        LEFT JOIN creator_sub_roles sub_roles ON sub_roles.id = sops.owner_sub_role_id
        WHERE sop_assignments.status = 'Active'
+        AND sop_assignments.assignment_type IN ('Owner', 'Subject Matter Expert')
+        AND COALESCE(sops.is_active, 1) = 1
+        AND sops.status NOT IN ('Published', 'Archived')
+        AND ${sopScope.sql}
         AND (${clauses.join(" OR ")})
        ORDER BY sop_assignments.due_at ASC, sops.updated_at DESC
        LIMIT 100`,
@@ -347,23 +301,32 @@ async function queryAssignments(db: D1DatabaseBinding, subRole: CreatorSubRole, 
   return (result.results || []).map(normalizeSop);
 }
 
-async function queryReviewItems(db: D1DatabaseBinding, subRole: CreatorSubRole, selectedUser: WorkUser | null) {
-  const requestClauses = [
-    "sop_requests.owner_sub_role_id = ?",
-    "sop_requests.assigned_department = ?",
-    "sop_requests.assigned_team_id = ?",
-  ];
-  const requestValues: unknown[] = [subRole.id, subRole.department, subRole.teamId || ""];
-  if (selectedUser?.id) {
+async function queryReviewItems(db: D1DatabaseBinding, workScope: ResolvedWorkScope) {
+  const requestScope = subRoleRequestScopeClause("sop_requests", workScope.subRole);
+  const requestClauses: string[] = [];
+  const requestValues: unknown[] = [...requestScope.values];
+  if (workScope.selectedUser?.id) {
     requestClauses.push("sop_requests.assigned_to = ?");
-    requestValues.push(selectedUser.id);
+    requestValues.push(workScope.selectedUser.id);
   }
+  const requestScopeFilter = requestClauses.length
+    ? `(${requestScope.sql}) AND (${requestClauses.join(" OR ")})`
+    : requestScope.sql;
 
-  const reviewClauses = ["sop_assignments.team_id = ?"];
-  const reviewValues: unknown[] = [subRole.teamId || ""];
-  if (selectedUser?.id) {
+  const sopScope = subRoleSopScopeClause("sops", workScope.subRole);
+  const reviewClauses: string[] = [];
+  const reviewValues: unknown[] = [...sopScope.values];
+  if (workScope.scope === "team" && workScope.subRole.teamId) {
+    reviewClauses.push("sop_assignments.team_id = ?");
+    reviewValues.push(workScope.subRole.teamId);
+  }
+  if (workScope.scope === "team") {
+    reviewClauses.push("sops.owner_sub_role_id = ?");
+    reviewValues.push(workScope.subRole.id);
+  }
+  if (workScope.selectedUser?.id) {
     reviewClauses.push("sop_assignments.user_id = ?");
-    reviewValues.push(selectedUser.id);
+    reviewValues.push(workScope.selectedUser.id);
   }
 
   const [requestReviews, assignmentReviews] = await Promise.all([
@@ -382,9 +345,9 @@ async function queryReviewItems(db: D1DatabaseBinding, subRole: CreatorSubRole, 
          FROM sop_requests
          LEFT JOIN users assignee ON assignee.id = sop_requests.assigned_to
          WHERE sop_requests.status IN (
-          'Submitted', 'Under Review', 'Needs More Information', 'Accepted', 'Assigned', 'In Progress', 'Draft Created', 'In Approval'
+          'Under Review', 'Needs More Information', 'Assigned', 'In Approval'
          )
-          AND (${requestClauses.join(" OR ")})
+          AND ${requestScopeFilter}
          ORDER BY sop_requests.updated_at DESC
          LIMIT 100`,
       )
@@ -407,6 +370,9 @@ async function queryReviewItems(db: D1DatabaseBinding, subRole: CreatorSubRole, 
          LEFT JOIN users owner ON owner.id = COALESCE(sops.owner_id, sops.owner_user_id)
          WHERE sop_assignments.status = 'Active'
           AND sop_assignments.assignment_type IN ('Reviewer', 'Approver', 'Publisher')
+          AND COALESCE(sops.is_active, 1) = 1
+          AND sops.status IN ('In Review', 'Needs Revision', 'Approved')
+          AND ${sopScope.sql}
           AND (${reviewClauses.join(" OR ")})
          ORDER BY sop_assignments.due_at ASC, sops.updated_at DESC
          LIMIT 100`,
@@ -436,51 +402,62 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
   const db = context.env.DB!;
   await ensureRequestWorkflowSchema(db);
 
-  const resolved = await resolveWorkContext(db, context);
-  if (resolved.response || !resolved.subRole) return resolved.response;
-
-  const url = new URL(context.request.url);
-  const requestedUserId = optionalText(url.searchParams.get("userId"), 160);
-  const users = await usersForSubRole(db, resolved.subRole);
-  const selectedUser =
-    users.find((user) => user.id === requestedUserId) ||
-    users.find((user) => user.id === resolved.user?.id) ||
-    users[0] ||
-    null;
+  const resolved = await resolveCreatorWorkScope(db, context);
+  if (resolved.response || !resolved.subRole || !resolved.user) return resolved.response;
 
   const [submittedRequests, draftSops, ownedSops, assignedItems, reviewItems] = await Promise.all([
-    querySubmittedRequests(db, resolved.subRole, selectedUser),
-    queryDraftSops(db, resolved.subRole, selectedUser),
-    queryOwnedSops(db, resolved.subRole),
-    queryAssignments(db, resolved.subRole, selectedUser),
-    queryReviewItems(db, resolved.subRole, selectedUser),
+    querySubmittedRequests(db, resolved),
+    queryDraftSops(db, resolved),
+    queryOwnedSops(db, resolved),
+    queryAssignments(db, resolved),
+    queryReviewItems(db, resolved),
   ]);
 
   const today = isoToday();
   const activeReviewItems = uniqueById(reviewItems);
-  const assigned = uniqueById([...assignedItems, ...draftSops.filter((sop) => sop.status !== "Published")]);
+  const assigned = uniqueById(assignedItems);
   const overdueReviews = uniqueById([
-    ...ownedSops.filter((sop) => sop.reviewDate && sop.reviewDate < today && sop.status !== "Archived"),
-    ...assigned.filter((item) => item.reviewDate && item.reviewDate < today),
     ...activeReviewItems.filter((item) => item.reviewDate && item.reviewDate < today),
   ]);
 
   return success({
     context: {
-      role: resolved.user?.role || "creator",
-      accessLevel: selectedUser?.accessLevel || resolved.user?.accessLevel || "Creator / Reviewer",
-      selectedUser,
+      role: resolved.user.role,
+      accessLevel: resolved.selectedUser?.accessLevel || resolved.user.accessLevel,
+      selectedUser: resolved.selectedUser,
       selectedSubRole: resolved.subRole,
+      workScope: resolved.scope,
+      workScopeLabel: resolved.label,
+      workScopeDescription: resolved.description,
     },
     viewOptions: {
-      users,
+      users: resolved.users,
       subRoles: [resolved.subRole],
+      scopes: [
+        {
+          id: "team",
+          label: `Team Queue - ${resolved.subRole.department}`,
+          description: `Team work assigned to ${resolved.subRole.label}.`,
+        },
+        {
+          id: "mine",
+          label: "My personal work",
+          description: "Work directly assigned to or owned by me.",
+        },
+        ...(resolved.user.role === "admin"
+          ? resolved.users.map((user) => ({
+              id: `user:${user.id}`,
+              label: `${user.name} - ${user.department || user.title || resolved.subRole.department}`,
+              description: `Personal work for ${user.name}.`,
+            }))
+          : []),
+      ],
     },
     counts: {
       submittedRequests: submittedRequests.length,
       draftSops: draftSops.length,
-      assignedToMe: assigned.length,
-      needMyReview: activeReviewItems.length,
+      assignedToTeam: assigned.length,
+      teamReviewsNeeded: activeReviewItems.length,
       overdueReviews: overdueReviews.length,
     },
     sections: {

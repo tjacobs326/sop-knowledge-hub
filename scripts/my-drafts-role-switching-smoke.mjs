@@ -8,6 +8,7 @@ const myDraftsApi = readFileSync(resolve(root, "functions/api/my-drafts.ts"), "u
 const reviewQueueApi = readFileSync(resolve(root, "functions/api/review-queue.ts"), "utf8");
 const ownership = readFileSync(resolve(root, "functions/_shared/ownership.ts"), "utf8");
 const auth = readFileSync(resolve(root, "functions/_shared/auth.ts"), "utf8");
+const workScope = readFileSync(resolve(root, "functions/_shared/work-scope.ts"), "utf8");
 const platformConfig = readFileSync(resolve(root, "src/data/platform-config.ts"), "utf8");
 
 function assert(condition, message) {
@@ -50,13 +51,15 @@ assert(
   "The My Drafts API must require draft-edit permission.",
 );
 assert(
-  myDraftsApi.includes('auth.user.role === "creator"') &&
-    myDraftsApi.includes("!auth.user.subRoles.some((item) => item.id === subRole.id)"),
-  "The My Drafts API must reject creator users requesting an unassigned sub-role.",
+  myDraftsApi.includes("resolveCreatorWorkScope") &&
+    workScope.includes('user.role === "creator"') &&
+    workScope.includes("!user.subRoles.some((item) => item.id === subRole.id)"),
+  "The My Drafts API must use the shared work-scope resolver to reject creator users requesting an unassigned sub-role.",
 );
 assert(
-  myDraftsApi.includes("sops.owner_sub_role_id = ?") &&
-    myDraftsApi.includes("sops.owner_team_id = ?") &&
+  myDraftsApi.includes("subRoleSopScopeClause") &&
+    workScope.includes("owner_sub_role_id = ?") &&
+    workScope.includes("owner_team_id = ?") &&
     myDraftsApi.includes("sop_assignments team_assignments"),
   "The My Drafts API must scope draft records to the selected sub-role, team, or assignment.",
 );

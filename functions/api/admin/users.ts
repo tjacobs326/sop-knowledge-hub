@@ -472,7 +472,7 @@ async function saveUser(request: Request, db: D1DatabaseBinding, isUpdate: boole
 
   const validation = await validateUserPayload(db, payload || {}, isUpdate);
   if ("error" in validation) {
-    return jsonResponse({ error: validation.error, fields: validation.fields }, validation.status);
+    return jsonResponse({ error: validation.error, fields: validation.fields }, Number(validation.status) || 400);
   }
 
   const title = String(payload?.title || "").trim();
@@ -678,7 +678,6 @@ async function buildImportPreview(db: D1DatabaseBinding, csvText: string) {
   const indexFor = (column: string) => normalizedHeader.indexOf(column);
   const departments = await db.prepare("SELECT id, name FROM teams WHERE COALESCE(status, 'Active') = 'Active'").all<{ id: string; name: string }>();
   const subRoles = await db.prepare("SELECT id, label FROM creator_sub_roles WHERE status = 'Active'").all<{ id: string; label: string }>();
-  const permissionMap = await loadPermissionMap(db);
   const departmentByName = new Map((departments.results || []).map((row) => [canonical(row.name), row]));
   const subRoleByName = new Map((subRoles.results || []).map((row) => [canonical(row.label), row]));
   const seenEmails = new Set<string>();
