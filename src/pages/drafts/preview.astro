@@ -1,0 +1,330 @@
+---
+import Layout from "../../components/Layout.astro";
+import AppIllustration from "../../components/AppIllustration.astro";
+import { statusBadgeDefinitions } from "../../lib/badges";
+---
+
+<Layout title="Preview Draft SOP" wide>
+  <article class="sop-document" id="draft-preview-page" aria-labelledby="draft-preview-heading">
+    <div class="sop-document__header">
+      <div class="section-heading surface-intro">
+        <div>
+          <p class="eyebrow">Creators / Reviewers</p>
+          <h1 id="draft-preview-heading">Preview Draft SOP</h1>
+          <p class="lede" id="draft-preview-lede">Loading the saved draft from the backend workflow.</p>
+        </div>
+        <AppIllustration name="drafts" size="sm" />
+      </div>
+      <div class="sop-title-row">
+        <h2 id="draft-title">Loading draft...</h2>
+        <span id="draft-status" class="status-badge status-badge--draft">Loading</span>
+      </div>
+      <dl class="sop-hero-meta">
+        <div>
+          <dt>Owner</dt>
+          <dd id="draft-owner">Loading</dd>
+        </div>
+        <div>
+          <dt>Last updated</dt>
+          <dd id="draft-updated">Loading</dd>
+        </div>
+        <div>
+          <dt>Next review</dt>
+          <dd id="draft-review">Loading</dd>
+        </div>
+        <div>
+          <dt>Category</dt>
+          <dd id="draft-category">Loading</dd>
+        </div>
+      </dl>
+      <div class="form-actions no-print" id="draft-preview-actions">
+        <a class="button button--ghost" href="/drafts/">Back to My Drafts</a>
+      </div>
+    </div>
+
+    <div class="drafts-context" id="draft-preview-context" role="status">Loading draft preview...</div>
+    <div class="form-errors" id="draft-preview-errors" role="alert" hidden></div>
+    <div class="confirmation" id="draft-preview-confirmation" role="status" hidden></div>
+
+    <div class="sop-layout" id="draft-preview-content" hidden>
+      <aside class="metadata-panel" aria-label="Draft metadata">
+        <dl id="draft-meta"></dl>
+      </aside>
+      <div class="sop-content">
+        <section class="sop-section">
+          <h2>Purpose</h2>
+          <p id="draft-purpose"></p>
+        </section>
+        <section class="sop-section sop-callout">
+          <h2>Before You Begin</h2>
+          <p id="draft-before">No before-you-begin notes entered.</p>
+        </section>
+        <section class="sop-section">
+          <h2>Step-by-Step Procedure</h2>
+          <ol class="procedure-list" id="draft-steps"></ol>
+        </section>
+        <section class="sop-section">
+          <h2>Troubleshooting / Notes</h2>
+          <p id="draft-troubleshooting">No troubleshooting notes entered.</p>
+        </section>
+      </div>
+    </div>
+  </article>
+</Layout>
+
+<script is:inline define:vars={{ statusBadgeDefinitions }}>
+  const SUB_ROLE_KEY = "sopHubSelectedCreatorSubRole";
+  const ROLE_CONTEXT_EVENT = "sop-role-context-change";
+  const params = new URLSearchParams(window.location.search);
+  const sopId = params.get("id") || "";
+  const contextEl = document.getElementById("draft-preview-context");
+  const errorsEl = document.getElementById("draft-preview-errors");
+  const confirmation = document.getElementById("draft-preview-confirmation");
+  const contentEl = document.getElementById("draft-preview-content");
+  const actionsEl = document.getElementById("draft-preview-actions");
+  let currentSop = null;
+  let activePreviewRequestId = 0;
+
+  const escapeHtml = (value) =>
+    String(value ?? "").replace(/[&<>"']/g, (character) => {
+      const replacements = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+      return replacements[character];
+    });
+
+  function apiHeaders() {
+    const subRole = localStorage.getItem(SUB_ROLE_KEY) || "";
+    return {
+      accept: "application/json",
+      "content-type": "application/json",
+      ...(subRole ? { "x-sop-sub-role": subRole } : {}),
+    };
+  }
+
+  function selectedSubRoleQuery() {
+    const subRole = localStorage.getItem(SUB_ROLE_KEY) || "";
+    const query = new URLSearchParams();
+    if (subRole) query.set("subRole", subRole);
+    const text = query.toString();
+    return text ? `?${text}` : "";
+  }
+
+  async function parseApiResponse(response) {
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data?.success === false) {
+      const message = data?.error?.message || data?.error || `Request failed: ${response.status}`;
+      const error = new Error(message);
+      error.status = response.status;
+      throw error;
+    }
+    return data.data || data;
+  }
+
+  function formatDate(value) {
+    if (!value) return "Not set";
+    const date = new Date(String(value).includes("T") ? value : `${value}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  }
+
+  function statusBadge(status, includeId = false) {
+    const key = String(status || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    const badge = statusBadgeDefinitions[key] || {
+      label: status || "Draft",
+      className: "status-badge--draft",
+    };
+    return `<span ${includeId ? 'id="draft-status"' : ""} class="status-badge ${escapeHtml(badge.className)}">${escapeHtml(badge.label)}</span>`;
+  }
+
+  function setText(id, value) {
+    const element = document.getElementById(id);
+    if (element) element.textContent = value || "";
+  }
+
+  function listValue(value) {
+    return Array.isArray(value) ? value.map(String).filter(Boolean) : [];
+  }
+
+  function renderAttachment(attachment) {
+    const isVideo = String(attachment.mimeType || "").startsWith("video/") || attachment.assetType === "Video";
+    const isImage = String(attachment.mimeType || "").startsWith("image/") || attachment.assetType === "Image";
+    const isDecorative = attachment.accessibilityStatus === "decorative" || attachment.isDecorative === true;
+    const url = String(attachment.url || "");
+    const caption = attachment.caption || attachment.altText || attachment.fileName || "Step attachment";
+    if (url && isVideo) {
+      return `<figure class="step-screenshot attachment-card"><video controls preload="metadata" src="${escapeHtml(url)}"></video><figcaption>${escapeHtml(caption)}</figcaption></figure>`;
+    }
+    if (url && isImage) {
+      return `<figure class="step-screenshot attachment-card"><img loading="lazy" src="${escapeHtml(url)}" alt="${escapeHtml(isDecorative ? "" : attachment.altText || caption)}" /><figcaption>${escapeHtml(caption)}</figcaption></figure>`;
+    }
+    return `<div class="attachment-card attachment-card--file"><span aria-hidden="true">Attachment</span><div><span>${escapeHtml(caption)}</span></div></div>`;
+  }
+
+  function renderSteps(sop) {
+    const steps = Array.isArray(sop.procedureSteps) ? sop.procedureSteps : [];
+    const list = document.getElementById("draft-steps");
+    if (!list) return;
+    if (!steps.length) {
+      list.innerHTML = "<li>No saved procedure steps are available for this draft.</li>";
+      return;
+    }
+    list.innerHTML = steps
+      .map((step) => {
+        const attachments = Array.isArray(step.attachments) ? step.attachments.map(renderAttachment).join("") : "";
+        return `<li><h3>${escapeHtml(step.title || "Step")}</h3><p>${escapeHtml(step.instructions || "")}</p>${step.note ? `<p><strong>Note:</strong> ${escapeHtml(step.note)}</p>` : ""}${attachments}</li>`;
+      })
+      .join("");
+  }
+
+  function actionButton(label, action, className = "button--secondary") {
+    return `<button class="button ${className}" type="button" data-preview-workflow="${escapeHtml(action)}">${escapeHtml(label)}</button>`;
+  }
+
+  function renderActions(sop, capabilities) {
+    if (!actionsEl) return;
+    const actions = [`<a class="button button--ghost" href="/drafts/">Back to My Drafts</a>`];
+    if (capabilities.canEdit) actions.push(`<a class="button button--secondary" href="/create/?edit=draft&id=${encodeURIComponent(sop.id)}&origin=my-drafts">Edit Draft</a>`);
+    if (capabilities.canSubmitForReview) actions.push(actionButton("Submit for Review", "submit-review"));
+    if (capabilities.canReview) actions.push(`<a class="button button--secondary" href="/review-queue/?review=${encodeURIComponent(`sop:${sop.id}`)}&origin=my-drafts-review">Review Draft</a>`);
+    if (capabilities.canRequestChanges) actions.push(actionButton("Request Changes", "request-changes"));
+    if (capabilities.canApprove) actions.push(actionButton("Approve SOP", "approve"));
+    if (capabilities.canPublish) actions.push(actionButton("Publish SOP", "publish", "button--primary"));
+    if (capabilities.canArchive) actions.push(actionButton("Archive", "archive", "button--danger"));
+    actionsEl.innerHTML = actions.join("");
+  }
+
+  function renderSop(sop, capabilities = {}) {
+    currentSop = sop;
+    document.title = `Preview Draft SOP | SOP Knowledge Hub`;
+    setText("draft-preview-lede", "Preview the saved backend draft before choosing the next workflow action.");
+    setText("draft-title", sop.title || "Untitled SOP Draft");
+    setText("draft-owner", sop.owner || "Unassigned");
+    setText("draft-updated", formatDate(sop.updatedAt));
+    setText("draft-review", formatDate(sop.reviewDate || sop.reviewDueAt));
+    setText("draft-category", sop.category || "Uncategorized");
+    setText("draft-purpose", sop.purpose || sop.summary || "");
+    setText("draft-before", sop.version?.beforeYouBegin || sop.beforeYouBegin || "No before-you-begin notes entered.");
+    setText("draft-troubleshooting", sop.version?.troubleshooting || sop.troubleshooting || "No troubleshooting notes entered.");
+    const statusEl = document.getElementById("draft-status");
+    if (statusEl) statusEl.outerHTML = statusBadge(sop.status, true);
+    const metadata = document.getElementById("draft-meta");
+    if (metadata) {
+      metadata.innerHTML = `
+        <div><dt>Status</dt><dd>${statusBadge(sop.status)}</dd></div>
+        <div><dt>Owner</dt><dd>${escapeHtml(sop.owner || "Unassigned")}</dd></div>
+        <div><dt>Department</dt><dd>${escapeHtml(sop.ownerDepartment || sop.ownerTeam || "Not listed")}</dd></div>
+        <div><dt>Category</dt><dd>${escapeHtml(sop.category || "Uncategorized")}</dd></div>
+        <div><dt>SOP Type</dt><dd>${escapeHtml(sop.type || "Process")}</dd></div>
+        <div><dt>Audience</dt><dd>${escapeHtml(listValue(sop.audience).join(", ") || "Not listed")}</dd></div>
+        <div><dt>Tools</dt><dd>${escapeHtml(listValue(sop.tools).join(", ") || "Not listed")}</dd></div>
+        <div><dt>Tags</dt><dd>${escapeHtml(listValue(sop.tags).join(", ") || "Not listed")}</dd></div>
+        <div><dt>Version</dt><dd>${escapeHtml(sop.version?.number || sop.versionNumber || "")}</dd></div>
+      `;
+    }
+    renderSteps(sop);
+    renderActions(sop, capabilities);
+    if (contentEl) contentEl.hidden = false;
+    if (contextEl) contextEl.textContent = `${sop.status || "Draft"} preview loaded from the authenticated backend record.`;
+  }
+
+  async function loadCapabilities() {
+    const response = await fetch(`/api/my-drafts${selectedSubRoleQuery()}`, {
+      headers: apiHeaders(),
+      cache: "no-store",
+    });
+    const data = await parseApiResponse(response);
+    const match = (Array.isArray(data.drafts) ? data.drafts : []).find((draft) => draft.id === sopId || draft.sopId === sopId);
+    return match?.capabilities || {};
+  }
+
+  async function loadPreview() {
+    const requestId = ++activePreviewRequestId;
+    if (errorsEl) errorsEl.hidden = true;
+    if (confirmation) confirmation.hidden = true;
+    if (contentEl) contentEl.hidden = true;
+    if (!sopId) throw new Error("Missing draft ID.");
+    const response = await fetch(`/api/sops/${encodeURIComponent(sopId)}`, {
+      headers: apiHeaders(),
+      cache: "no-store",
+    });
+    const data = await parseApiResponse(response);
+    if (requestId !== activePreviewRequestId) return;
+    const capabilities = await loadCapabilities().catch(() => ({}));
+    if (requestId !== activePreviewRequestId) return;
+    renderSop(data.sop || data, capabilities);
+  }
+
+  function workflowEndpoint(action) {
+    if (action === "submit-review") return "submit-review";
+    if (action === "request-changes") return "request-changes";
+    return action;
+  }
+
+  function workflowPrompt(action) {
+    if (action === "submit-review") return "Submit this draft for review?";
+    if (action === "request-changes") return "Request changes for this draft?";
+    if (action === "approve") return "Approve this SOP?";
+    if (action === "publish") return "Publish this SOP? Publishing will make it available in the knowledge hub and remove it from active drafts.";
+    if (action === "archive") return "Archive this draft?";
+    return "Update this draft workflow?";
+  }
+
+  async function runWorkflow(action, button) {
+    if (!currentSop?.id || !window.confirm(workflowPrompt(action))) return;
+    if (button instanceof HTMLButtonElement) button.disabled = true;
+    const response = await fetch(`/api/sops/${encodeURIComponent(currentSop.id)}/${workflowEndpoint(action)}`, {
+      method: "POST",
+      headers: apiHeaders(),
+      body: JSON.stringify({ notes: `${action} from draft preview.` }),
+    });
+    await parseApiResponse(response);
+    await loadPreview();
+    if (confirmation) {
+      confirmation.hidden = false;
+      confirmation.innerHTML =
+        action === "publish"
+          ? `<strong>SOP published successfully.</strong><p><a class="button button--secondary" href="/sops/detail/?id=${encodeURIComponent(currentSop.id)}">View Published SOP</a> <a class="button button--ghost" href="/drafts/">Back to My Drafts</a></p>`
+          : `<strong>Draft workflow updated.</strong><p>The saved draft has been updated in the backend workflow.</p>`;
+    }
+  }
+
+  function showError(error) {
+    if (contentEl) contentEl.hidden = true;
+    setText("draft-title", error?.status === 403 ? "Draft Access Denied" : "Draft Not Found");
+    setText("draft-preview-lede", "The draft preview could not be loaded for the current role and department.");
+    const statusEl = document.getElementById("draft-status");
+    if (statusEl) statusEl.outerHTML = `<span id="draft-status" class="status-badge status-badge--draft">Unavailable</span>`;
+    setText("draft-owner", "Unavailable");
+    setText("draft-updated", "Unavailable");
+    setText("draft-review", "Unavailable");
+    setText("draft-category", "Unavailable");
+    if (contextEl) contextEl.textContent = "Draft preview unavailable.";
+    if (errorsEl) {
+      errorsEl.hidden = false;
+      errorsEl.innerHTML = `<p>${escapeHtml(error instanceof Error ? error.message : "This draft could not be loaded.")}</p><p><a class="button button--ghost" href="/drafts/">Back to My Drafts</a></p>`;
+    }
+  }
+
+  actionsEl?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const button = target.closest("[data-preview-workflow]");
+    if (!(button instanceof HTMLElement)) return;
+    runWorkflow(button.dataset.previewWorkflow || "", button instanceof HTMLButtonElement ? button : null).catch(showError);
+  });
+
+  window.addEventListener(ROLE_CONTEXT_EVENT, () => {
+    activePreviewRequestId += 1;
+    if (contextEl) contextEl.textContent = "Refreshing draft preview for the newly selected role.";
+    loadPreview().catch(showError);
+  });
+
+  window.addEventListener("storage", (event) => {
+    if (event.key === SUB_ROLE_KEY) {
+      activePreviewRequestId += 1;
+      if (contextEl) contextEl.textContent = "Refreshing draft preview for the newly selected role.";
+      loadPreview().catch(showError);
+    }
+  });
+
+  loadPreview().catch(showError);
+</script>

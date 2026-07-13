@@ -8,6 +8,7 @@ const reviewQueue = readFileSync(resolve(root, "src/components/ReviewQueue.astro
 const createForm = readFileSync(resolve(root, "src/components/CreateSopForm.astro"), "utf8");
 const draftPreview = readFileSync(resolve(root, "src/components/SopDraftPreview.astro"), "utf8");
 const myDraftsApi = readFileSync(resolve(root, "functions/api/my-drafts.ts"), "utf8");
+const draftPreviewPage = readFileSync(resolve(root, "src/pages/drafts/preview.astro"), "utf8");
 const reviewQueueApi = readFileSync(resolve(root, "functions/api/review-queue.ts"), "utf8");
 const sopDetailApi = readFileSync(resolve(root, "functions/api/sops/[id].ts"), "utf8");
 const sopWorkflow = readFileSync(resolve(root, "functions/_shared/sop-workflow.ts"), "utf8");
@@ -30,6 +31,29 @@ assert(
 assert(
   myDraftsApi.includes("editUrl: `/create/?edit=draft&id=${encodeURIComponent(id)}&origin=my-drafts`"),
   "My Drafts API must return edit URLs that include the draft id.",
+);
+assert(
+  myDraftsApi.includes("previewUrl: `/drafts/preview/?id=${encodeURIComponent(id)}&origin=my-drafts`") &&
+    myDraftsPage.includes('actionLink("Preview", draft.previewUrl') &&
+    !myDraftsPage.includes('actionLink("Preview", draft.detailUrl'),
+  "My Drafts Preview must use the authenticated draft preview route, not the public SOP detail route.",
+);
+assert(
+  draftPreviewPage.includes("Preview Draft SOP") &&
+    draftPreviewPage.includes("Back to My Drafts") &&
+    draftPreviewPage.includes("fetch(`/api/sops/${encodeURIComponent(sopId)}`") &&
+    draftPreviewPage.includes('"x-sop-sub-role": subRole') &&
+    draftPreviewPage.includes("loadCapabilities") &&
+    draftPreviewPage.includes('id="draft-status" class="status-badge status-badge--draft">Loading</span>') &&
+    !draftPreviewPage.includes("Back to Search"),
+  "Draft preview page must load authorized unpublished SOP records and use My Drafts recovery/navigation copy.",
+);
+assert(
+  myDraftsApi.includes("sops.current_version_id IS NOT NULL") &&
+    myDraftsApi.includes("NULLIF(TRIM(sops.purpose), '') IS NOT NULL") &&
+    myDraftsApi.includes("capabilities.canPreview") &&
+    myDraftsApi.includes("previewableDrafts"),
+  "My Drafts API must exclude unloadable records and count previewable records from backend capabilities.",
 );
 assert(
   reviewQueueApi.includes("editUrl: `/create/?edit=draft&id=${encodeURIComponent(id)}`") ||

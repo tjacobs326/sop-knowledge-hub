@@ -142,8 +142,11 @@ import { statusBadgeDefinitions } from "../../lib/badges";
     const user = context.selectedUser?.name || "Selected creator/reviewer";
     const subRole = context.selectedSubRole?.label || "selected department";
     const count = Number(data.counts?.drafts || currentDrafts.length || 0);
+    const editable = Number(data.counts?.editableDrafts || 0);
+    const previewable = Number(data.counts?.previewableDrafts || 0);
+    const readyToPublish = Number(data.counts?.readyToPublish || 0);
     if (contextEl) {
-      contextEl.textContent = `${count} draft workflow item${count === 1 ? "" : "s"} loaded for ${user} in ${subRole}.`;
+      contextEl.textContent = `${count} draft workflow item${count === 1 ? "" : "s"} loaded for ${user} in ${subRole}. Editable: ${editable}. Previewable: ${previewable}. Ready to publish: ${readyToPublish}.`;
     }
   }
 
@@ -159,7 +162,7 @@ import { statusBadgeDefinitions } from "../../lib/badges";
     const capabilities = draft.capabilities || {};
     const actions = [];
     if (capabilities.canEdit) actions.push(actionLink("Edit Draft", draft.editUrl));
-    if (capabilities.canPreview) actions.push(actionLink("Preview", draft.detailUrl, "button--ghost"));
+    if (capabilities.canPreview) actions.push(actionLink("Preview", draft.previewUrl, "button--ghost"));
     if (capabilities.canSubmitForReview) {
       actions.push(actionButton("Submit for Review", `data-draft-workflow="submit-review" data-draft-id="${escapeHtml(draft.id)}"`));
     }

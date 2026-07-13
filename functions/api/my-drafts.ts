@@ -20,6 +20,7 @@ function detailUrl(row: Record<string, unknown>) {
 function normalizeDraft(row: Record<string, unknown>, permissions: Set<string>) {
   const id = String(row.id || "");
   const status = String(row.status || "Draft");
+  const hasLoadableContent = Boolean(id && row.currentVersionId && row.title && row.purpose);
   const canEdit = permissions.has("Edit Drafts") && ["Draft", "Needs Revision"].includes(status);
   const canSubmitForReview = permissions.has("Edit Drafts") && ["Draft", "Needs Revision"].includes(status);
   const canReview = permissions.has("Review SOPs") && status === "In Review";
@@ -29,6 +30,7 @@ function normalizeDraft(row: Record<string, unknown>, permissions: Set<string>) 
   const canArchive = permissions.has("Archive SOPs") && ["Draft", "Needs Revision", "In Review", "Approved"].includes(status);
   return {
     id,
+    sopId: id,
     title: row.title || "Untitled SOP Draft",
     category: row.category || "Uncategorized",
     status,
@@ -41,11 +43,12 @@ function normalizeDraft(row: Record<string, unknown>, permissions: Set<string>) 
     assignedReviewer: row.assignedReviewer || "Unassigned",
     updatedDate: normalizeDate(row.updatedAt || row.createdAt),
     detailUrl: detailUrl(row),
+    previewUrl: `/drafts/preview/?id=${encodeURIComponent(id)}&origin=my-drafts`,
     editUrl: `/create/?edit=draft&id=${encodeURIComponent(id)}&origin=my-drafts`,
     reviewUrl: `/review-queue/?review=${encodeURIComponent(`sop:${id}`)}&origin=my-drafts-review`,
     capabilities: {
       canEdit,
-      canPreview: true,
+      canPreview: hasLoadableContent,
       canSubmitForReview,
       canReview,
       canApprove,
@@ -103,6 +106,8 @@ async function queryDrafts(db: D1DatabaseBinding, workScope: ResolvedWorkScope, 
         sops.title,
         sops.slug,
         sops.status,
+        sops.purpose,
+        sops.current_version_id AS currentVersionId,
         sops.review_date AS reviewDate,
         sops.review_due_at AS reviewDueAt,
         sops.updated_at AS updatedAt,
@@ -129,6 +134,11 @@ async function queryDrafts(db: D1DatabaseBinding, workScope: ResolvedWorkScope, 
        LEFT JOIN creator_sub_roles sub_roles ON sub_roles.id = sops.owner_sub_role_id
        WHERE COALESCE(sops.is_active, 1) = 1
         AND sops.status IN ('Draft', 'Needs Revision', 'In Review', 'Approved')
+        AND sops.id IS NOT NULL
+        AND sops.current_version_id IS NOT NULL
+        AND NULLIF(TRIM(sops.title), '') IS NOT NULL
+        AND NULLIF(TRIM(sops.purpose), '') IS NOT NULL
+        AND (sops.owner_sub_role_id IS NOT NULL OR sops.owner_team_id IS NOT NULL OR COALESCE(sops.owner_id, sops.owner_user_id) IS NOT NULL)
         AND ${scopeFilter}
        GROUP BY sops.id
        ORDER BY sops.updated_at DESC, sops.title ASC
@@ -137,7 +147,9 @@ async function queryDrafts(db: D1DatabaseBinding, workScope: ResolvedWorkScope, 
     .bind(...values)
     .all<Record<string, unknown>>();
 
-  return (result.results || []).map((row) => normalizeDraft(row, permissions));
+  return (result.results || [])
+    .map((row) => normalizeDraft(row, permissions))
+    .filter((draft) => Object.values(draft.capabilities).some(Boolean));
 }
 
 export const onRequestGet = async (context: PagesFunctionContext) => {
@@ -184,7 +196,12 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
             },
           ],
         },
-        counts: { drafts: drafts.length },
+        counts: {
+          drafts: drafts.length,
+          editableDrafts: drafts.filter((draft) => draft.capabilities.canEdit).length,
+          previewableDrafts: drafts.filter((draft) => draft.capabilities.canPreview).length,
+          readyToPublish: drafts.filter((draft) => draft.capabilities.canPublish).length,
+        },
         drafts,
       },
     }),
