@@ -124,17 +124,19 @@ import { creatorSubRoleViews, roleAccessViews, roleRouteRules } from "../data/pl
 
   const nativeFetch = window.fetch.bind(window);
   window.fetch = (input, init = {}) => {
+    const role = normalizeRole(localStorage.getItem(ROLE_KEY));
     const subRole = normalizeSubRole(localStorage.getItem(SUB_ROLE_KEY));
     const url = typeof input === "string" ? input : input instanceof Request ? input.url : String(input);
     const isSameOriginApi =
       url.startsWith("/api/") ||
       (url.startsWith(window.location.origin) && new URL(url).pathname.startsWith("/api/"));
 
-    if (!subRole || !isSameOriginApi) return nativeFetch(input, init);
+    if ((!role && !subRole) || !isSameOriginApi) return nativeFetch(input, init);
 
     const headers = new Headers(input instanceof Request ? input.headers : undefined);
     new Headers(init.headers || {}).forEach((value, key) => headers.set(key, value));
-    headers.set("x-sop-sub-role", subRole);
+    if (role) headers.set("x-sop-dev-role", role);
+    if (subRole) headers.set("x-sop-sub-role", subRole);
 
     return nativeFetch(input, { ...init, cache: "no-store", headers });
   };

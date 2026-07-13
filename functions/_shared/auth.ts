@@ -93,6 +93,11 @@ function isLocalRequest(request: Request) {
   return host === "127.0.0.1" || host === "localhost";
 }
 
+function isPreviewRequest(request: Request) {
+  const host = new URL(request.url).hostname;
+  return host.endsWith(".pages.dev") || host === "sop-knowledge-hub.pages.dev";
+}
+
 function normalizeRole(value: string | null): ApiRole {
   const role = String(value || "").toLowerCase();
   if (role.includes("admin")) return "admin";
@@ -118,9 +123,10 @@ function emailFromRequest(request: Request) {
 }
 
 function localDevUser(request: Request): AuthUser | null {
-  if (!isLocalRequest(request)) return null;
+  const requestedRole = request.headers.get("x-sop-dev-role");
+  if (!isLocalRequest(request) && !(isPreviewRequest(request) && requestedRole)) return null;
 
-  const role = normalizeRole(request.headers.get("x-sop-dev-role") || "admin");
+  const role = normalizeRole(requestedRole || "admin");
   const email = String(request.headers.get("x-sop-dev-email") || "tjacobs@example.org")
     .trim()
     .toLowerCase();
