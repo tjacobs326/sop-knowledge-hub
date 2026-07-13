@@ -63,6 +63,7 @@ import { statusBadgeDefinitions } from "../../lib/badges";
   const ROLE_CONTEXT_EVENT = "sop-role-context-change";
   const ROLE_KEY = "sopHubSelectedRole";
   const SUB_ROLE_KEY = "sopHubSelectedCreatorSubRole";
+  const WORK_SCOPE_KEY = "sopHubMyWorkScope";
   let currentDrafts = [];
   let canArchive = false;
   let activeDraftRequestId = 0;
@@ -84,7 +85,21 @@ import { statusBadgeDefinitions } from "../../lib/badges";
 
   function selectedSubRoleQuery() {
     const subRole = localStorage.getItem(SUB_ROLE_KEY) || "";
-    return subRole ? `?subRole=${encodeURIComponent(subRole)}` : "";
+    const params = new URLSearchParams();
+    if (subRole) params.set("subRole", subRole);
+    try {
+      const savedScope = sessionStorage.getItem(WORK_SCOPE_KEY) || "";
+      if (savedScope.startsWith("user:")) {
+        params.set("scope", "user");
+        params.set("userId", savedScope.slice(5));
+      } else if (savedScope) {
+        params.set("scope", savedScope);
+      }
+    } catch {
+      // Scope persistence is only a navigation hint; the backend validates every request.
+    }
+    const query = params.toString();
+    return query ? `?${query}` : "";
   }
 
   function selectedSubRole() {

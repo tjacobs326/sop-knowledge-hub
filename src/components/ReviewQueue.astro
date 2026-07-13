@@ -101,7 +101,20 @@ const description = isNeedsReviewMode
   const ROLE_KEY = "sopHubSelectedRole";
   const SUB_ROLE_KEY = "sopHubSelectedCreatorSubRole";
   const DEFAULT_FILTER = isNeedsReviewMode ? "summary:needs-review" : "All";
-  let activeFilter = DEFAULT_FILTER;
+  const urlFilterMap = {
+    "review-needed": "summary:needs-review",
+    "needs-review": "summary:needs-review",
+    overdue: "summary:overdue",
+    urgent: "summary:urgent",
+    approved: "summary:approved",
+    published: "summary:published",
+    archived: "summary:archived",
+  };
+  function requestedQueueFilter() {
+    const value = new URLSearchParams(window.location.search).get("filter") || "";
+    return urlFilterMap[value] || DEFAULT_FILTER;
+  }
+  let activeFilter = requestedQueueFilter();
   let queueItems = [];
   let queueCounts = {};
   let reviewerMembers = [];
@@ -127,6 +140,8 @@ const description = isNeedsReviewMode
     const params = new URLSearchParams();
     if (subRole) params.set("subRole", subRole);
     if (isNeedsReviewMode) params.set("view", "needs-review");
+    const requestedFilter = new URLSearchParams(window.location.search).get("filter") || "";
+    if (requestedFilter) params.set("filter", requestedFilter);
     const query = params.toString();
     return query ? `?${query}` : "";
   }
@@ -145,6 +160,22 @@ const description = isNeedsReviewMode
 
   function badgeKey(value) {
     return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  }
+
+  function needsReviewStatus(status) {
+    return [
+      "submitted",
+      "assigned",
+      "draft",
+      "under-review",
+      "in-review",
+      "needs-more-information",
+      "needs-revision",
+      "accepted",
+      "in-progress",
+      "draft-created",
+      "in-approval",
+    ].includes(badgeKey(status));
   }
 
   function statusBadge(status) {
@@ -193,6 +224,12 @@ const description = isNeedsReviewMode
       ].includes(key);
     }
     if (filter === "summary:urgent") return ["High", "Urgent"].includes(item.priority);
+    if (filter === "summary:overdue") {
+      const rawDate = item.reviewDate || item.dueDate || item.updatedDate;
+      const reviewDate = rawDate ? String(rawDate).slice(0, 10) : "";
+      const today = new Date().toISOString().slice(0, 10);
+      return Boolean(reviewDate && reviewDate < today && needsReviewStatus(item.status));
+    }
     if (filter === "summary:approved") return key === "approved";
     if (filter === "summary:published") return key === "published";
     if (filter === "summary:archived") return ["archived", "closed", "declined"].includes(key);

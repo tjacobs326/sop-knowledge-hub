@@ -29,30 +29,61 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
     </div>
 
     <div class="stat-grid user-summary" aria-label="My work summary">
-      <article class="stat-card">
+      <a
+        class="stat-card work-summary-card"
+        href="/my-work/?workFilter=submitted#work-section-submitted"
+        data-work-summary-link
+        data-work-filter="submitted"
+        aria-label="View submitted requests for the current work scope"
+      >
         <span>Submitted requests</span>
         <strong id="count-submitted">0</strong>
-      </article>
-      <article class="stat-card">
+      </a>
+      <a
+        class="stat-card work-summary-card"
+        href="/drafts/?source=my-work"
+        data-work-summary-link
+        data-work-filter="drafts"
+        aria-label="View draft SOPs for the current work scope"
+      >
         <span>Draft SOPs</span>
         <strong id="count-drafts">0</strong>
-      </article>
-      <article class="stat-card">
+      </a>
+      <a
+        class="stat-card work-summary-card"
+        href="/my-work/?workFilter=assigned#work-section-assigned"
+        data-work-summary-link
+        data-work-filter="assigned"
+        aria-label="View SOPs assigned to the current team"
+      >
         <span>Assigned to team</span>
         <strong id="count-assigned">0</strong>
-      </article>
-      <article class="stat-card">
+      </a>
+      <a
+        class="stat-card work-summary-card"
+        href="/admin/review/?filter=review-needed"
+        data-work-summary-link
+        data-work-filter="review"
+        aria-label="View team reviews needed for the current work scope"
+      >
         <span>Team reviews needed</span>
         <strong id="count-review">0</strong>
-      </article>
-      <article class="stat-card">
+      </a>
+      <a
+        class="stat-card work-summary-card"
+        href="/admin/review/?filter=overdue"
+        data-work-summary-link
+        data-work-filter="overdue"
+        aria-label="View overdue team reviews for the current work scope"
+      >
         <span>Team overdue reviews</span>
         <strong id="count-overdue">0</strong>
-      </article>
+      </a>
     </div>
+    <p class="work-summary-status" id="work-summary-status" role="status" aria-live="polite"></p>
 
     <div class="work-grid">
-      <section class="dashboard-section" aria-labelledby="submitted-heading">
+      <section class="dashboard-section work-section" id="work-section-submitted" data-work-section="submitted" aria-labelledby="submitted-heading">
         <h2 id="submitted-heading">My Submitted Requests</h2>
         <div class="table-wrap">
           <table>
@@ -70,7 +101,7 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
         </div>
       </section>
 
-      <section class="dashboard-section" aria-labelledby="drafts-heading">
+      <section class="dashboard-section work-section" id="work-section-drafts" data-work-section="drafts" aria-labelledby="drafts-heading">
         <h2 id="drafts-heading">My Draft SOPs</h2>
         <div class="table-wrap">
           <table>
@@ -87,7 +118,7 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
         </div>
       </section>
 
-      <section class="dashboard-section" aria-labelledby="assigned-heading">
+      <section class="dashboard-section work-section" id="work-section-assigned" data-work-section="assigned" aria-labelledby="assigned-heading">
         <h2 id="assigned-heading">SOPs Assigned to Me</h2>
         <div class="table-wrap">
           <table>
@@ -105,7 +136,7 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
         </div>
       </section>
 
-      <section class="dashboard-section" aria-labelledby="owned-heading">
+      <section class="dashboard-section work-section" id="work-section-owned" data-work-section="owned" aria-labelledby="owned-heading">
         <h2 id="owned-heading">SOPs I Own</h2>
         <div class="table-wrap">
           <table>
@@ -123,7 +154,7 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
         </div>
       </section>
 
-      <section class="dashboard-section" aria-labelledby="review-heading">
+      <section class="dashboard-section work-section" id="work-section-review" data-work-section="review" aria-labelledby="review-heading">
         <h2 id="review-heading">SOPs Needing My Review</h2>
         <div class="table-wrap">
           <table>
@@ -141,7 +172,7 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
         </div>
       </section>
 
-      <section class="dashboard-section" aria-labelledby="overdue-heading">
+      <section class="dashboard-section work-section" id="work-section-overdue" data-work-section="overdue" aria-labelledby="overdue-heading">
         <h2 id="overdue-heading">Overdue Reviews</h2>
         <div class="table-wrap">
           <table>
@@ -171,9 +202,19 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
   // @ts-nocheck
   const ROLE_CONTEXT_EVENT = "sop-role-context-change";
   const SUB_ROLE_KEY = "sopHubSelectedCreatorSubRole";
+  const WORK_SCOPE_KEY = "sopHubMyWorkScope";
   const currentUserSelect = document.getElementById("current-user");
   const currentAccessLevel = document.getElementById("current-access-level");
+  const workSummaryLinks = Array.from(document.querySelectorAll("[data-work-summary-link]"));
+  const workSummaryStatus = document.getElementById("work-summary-status");
   const tableIds = ["submitted-list", "draft-list", "assigned-list", "owned-list", "review-list", "overdue-list"];
+  const workFilterLabels = {
+    submitted: "submitted requests",
+    drafts: "draft SOPs",
+    assigned: "team assignments",
+    review: "team reviews needed",
+    overdue: "overdue team reviews",
+  };
   let activeRequestId = 0;
   let selectedScope = "";
 
@@ -257,6 +298,54 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
     if (element) element.textContent = String(Number(value || 0));
   }
 
+  function updateWorkSummaryLabels() {
+    const scopeLabel = currentAccessLevel instanceof HTMLInputElement ? currentAccessLevel.value : "current work scope";
+    workSummaryLinks.forEach((link) => {
+      const filter = link instanceof HTMLElement ? link.dataset.workFilter || "" : "";
+      const count = link.querySelector("strong")?.textContent?.trim() || "0";
+      const label = workFilterLabels[filter] || "work records";
+      link.setAttribute("aria-label", `View ${count} ${label} for ${scopeLabel}`);
+    });
+  }
+
+  function preserveWorkScope() {
+    if (!selectedScope) return;
+    try {
+      sessionStorage.setItem(WORK_SCOPE_KEY, selectedScope);
+    } catch {
+      // Session storage is a convenience for navigation only; the API still validates the scope.
+    }
+  }
+
+  function requestedWorkFilter() {
+    const params = new URLSearchParams(window.location.search);
+    const filter = params.get("workFilter") || "";
+    return Object.prototype.hasOwnProperty.call(workFilterLabels, filter) ? filter : "";
+  }
+
+  function focusRequestedWorkSection() {
+    const filter = requestedWorkFilter();
+    if (!filter) {
+      if (workSummaryStatus) workSummaryStatus.textContent = "";
+      return;
+    }
+    const section = document.querySelector(`[data-work-section="${CSS.escape(filter)}"]`);
+    const label = workFilterLabels[filter] || "work records";
+    workSummaryLinks.forEach((link) => {
+      link.toggleAttribute("aria-current", link instanceof HTMLElement && link.dataset.workFilter === filter);
+    });
+    if (workSummaryStatus) {
+      workSummaryStatus.textContent = `Showing ${label} for the selected work scope.`;
+    }
+    if (section instanceof HTMLElement) {
+      section.setAttribute("tabindex", "-1");
+      requestAnimationFrame(() => {
+        section.scrollIntoView({ behavior: "smooth", block: "start" });
+        section.focus({ preventScroll: true });
+      });
+    }
+  }
+
   function clearDashboard(message = "Loading backend work records...") {
     setCount("count-submitted", 0);
     setCount("count-drafts", 0);
@@ -324,6 +413,7 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
     setCount("count-assigned", counts.assignedToTeam ?? counts.assignedToMe);
     setCount("count-review", counts.teamReviewsNeeded ?? counts.needMyReview);
     setCount("count-overdue", counts.overdueReviews);
+    updateWorkSummaryLabels();
 
     renderRows(
       "submitted-list",
@@ -401,12 +491,24 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
       ],
       "No backend overdue reviews for this sub-role or selected user.",
     );
+    focusRequestedWorkSection();
   }
 
   async function loadMyWork({ preserveUser = false } = {}) {
     const requestId = ++activeRequestId;
     const subRole = localStorage.getItem(SUB_ROLE_KEY) || "";
     const params = new URLSearchParams();
+    if (!preserveUser) {
+      try {
+        const savedScope = sessionStorage.getItem(WORK_SCOPE_KEY) || "";
+        if (savedScope) {
+          selectedScope = savedScope;
+          preserveUser = true;
+        }
+      } catch {
+        // Ignore unavailable session storage.
+      }
+    }
     if (preserveUser && selectedScope) {
       const parsedScope = parseScopeValue(selectedScope);
       params.set("scope", parsedScope.scope);
@@ -444,13 +546,23 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
 
   currentUserSelect?.addEventListener("change", () => {
     selectedScope = currentUserSelect instanceof HTMLSelectElement ? currentUserSelect.value : "";
+    preserveWorkScope();
     loadMyWork({ preserveUser: true });
+  });
+
+  workSummaryLinks.forEach((link) => {
+    link.addEventListener("click", preserveWorkScope);
   });
 
   window.addEventListener(ROLE_CONTEXT_EVENT, (event) => {
     const detail = event instanceof CustomEvent ? event.detail || {} : {};
     if (detail.previousSubRole !== detail.subRole || detail.previousRole !== detail.role) {
       selectedScope = "";
+      try {
+        sessionStorage.removeItem(WORK_SCOPE_KEY);
+      } catch {
+        // Ignore unavailable session storage.
+      }
       loadMyWork();
     }
   });

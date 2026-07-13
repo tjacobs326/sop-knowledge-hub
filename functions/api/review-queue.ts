@@ -444,6 +444,26 @@ function needsReviewStatus(status: unknown) {
   ].includes(statusKey(status));
 }
 
+const routeFilters = new Set(["review-needed", "needs-review", "overdue", "urgent", "approved", "published", "archived"]);
+
+type QueueItem = ReturnType<typeof normalizeRequest> | ReturnType<typeof normalizeSop>;
+
+function filterQueueItems(items: QueueItem[], filter: string) {
+  const today = new Date().toISOString().slice(0, 10);
+  if (filter === "review-needed" || filter === "needs-review") return items.filter((item) => needsReviewStatus(item.status));
+  if (filter === "overdue") {
+    return items.filter((item) => {
+      const reviewDate = String(item.reviewDate || "").slice(0, 10);
+      return Boolean(reviewDate && reviewDate < today && needsReviewStatus(item.status));
+    });
+  }
+  if (filter === "urgent") return items.filter((item) => ["High", "Urgent"].includes(String(item.priority || "")));
+  if (filter === "approved") return items.filter((item) => statusKey(item.status) === "approved");
+  if (filter === "published") return items.filter((item) => statusKey(item.status) === "published");
+  if (filter === "archived") return items.filter((item) => ["archived", "closed", "declined"].includes(statusKey(item.status)));
+  return items;
+}
+
 export const onRequestGet = async (context: PagesFunctionContext) => {
   const missingDb = requireDb(context.env.DB);
   if (missingDb) return missingDb;
@@ -455,6 +475,10 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
 
   const url = new URL(context.request.url);
   const view = optionalText(url.searchParams.get("view"), 40);
+  const requestedFilter = optionalText(url.searchParams.get("filter"), 80);
+  if (requestedFilter && !routeFilters.has(requestedFilter)) {
+    return failure("VALIDATION_ERROR", "Unsupported review queue filter.", 400, { filter: "Invalid filter" });
+  }
   const requestedUserId = optionalText(url.searchParams.get("userId"), 160);
   const users = await usersForSubRole(db, resolved.subRole);
   const selectedUser =
@@ -468,7 +492,8 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
     querySopReviews(db, resolved.subRole, selectedUser, resolved.user),
   ]);
   const allItems = [...requests, ...sops].sort((a, b) => String(b.updatedDate).localeCompare(String(a.updatedDate)));
-  const items = view === "needs-review" ? allItems.filter((item) => needsReviewStatus(item.status)) : allItems;
+  const viewItems = view === "needs-review" ? allItems.filter((item) => needsReviewStatus(item.status)) : allItems;
+  const items = requestedFilter ? filterQueueItems(viewItems, requestedFilter) : viewItems;
 
   return new Response(
     JSON.stringify({
