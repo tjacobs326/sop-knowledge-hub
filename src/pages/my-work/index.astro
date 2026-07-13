@@ -61,7 +61,7 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
       </a>
       <a
         class="stat-card work-summary-card"
-        href="/admin/review/?filter=review-needed"
+        href="/review-queue/?filter=review-needed"
         data-work-summary-link
         data-work-filter="review"
         aria-label="View team reviews needed for the current work scope"
@@ -71,7 +71,7 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
       </a>
       <a
         class="stat-card work-summary-card"
-        href="/admin/review/?filter=overdue"
+        href="/review-queue/?filter=overdue"
         data-work-summary-link
         data-work-filter="overdue"
         aria-label="View overdue team reviews for the current work scope"
@@ -257,6 +257,13 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
 
   function actionButton(href, label) {
     return `<a class="button button--secondary" href="${escapeHtml(href)}">${escapeHtml(label)}</a>`;
+  }
+
+  function reviewUrl(item, origin = "my-work-reviews-needed") {
+    const rawId = String(item.id || "");
+    const itemType = String(item.itemType || "");
+    const reviewId = rawId.includes(":") ? rawId : `${itemType === "request" ? "request" : "sop"}:${rawId}`;
+    return `/review-queue/?review=${encodeURIComponent(reviewId)}&origin=${encodeURIComponent(origin)}`;
   }
 
   function badge(definitions, value, fallbackLabel, fallbackClass, baseClass) {
@@ -474,7 +481,7 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
         (item) => statusBadge(item.status),
         (item) => priorityBadge(item.priority || "Medium"),
         (item) => escapeHtml(formatDateClient(item.reviewDate)),
-        (item) => actionButton(item.url || "/admin/needs-review/", "Open Review"),
+        (item) => actionButton(reviewUrl(item, "my-work-reviews-needed"), "Open Review"),
       ],
       "No backend SOPs currently need review for this sub-role or selected user.",
     );
@@ -487,7 +494,7 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
         (item) => escapeHtml(item.owner || "Unassigned"),
         (item) => escapeHtml(formatDateClient(item.reviewDate)),
         () => statusBadge("Past Due"),
-        (item) => actionButton(item.url || "/admin/needs-review/", "Open Review"),
+        (item) => actionButton(reviewUrl(item, "my-work-overdue-reviews"), "Open Review"),
       ],
       "No backend overdue reviews for this sub-role or selected user.",
     );

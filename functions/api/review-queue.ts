@@ -448,6 +448,13 @@ const routeFilters = new Set(["review-needed", "needs-review", "overdue", "urgen
 
 type QueueItem = ReturnType<typeof normalizeRequest> | ReturnType<typeof normalizeSop>;
 
+function routeReviewId(value: string) {
+  const trimmed = optionalText(value, 180);
+  if (!trimmed) return "";
+  if (!/^(request|sop):[a-zA-Z0-9_.:-]+$/.test(trimmed)) return "";
+  return trimmed;
+}
+
 function filterQueueItems(items: QueueItem[], filter: string) {
   const today = new Date().toISOString().slice(0, 10);
   if (filter === "review-needed" || filter === "needs-review") return items.filter((item) => needsReviewStatus(item.status));
@@ -479,6 +486,10 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
   if (requestedFilter && !routeFilters.has(requestedFilter)) {
     return failure("VALIDATION_ERROR", "Unsupported review queue filter.", 400, { filter: "Invalid filter" });
   }
+  const requestedReviewId = routeReviewId(url.searchParams.get("review") || "");
+  if (url.searchParams.get("review") && !requestedReviewId) {
+    return failure("VALIDATION_ERROR", "Unsupported review identifier.", 400, { review: "Invalid review id" });
+  }
   const requestedUserId = optionalText(url.searchParams.get("userId"), 160);
   const users = await usersForSubRole(db, resolved.subRole);
   const selectedUser =
@@ -493,7 +504,8 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
   ]);
   const allItems = [...requests, ...sops].sort((a, b) => String(b.updatedDate).localeCompare(String(a.updatedDate)));
   const viewItems = view === "needs-review" ? allItems.filter((item) => needsReviewStatus(item.status)) : allItems;
-  const items = requestedFilter ? filterQueueItems(viewItems, requestedFilter) : viewItems;
+  const filterItems = requestedFilter ? filterQueueItems(viewItems, requestedFilter) : viewItems;
+  const items = requestedReviewId ? filterItems.filter((item) => item.id === requestedReviewId) : filterItems;
 
   return new Response(
     JSON.stringify({

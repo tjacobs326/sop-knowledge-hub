@@ -53,6 +53,7 @@ function normalizeDate(value: unknown) {
 function normalizeRequest(row: Record<string, unknown>) {
   return {
     id: row.id,
+    itemType: "request",
     title: row.title || row.requestedTitle || "Untitled SOP Request",
     status: row.status || "Submitted",
     priority: row.priority || "Medium",
@@ -90,16 +91,16 @@ function withEditOrigin(url: string, origin: string) {
 }
 
 function normalizeReview(row: Record<string, unknown>) {
+  const sopId = String(row.sopId || row.id || "");
   return {
-    id: row.id,
+    id: `sop:${sopId}`,
+    itemType: "sop",
     title: row.title || row.sopTitle || "Untitled Review",
     status: row.status || "Assigned",
     priority: row.priority || "Medium",
     reviewDate: normalizeDate(row.dueDate || row.reviewDate || row.dueAt),
     owner: row.reviewer || row.owner || "Unassigned",
-    url: row.sopId
-      ? `/sops/detail/?id=${encodeURIComponent(String(row.sopId))}`
-      : `/admin/needs-review/?review=${encodeURIComponent(String(row.id || ""))}`,
+    url: `/review-queue/?review=${encodeURIComponent(`sop:${sopId}`)}`,
   };
 }
 

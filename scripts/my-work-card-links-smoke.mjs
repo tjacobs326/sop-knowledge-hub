@@ -12,8 +12,8 @@ const expectedLinks = [
   ['data-work-filter="submitted"', 'href="/my-work/?workFilter=submitted#work-section-submitted"'],
   ['data-work-filter="drafts"', 'href="/drafts/?source=my-work"'],
   ['data-work-filter="assigned"', 'href="/my-work/?workFilter=assigned#work-section-assigned"'],
-  ['data-work-filter="review"', 'href="/admin/review/?filter=review-needed"'],
-  ['data-work-filter="overdue"', 'href="/admin/review/?filter=overdue"'],
+  ['data-work-filter="review"', 'href="/review-queue/?filter=review-needed"'],
+  ['data-work-filter="overdue"', 'href="/review-queue/?filter=overdue"'],
 ];
 
 const failures = [];

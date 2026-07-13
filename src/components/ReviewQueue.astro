@@ -3,10 +3,12 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../lib/badges"
 import AppIllustration from "./AppIllustration.astro";
 
 interface Props {
-  mode?: "queue" | "needs-review";
+  mode?: "admin" | "queue" | "creator-reviewer" | "needs-review";
 }
 
-const { mode = "queue" } = Astro.props;
+const { mode = "admin" } = Astro.props;
+const isCreatorReviewMode = mode === "creator-reviewer";
+const isAdminMode = mode === "admin" || mode === "queue";
 const isNeedsReviewMode = mode === "needs-review";
 
 const filters = [
@@ -31,10 +33,12 @@ const summaryFilters = [
   { label: "Published", key: "published", filter: "summary:published" },
 ];
 
-const heading = isNeedsReviewMode ? "Needs Review" : "Admin Review Control Center";
-const eyebrow = isNeedsReviewMode ? "Creators / Reviewers" : "Review Queue";
+const heading = isNeedsReviewMode ? "Needs Review" : isCreatorReviewMode ? "Review Queue" : "Admin Review Control Center";
+const eyebrow = isNeedsReviewMode || isCreatorReviewMode ? "Creators / Reviewers" : "Review Queue";
 const description = isNeedsReviewMode
   ? "Review backend SOP submissions, drafts, updates, and requests assigned to your selected department."
+  : isCreatorReviewMode
+    ? "Review assigned SOPs, provide feedback, and complete actions available for your current Creator / Reviewer role."
   : "Review, assign, approve, request changes, publish, and archive backend SOP work from one queue.";
 ---
 
@@ -90,7 +94,7 @@ const description = isNeedsReviewMode
   </div>
 </section>
 
-<script is:inline define:vars={{ summaryFilters, priorityBadgeDefinitions, statusBadgeDefinitions, isNeedsReviewMode }}>
+<script is:inline define:vars={{ summaryFilters, priorityBadgeDefinitions, statusBadgeDefinitions, isNeedsReviewMode, isCreatorReviewMode, isAdminMode }}>
   const list = document.getElementById("review-list");
   const contextEl = document.getElementById("review-context");
   const errorsEl = document.getElementById("review-errors");
@@ -101,6 +105,46 @@ const description = isNeedsReviewMode
   const ROLE_KEY = "sopHubSelectedRole";
   const SUB_ROLE_KEY = "sopHubSelectedCreatorSubRole";
   const DEFAULT_FILTER = isNeedsReviewMode ? "summary:needs-review" : "All";
+  const safeOrigins = {
+    "my-work-reviews-needed": {
+      label: "Reviews Needed",
+      href: "/my-work/?workFilter=review#work-section-review",
+      breadcrumb: `
+        <li><a href="/">Home</a></li>
+        <li><a href="/my-work/?workFilter=review#work-section-review">My Work</a></li>
+        <li><a href="/my-work/?workFilter=review#work-section-review">Reviews Needed</a></li>
+        <li><span aria-current="page">Review SOP</span></li>
+      `,
+    },
+    "my-work-overdue-reviews": {
+      label: "Overdue Reviews",
+      href: "/my-work/?workFilter=overdue#work-section-overdue",
+      breadcrumb: `
+        <li><a href="/">Home</a></li>
+        <li><a href="/my-work/?workFilter=overdue#work-section-overdue">My Work</a></li>
+        <li><a href="/my-work/?workFilter=overdue#work-section-overdue">Overdue Reviews</a></li>
+        <li><span aria-current="page">Review SOP</span></li>
+      `,
+    },
+    "review-queue": {
+      label: "Review Queue",
+      href: "/review-queue/",
+      breadcrumb: `
+        <li><a href="/">Home</a></li>
+        <li><a href="/review-queue/">Review Queue</a></li>
+        <li><span aria-current="page">Review SOP</span></li>
+      `,
+    },
+    "admin-review-queue": {
+      label: "Admin Review Queue",
+      href: "/admin/review/",
+      breadcrumb: `
+        <li><a href="/">Home</a></li>
+        <li><a href="/admin/review/">Admin Review Queue</a></li>
+        <li><span aria-current="page">Review SOP</span></li>
+      `,
+    },
+  };
   const urlFilterMap = {
     "review-needed": "summary:needs-review",
     "needs-review": "summary:needs-review",
@@ -113,6 +157,14 @@ const description = isNeedsReviewMode
   function requestedQueueFilter() {
     const value = new URLSearchParams(window.location.search).get("filter") || "";
     return urlFilterMap[value] || DEFAULT_FILTER;
+  }
+  function requestedReviewId() {
+    return new URLSearchParams(window.location.search).get("review") || "";
+  }
+  function requestedOrigin() {
+    const origin = new URLSearchParams(window.location.search).get("origin") || "";
+    if (origin && Object.prototype.hasOwnProperty.call(safeOrigins, origin)) return origin;
+    return isAdminMode ? "admin-review-queue" : "review-queue";
   }
   let activeFilter = requestedQueueFilter();
   let queueItems = [];
@@ -142,6 +194,8 @@ const description = isNeedsReviewMode
     if (isNeedsReviewMode) params.set("view", "needs-review");
     const requestedFilter = new URLSearchParams(window.location.search).get("filter") || "";
     if (requestedFilter) params.set("filter", requestedFilter);
+    const reviewId = requestedReviewId();
+    if (reviewId) params.set("review", reviewId);
     const query = params.toString();
     return query ? `?${query}` : "";
   }
@@ -237,6 +291,8 @@ const description = isNeedsReviewMode
   }
 
   function filterItem(item) {
+    const reviewId = requestedReviewId();
+    if (reviewId) return item.id === reviewId;
     if (isNeedsReviewMode) return matchesSummary(item, "summary:needs-review");
     if (activeFilter.startsWith("summary:")) return matchesSummary(item, activeFilter);
     if (activeFilter === "All") return true;
@@ -272,6 +328,7 @@ const description = isNeedsReviewMode
 
   function actionButton(item, action, label, className = "button--secondary") {
     if (!Array.isArray(item.availableActions) || !item.availableActions.includes(action)) return "";
+    if (isCreatorReviewMode && ["assign", "convert", "archive"].includes(action)) return "";
     return `<button class="button ${className}" type="button" data-review-action="${escapeHtml(action)}">${escapeHtml(label)}</button>`;
   }
 
@@ -298,10 +355,14 @@ const description = isNeedsReviewMode
           <div><dt>Last updated</dt><dd>${escapeHtml(formatDate(item.updatedDate))}</dd></div>
         </dl>
         <div class="review-actions no-print">
-          <label>
-            <span>Assigned reviewer</span>
-            <select data-review-assignee>${assigneeOptions(item.assignedTo)}</select>
-          </label>
+          ${
+            isAdminMode
+              ? `<label>
+                  <span>Assigned reviewer</span>
+                  <select data-review-assignee>${assigneeOptions(item.assignedTo)}</select>
+                </label>`
+              : ""
+          }
           <label class="field--full">
             <span>Reviewer notes / reason</span>
             <textarea data-review-notes rows="2" placeholder="Add reviewer notes, denial reason, or instructions.">${escapeHtml(
@@ -309,6 +370,11 @@ const description = isNeedsReviewMode
             )}</textarea>
           </label>
           <a class="button button--ghost" href="${escapeHtml(item.detailUrl)}">View Details</a>
+          ${
+            isCreatorReviewMode
+              ? `<a class="button button--ghost" href="${escapeHtml(safeOrigins[requestedOrigin()].href)}">Back to ${escapeHtml(safeOrigins[requestedOrigin()].label)}</a>`
+              : ""
+          }
           ${
             item.editUrl && item.availableActions?.includes("edit")
               ? `<a class="button button--secondary" href="${escapeHtml(item.editUrl)}">Edit Draft</a>`
@@ -335,7 +401,8 @@ const description = isNeedsReviewMode
     const subRole = context.selectedSubRole?.label || "selected department";
     const visibleItems = queueItems.filter(filterItem);
     if (contextEl) {
-      contextEl.textContent = `${visibleItems.length} backend ${isNeedsReviewMode ? "needs-review" : "review"} item${visibleItems.length === 1 ? "" : "s"} loaded for ${user} in ${subRole}.`;
+      const itemWord = visibleItems.length === 1 ? "review" : "reviews";
+      contextEl.textContent = `${visibleItems.length} ${itemWord} loaded for ${user} in ${subRole}.`;
     }
   }
 
@@ -435,6 +502,18 @@ const description = isNeedsReviewMode
     render();
   }
 
+  function applyReviewPageContext() {
+    const reviewId = requestedReviewId();
+    const origin = safeOrigins[requestedOrigin()];
+    const heading = document.getElementById("review-heading");
+    const breadcrumbs = document.querySelector(".breadcrumbs ol");
+    if (isCreatorReviewMode && reviewId) {
+      document.title = "Review SOP | SOP Knowledge Hub";
+      if (heading) heading.textContent = "Review SOP";
+      if (breadcrumbs instanceof HTMLOListElement) breadcrumbs.innerHTML = origin.breadcrumb;
+    }
+  }
+
   tabs.forEach((tab) => {
     tab.addEventListener("click", () => setActiveFilter(tab.dataset.reviewFilter));
   });
@@ -471,4 +550,5 @@ const description = isNeedsReviewMode
   });
 
   loadQueue().catch(showError);
+  applyReviewPageContext();
 </script>
