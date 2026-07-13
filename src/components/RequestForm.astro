@@ -283,6 +283,7 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
     String(value || "")
       .split(/\n+/)
       .map((item) => item.trim())
+      .map((item) => (isLegacyDataAttachment(item) ? attachmentDisplayLabel(item) : item))
       .filter(Boolean);
 
   function getField(name) {
@@ -311,6 +312,21 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
     });
   }
 
+  function isLegacyDataAttachment(value) {
+    return /^data:(image|video|application)\//i.test(String(value || ""));
+  }
+
+  function attachmentDisplayLabel(attachment) {
+    const label = String(attachment?.label || attachment || "").trim();
+    if (label && !isLegacyDataAttachment(label)) return label;
+    const value = String(attachment?.value || attachment || "");
+    if (/^data:image\//i.test(value)) return "Attached image";
+    if (/^data:video\//i.test(value)) return "Attached video";
+    if (/^data:application\//i.test(value)) return "Attached file";
+    const lastSegment = value.split(/[\\/]/).pop() || "";
+    return lastSegment.trim() || "Attachment";
+  }
+
   async function uploadMediaFile(file, purpose = "Request Attachment") {
     const formData = new FormData();
     formData.append("file", file);
@@ -337,7 +353,7 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
   function syncAttachmentsField() {
     if (attachmentsInput instanceof HTMLTextAreaElement) {
       attachmentsInput.value = attachments
-        .map((attachment) => attachment.value || attachment.label)
+        .map((attachment) => (isLegacyDataAttachment(attachment.value) ? attachmentDisplayLabel(attachment) : attachment.value || attachmentDisplayLabel(attachment)))
         .filter(Boolean)
         .join("\n");
     }
@@ -351,19 +367,24 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
     attachmentList.innerHTML = attachments
       .map((attachment, index) => {
         const image =
-          attachment.kind === "image"
+          attachment.kind === "image" && !isLegacyDataAttachment(attachment.value)
             ? `<img src="${escapeHtml(attachment.value)}" alt="${escapeHtml(attachment.label)} preview" />`
             : "";
         const video =
-          attachment.kind === "video"
+          attachment.kind === "video" && !isLegacyDataAttachment(attachment.value)
             ? `<video controls src="${escapeHtml(attachment.value)}"></video>`
+            : "";
+        const fallback =
+          !image && !video
+            ? `<div class="attachment-card attachment-card--file"><span aria-hidden="true">Attachment</span><div><span>${escapeHtml(attachmentDisplayLabel(attachment))}</span></div></div>`
             : "";
         return `
           <figure class="attachment-preview">
             ${image}
             ${video}
+            ${fallback}
             <figcaption>
-              <span>${escapeHtml(attachment.label)}</span>
+              <span>${escapeHtml(attachmentDisplayLabel(attachment))}</span>
               <button class="button button--ghost" type="button" data-remove-attachment="${index}">
                 Remove
               </button>
@@ -448,8 +469,11 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
   }
 
   function displayValue(value) {
-    if (Array.isArray(value)) return value.length ? value.join(", ") : "Not provided";
-    return value ? String(value) : "Not provided";
+    if (Array.isArray(value)) {
+      const safeValues = value.map((item) => (isLegacyDataAttachment(item) ? attachmentDisplayLabel(item) : item));
+      return safeValues.length ? safeValues.join(", ") : "Not provided";
+    }
+    return value ? (isLegacyDataAttachment(value) ? attachmentDisplayLabel(value) : String(value)) : "Not provided";
   }
 
   function renderReviewSummary(submission) {

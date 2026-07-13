@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
 const createForm = readFileSync(resolve(root, "src/components/CreateSopForm.astro"), "utf8");
+const requestForm = readFileSync(resolve(root, "src/components/RequestForm.astro"), "utf8");
 const mediaApi = readFileSync(resolve(root, "functions/api/media.ts"), "utf8");
 const sopsApi = readFileSync(resolve(root, "functions/api/sops.ts"), "utf8");
 const sopUpdateApi = readFileSync(resolve(root, "functions/api/sops/[id].ts"), "utf8");
@@ -39,8 +40,18 @@ assert(
 assert(
   createForm.includes("choose Requires alternative text or Decorative") &&
     createForm.includes("attachment.accessibilityStatus === \"meaningful\" && !attachment.altText") &&
-    createForm.includes("Describe the purpose or meaningful content"),
-  "Create SOP must block incomplete attachment accessibility choices and guide meaningful alt text entry.",
+    createForm.includes("Describe the purpose or meaningful content") &&
+    createForm.includes("isLegacyDataAttachment") &&
+    createForm.includes("safeAttachmentText") &&
+    !createForm.includes("attachment.caption || attachment.altText || attachment.fileName"),
+  "Create SOP must block incomplete attachment accessibility choices, guide meaningful alt text entry, and avoid rendering raw legacy Base64 attachment text.",
+);
+assert(
+  requestForm.includes("isLegacyDataAttachment") &&
+    requestForm.includes("attachmentDisplayLabel") &&
+    requestForm.includes("isLegacyDataAttachment(attachment.value)") &&
+    requestForm.includes("isLegacyDataAttachment(item) ? attachmentDisplayLabel(item) : item"),
+  "Submit SOP Request must use readable labels for legacy Base64 attachment values in previews, review summaries, and submitted text.",
 );
 assert(
   mediaApi.includes('new Set(["image/png", "image/jpeg", "image/webp", "video/mp4"])') &&

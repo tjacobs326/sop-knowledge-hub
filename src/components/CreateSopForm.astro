@@ -213,26 +213,49 @@ const sopTypes = [
     );
   }
 
+  function isLegacyDataAttachment(value) {
+    return /^data:(image|video|application)\//i.test(String(value || ""));
+  }
+
+  function attachmentFallbackLabel(value) {
+    const text = String(value || "");
+    if (/^data:image\//i.test(text)) return "Attached image";
+    if (/^data:video\//i.test(text)) return "Attached video";
+    if (/^data:application\//i.test(text)) return "Attached file";
+    const lastSegment = text.split(/[\\/]/).pop() || "";
+    return lastSegment.trim() || "Attachment";
+  }
+
+  function safeAttachmentText(value, fallback = "Attachment") {
+    return isLegacyDataAttachment(value) ? fallback : String(value || "").trim();
+  }
+
   function normalizeAttachment(attachment = {}, index = 0) {
     const id = attachment.mediaAssetId || attachment.id || "";
     if (!id) return null;
     const isDecorative =
       attachment.accessibilityStatus === "decorative" || attachment.isDecorative === true || attachment.isDecorative === 1;
-    const altText = String(attachment.altText || "").slice(0, MAX_ALT_TEXT_LENGTH);
+    const rawUrl = String(attachment.url || "");
+    const fileName =
+      safeAttachmentText(attachment.fileName || attachment.originalFileName || attachment.displayName, "") ||
+      attachmentFallbackLabel(rawUrl) ||
+      `Attachment ${index + 1}`;
+    const altText = safeAttachmentText(attachment.altText, "").slice(0, MAX_ALT_TEXT_LENGTH);
+    const caption = safeAttachmentText(attachment.caption, isLegacyDataAttachment(rawUrl) ? "Legacy attachment" : "");
     return {
       id,
       mediaAssetId: id,
-      fileName: attachment.fileName || attachment.originalFileName || "Attachment",
+      fileName,
       mimeType: attachment.mimeType || "",
       assetType: attachment.assetType || (String(attachment.mimeType || "").startsWith("video/") ? "Video" : "Image"),
-      url: attachment.url || `/api/media/?id=${encodeURIComponent(id)}`,
+      url: isLegacyDataAttachment(rawUrl) ? `/api/media/?id=${encodeURIComponent(id)}` : rawUrl || `/api/media/?id=${encodeURIComponent(id)}`,
       altText: isDecorative ? "" : altText,
       accessibilityStatus: isDecorative ? "decorative" : altText ? "meaningful" : attachment.accessibilityStatus || "",
       isDecorative,
       _savedAccessibilityStatus: isDecorative ? "decorative" : altText ? "meaningful" : attachment.accessibilityStatus || "",
       _savedAltText: isDecorative ? "" : altText,
       _savedIsDecorative: isDecorative,
-      caption: attachment.caption || "",
+      caption,
       relationship: attachment.relationship || "Instructional Media",
       sortOrder: Number.isFinite(Number(attachment.sortOrder)) ? Number(attachment.sortOrder) : index,
     };
@@ -255,9 +278,12 @@ const sopTypes = [
         const altLength = String(attachment.altText || "").length;
         const altRemaining = MAX_ALT_TEXT_LENGTH - altLength;
         const promptId = `attachment-a11y-${attachment.id || index}`;
-        const media = isVideo
-          ? `<video controls preload="metadata" src="${escapeHtml(attachment.url)}"></video>`
-          : `<img loading="lazy" src="${escapeHtml(attachment.url)}" alt="${escapeHtml(isDecorative ? "" : attachment.altText || "")}" />`;
+        const mediaUrl = isLegacyDataAttachment(attachment.url) ? "" : String(attachment.url || "");
+        const media = mediaUrl
+          ? isVideo
+            ? `<video controls preload="metadata" src="${escapeHtml(mediaUrl)}"></video>`
+            : `<img loading="lazy" src="${escapeHtml(mediaUrl)}" alt="${escapeHtml(isDecorative ? "" : attachment.altText || "")}" />`
+          : `<div class="attachment-card attachment-card--file"><span aria-hidden="true">Attachment</span><div><span>${escapeHtml(attachment.fileName || "Attached file")}</span></div></div>`;
         return `
           <figure class="attachment-preview step-attachment" data-step-attachment="${index}">
             ${media}
@@ -416,9 +442,15 @@ const sopTypes = [
           isDecorative: attachment.accessibilityStatus === "decorative" || attachment.isDecorative === true,
           altText: attachment.accessibilityStatus === "decorative"
             ? ""
-            : (step.querySelector(`[data-attachment-alt="${index}"]`)?.value.trim() || attachment.altText || "").slice(0, MAX_ALT_TEXT_LENGTH),
+            : safeAttachmentText(
+                step.querySelector(`[data-attachment-alt="${index}"]`)?.value.trim() || attachment.altText || "",
+                "",
+              ).slice(0, MAX_ALT_TEXT_LENGTH),
           caption:
-            step.querySelector(`[data-attachment-caption="${index}"]`)?.value.trim() || attachment.caption || "",
+            safeAttachmentText(
+              step.querySelector(`[data-attachment-caption="${index}"]`)?.value.trim() || attachment.caption || "",
+              "",
+            ),
           sortOrder: index,
         })),
       }))
@@ -575,14 +607,22 @@ const sopTypes = [
     document.getElementById("preview-steps").innerHTML = draft.procedureSteps
       .map((step) => {
         const attachments = (step.attachments || [])
-          .map((attachment) => {
+          .map((attachment, index) => {
+            const normalized = normalizeAttachment(attachment, index);
+            if (!normalized) return "";
+            const mediaUrl = isLegacyDataAttachment(normalized.url) ? "" : String(normalized.url || "");
             const isVideo = String(attachment.mimeType || "").startsWith("video/") || attachment.assetType === "Video";
-            const isDecorative = attachment.accessibilityStatus === "decorative" || attachment.isDecorative === true;
-            return `<figure class="step-screenshot">${
-              isVideo
-                ? `<video controls preload="metadata" src="${escapeHtml(attachment.url)}"></video>`
-                : `<img loading="lazy" src="${escapeHtml(attachment.url)}" alt="${escapeHtml(isDecorative ? "" : attachment.altText || "")}" />`
-            }<figcaption>${escapeHtml(attachment.caption || attachment.altText || attachment.fileName)}</figcaption></figure>`;
+            const isImage = String(normalized.mimeType || "").startsWith("image/") || normalized.assetType === "Image";
+            const isDecorative = normalized.accessibilityStatus === "decorative" || normalized.isDecorative === true;
+            const caption = safeAttachmentText(normalized.caption || normalized.altText || normalized.fileName, "Step attachment");
+            if (mediaUrl && isVideo) {
+              return `<figure class="step-screenshot attachment-card"><video controls preload="metadata" src="${escapeHtml(mediaUrl)}"></video><figcaption>${escapeHtml(caption)}</figcaption></figure>`;
+            }
+            if (mediaUrl && isImage) {
+              const alt = isDecorative ? "" : normalized.altText || normalized.caption || normalized.fileName || "Step attachment";
+              return `<figure class="step-screenshot attachment-card"><img loading="lazy" src="${escapeHtml(mediaUrl)}" alt="${escapeHtml(alt)}" /><figcaption>${escapeHtml(caption)}</figcaption></figure>`;
+            }
+            return `<div class="attachment-card attachment-card--file"><span aria-hidden="true">Attachment</span><div><span>${escapeHtml(caption || normalized.fileName || "Step attachment")}</span></div></div>`;
           })
           .join("");
         return `<li><h4>${escapeHtml(step.title)}</h4><p>${escapeHtml(step.instructions)}</p>${step.note ? `<p><strong>Note:</strong> ${escapeHtml(step.note)}</p>` : ""}${attachments}</li>`;
