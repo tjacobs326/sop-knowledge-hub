@@ -107,7 +107,32 @@ const accessLevels = ["Normal User", "Creator / Reviewer", "Admin"];
         <button class="button button--primary" type="button" id="create-user">
           Add User
         </button>
+        <a class="button button--secondary" href="/api/admin/users?template=csv" download>
+          Download Import Template
+        </a>
+        <button class="button button--secondary" type="button" id="bulk-import-toggle">
+          Bulk Import Users
+        </button>
       </div>
+
+      <section class="form-grid admin-import-panel" id="bulk-import-panel" aria-labelledby="bulk-import-heading" hidden>
+        <div class="field field--full">
+          <h3 class="form-section-title" id="bulk-import-heading">Bulk Import Users</h3>
+          <p>Upload the CSV template, validate every row, then import only after the preview is clean.</p>
+        </div>
+        <div class="field">
+          <label for="bulk-user-file">CSV or XLSX file</label>
+          <input id="bulk-user-file" type="file" accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+          <small id="bulk-user-file-help">CSV is supported now. XLSX files are rejected with a readable message until spreadsheet parsing is enabled in the Worker.</small>
+        </div>
+        <div class="form-actions">
+          <button class="button button--secondary" type="button" id="validate-bulk-users">Validate File</button>
+          <button class="button button--primary" type="button" id="import-bulk-users" disabled>Import Users</button>
+          <button class="button button--ghost" type="button" id="cancel-bulk-import">Cancel</button>
+        </div>
+        <div class="confirmation field--full" id="bulk-import-status" role="status" hidden></div>
+        <div class="table-wrap field--full" id="bulk-import-preview" hidden></div>
+      </section>
 
       <div class="table-wrap">
         <table>
@@ -154,6 +179,13 @@ const accessLevels = ["Normal User", "Creator / Reviewer", "Admin"];
             {accessLevels.map((level) => <option value={level}>{level}</option>)}
           </select>
         </div>
+        <div class="field" id="creator-sub-role-field" hidden>
+          <label for="user-sub-role">Creator / Reviewer role</label>
+          <select id="user-sub-role" name="subRoleId" aria-describedby="user-sub-role-status">
+            <option value="">Loading Creator / Reviewer roles...</option>
+          </select>
+          <small id="user-sub-role-status" role="status">Required for Creator / Reviewer users.</small>
+        </div>
         <div class="field">
           <label for="user-status">Status</label>
           <select id="user-status" name="status">
@@ -199,13 +231,27 @@ const accessLevels = ["Normal User", "Creator / Reviewer", "Admin"];
   const saveUserButton = document.getElementById("save-user");
   const departmentSelect = document.getElementById("user-department");
   const departmentStatus = document.getElementById("user-department-status");
+  const subRoleField = document.getElementById("creator-sub-role-field");
+  const subRoleSelect = document.getElementById("user-sub-role");
+  const subRoleStatus = document.getElementById("user-sub-role-status");
   const deleteUserButton = document.getElementById("delete-user");
   const cancelUserButton = document.getElementById("cancel-user-edit");
   const userConfirmation = document.getElementById("user-confirmation");
+  const bulkImportToggle = document.getElementById("bulk-import-toggle");
+  const bulkImportPanel = document.getElementById("bulk-import-panel");
+  const bulkUserFile = document.getElementById("bulk-user-file");
+  const validateBulkUsers = document.getElementById("validate-bulk-users");
+  const importBulkUsers = document.getElementById("import-bulk-users");
+  const cancelBulkImport = document.getElementById("cancel-bulk-import");
+  const bulkImportStatus = document.getElementById("bulk-import-status");
+  const bulkImportPreview = document.getElementById("bulk-import-preview");
   let roleCache = [];
   let userCache = [];
   let departmentCache = [];
+  let subRoleCache = [];
   let departmentsLoaded = false;
+  let subRolesLoaded = false;
+  let highlightedUserId = "";
 
   const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (character) => {
@@ -257,6 +303,21 @@ const accessLevels = ["Normal User", "Creator / Reviewer", "Admin"];
     };
   }
 
+  function normalizeBackendSubRole(role) {
+    return {
+      id: role.id || "",
+      label: role.label || role.name || "",
+      department: role.department || "",
+      teamId: role.teamId || "",
+    };
+  }
+
+  function messageFromError(error, fallback) {
+    if (error instanceof Error) return error.message;
+    if (typeof error === "string") return error;
+    return fallback;
+  }
+
   function validDepartmentIds() {
     return new Set(departmentCache.map((department) => department.id).filter(Boolean));
   }
@@ -265,15 +326,34 @@ const accessLevels = ["Normal User", "Creator / Reviewer", "Admin"];
     return ["Normal User", "Creator / Reviewer", "Admin"].includes(getUserField("accessLevel") || "Normal User");
   }
 
+  function selectedAccessLevelRequiresSubRole() {
+    return getUserField("accessLevel") === "Creator / Reviewer";
+  }
+
   function selectedDepartmentIsValid() {
     if (!(departmentSelect instanceof HTMLSelectElement)) return false;
     if (!selectedAccessLevelRequiresDepartment()) return true;
     return validDepartmentIds().has(departmentSelect.value);
   }
 
+  function selectedSubRoleIsValid() {
+    if (!(subRoleSelect instanceof HTMLSelectElement)) return !selectedAccessLevelRequiresSubRole();
+    if (!selectedAccessLevelRequiresSubRole()) return true;
+    return subRoleCache.some((role) => role.id === subRoleSelect.value);
+  }
+
   function updateUserSaveState() {
+    if (subRoleField instanceof HTMLElement) {
+      subRoleField.hidden = !selectedAccessLevelRequiresSubRole();
+    }
+    if (subRoleSelect instanceof HTMLSelectElement) {
+      subRoleSelect.required = selectedAccessLevelRequiresSubRole();
+    }
     if (saveUserButton instanceof HTMLButtonElement) {
       saveUserButton.disabled = !departmentsLoaded || !selectedDepartmentIsValid();
+      if (!saveUserButton.disabled && !selectedSubRoleIsValid()) {
+        saveUserButton.disabled = true;
+      }
     }
   }
 
@@ -332,9 +412,57 @@ const accessLevels = ["Normal User", "Creator / Reviewer", "Admin"];
     }
   }
 
+  function renderSubRoleOptions(selectedId = "") {
+    if (!(subRoleSelect instanceof HTMLSelectElement)) return;
+    if (!subRolesLoaded) {
+      subRoleSelect.innerHTML = `<option value="">Loading Creator / Reviewer roles...</option>`;
+      subRoleSelect.disabled = true;
+      updateUserSaveState();
+      return;
+    }
+    subRoleSelect.disabled = false;
+    const selectedStillValid = subRoleCache.some((role) => role.id === selectedId);
+    subRoleSelect.innerHTML = [
+      `<option value="">Select a Creator / Reviewer role.</option>`,
+      ...subRoleCache.map((role) => `<option value="${escapeHtml(role.id)}" ${role.id === selectedId ? "selected" : ""}>${escapeHtml(role.label)}</option>`),
+    ].join("");
+    subRoleSelect.value = selectedStillValid ? selectedId : "";
+    if (subRoleStatus) {
+      subRoleStatus.textContent = subRoleCache.length
+        ? `${subRoleCache.length} active Creator / Reviewer role${subRoleCache.length === 1 ? "" : "s"} loaded.`
+        : "No active Creator / Reviewer roles are available.";
+    }
+    updateUserSaveState();
+  }
+
+  async function loadSubRoles() {
+    subRolesLoaded = false;
+    renderSubRoleOptions("");
+    try {
+      const response = await fetch("/api/creator-reviewer-roles", { cache: "no-store" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data?.error || data?.message || "Creator / Reviewer roles could not load from Cloudflare D1.");
+      const roles = Array.isArray(data.roles) ? data.roles : Array.isArray(data?.data?.roles) ? data.data.roles : [];
+      subRoleCache = roles.map(normalizeBackendSubRole).filter((role) => role.id && role.label);
+      subRolesLoaded = true;
+      renderSubRoleOptions(getUserField("subRoleId"));
+    } catch (error) {
+      subRoleCache = [];
+      subRolesLoaded = false;
+      if (subRoleSelect instanceof HTMLSelectElement) {
+        subRoleSelect.innerHTML = `<option value="">Creator / Reviewer roles unavailable</option>`;
+        subRoleSelect.disabled = true;
+      }
+      if (subRoleStatus) {
+        subRoleStatus.textContent = messageFromError(error, "Creator / Reviewer roles could not load from Cloudflare D1.");
+      }
+      updateUserSaveState();
+    }
+  }
+
   async function loadBackendUsers() {
     try {
-      const [usersResponse] = await Promise.all([fetch("/api/admin/users"), loadDepartments()]);
+      const [usersResponse] = await Promise.all([fetch("/api/admin/users"), loadDepartments(), loadSubRoles()]);
       if (!usersResponse.ok) throw new Error("User data could not load from D1.");
       const data = await usersResponse.json();
       if (!Array.isArray(data.users) || !Array.isArray(data.roles)) {
@@ -379,12 +507,17 @@ const accessLevels = ["Normal User", "Creator / Reviewer", "Admin"];
       body: JSON.stringify(user),
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data?.error || "User could not be saved to D1.");
+    if (!response.ok) {
+      const error = new Error(data?.error || "User could not be saved to D1.");
+      error.fields = data?.fields || {};
+      throw error;
+    }
     if (data.user) {
       const normalized = normalizeBackendUser(data.user);
       userCache = existingId
         ? userCache.map((item) => (item.id === existingId ? normalized : item))
         : [...userCache.filter((item) => item.id !== normalized.id), normalized];
+      highlightedUserId = normalized.id;
       renderUsers();
     }
     return true;
@@ -468,6 +601,16 @@ const accessLevels = ["Normal User", "Creator / Reviewer", "Admin"];
     });
   }
 
+  function compareUsers(a, b) {
+    const lastNameComparison = (a.lastName || "").localeCompare(b.lastName || "", undefined, { sensitivity: "base" });
+    if (lastNameComparison !== 0) return lastNameComparison;
+    const firstNameComparison = (a.firstName || "").localeCompare(b.firstName || "", undefined, { sensitivity: "base" });
+    if (firstNameComparison !== 0) return firstNameComparison;
+    const nameComparison = (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" });
+    if (nameComparison !== 0) return nameComparison;
+    return (a.email || "").localeCompare(b.email || "", undefined, { sensitivity: "base" });
+  }
+
   function getUserPermissions() {
     return Array.from(userEditor?.querySelectorAll('input[name="userPermissions"]:checked') || [])
       .filter((input) => input instanceof HTMLInputElement)
@@ -519,13 +662,13 @@ const accessLevels = ["Normal User", "Creator / Reviewer", "Admin"];
   function renderUsers() {
     if (!userList) return;
 
-    const users = readUsers().sort((a, b) => a.name.localeCompare(b.name));
+    const users = readUsers().sort(compareUsers);
     updateUserSummary(users);
 
     userList.innerHTML = users
       .map(
         (user) => `
-          <tr data-edit-user="${escapeHtml(user.id)}" tabindex="0">
+          <tr data-edit-user="${escapeHtml(user.id)}" tabindex="0" ${user.id === highlightedUserId ? 'class="is-highlighted"' : ""}>
             <td>${escapeHtml(user.name)}</td>
             <td>${escapeHtml(user.email)}</td>
             <td>${escapeHtml(user.department)}</td>
@@ -570,6 +713,7 @@ const accessLevels = ["Normal User", "Creator / Reviewer", "Admin"];
     setUserField("name", "");
     setUserField("email", "");
     renderDepartmentOptions("");
+    renderSubRoleOptions("");
     setUserField("accessLevel", "Normal User");
     setUserField("status", "Active");
     setUserPermissions(permissionsForAccessLevel("Normal User"));
@@ -590,6 +734,7 @@ const accessLevels = ["Normal User", "Creator / Reviewer", "Admin"];
     setUserField("name", user.name);
     setUserField("email", user.email);
     renderDepartmentOptions(user.departmentId || "");
+    renderSubRoleOptions((user.subRoleIds || [])[0] || "");
     setUserField("accessLevel", user.accessLevel);
     setUserField("status", user.status || "Active");
     setUserPermissions(user.permissions || permissionsForAccessLevel(user.accessLevel));
@@ -639,10 +784,150 @@ const accessLevels = ["Normal User", "Creator / Reviewer", "Admin"];
     if (!(target instanceof HTMLSelectElement)) return;
 
     setUserPermissions(permissionsForAccessLevel(target.value));
+    renderSubRoleOptions(target.value === "Creator / Reviewer" ? getUserField("subRoleId") : "");
     updateUserSaveState();
   });
 
   departmentSelect?.addEventListener("change", updateUserSaveState);
+  subRoleSelect?.addEventListener("change", updateUserSaveState);
+
+  function renderBulkPreview(preview) {
+    if (!(bulkImportPreview instanceof HTMLElement)) return;
+    const rows = Array.isArray(preview?.rows) ? preview.rows : [];
+    const summary = preview?.summary || {};
+    bulkImportPreview.hidden = false;
+    bulkImportPreview.innerHTML = `
+      <div class="import-summary" aria-label="Import validation summary">
+        <strong>${Number(summary.totalRows || rows.length)} total rows</strong>
+        <span>${Number(summary.validRows || 0)} valid</span>
+        <span>${Number(summary.invalidRows || 0)} invalid</span>
+        <span>${Number(summary.duplicateEmails || 0)} duplicate emails</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Row</th>
+            <th scope="col">User</th>
+            <th scope="col">Email</th>
+            <th scope="col">Department</th>
+            <th scope="col">Role</th>
+            <th scope="col">Status</th>
+            <th scope="col">Permissions</th>
+            <th scope="col">Validation</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${
+            rows.length
+              ? rows
+                  .map(
+                    (row) => `
+                      <tr class="${row.valid ? "is-valid" : "is-invalid"}">
+                        <td>${escapeHtml(row.rowNumber)}</td>
+                        <td>${escapeHtml([row.firstName, row.lastName].filter(Boolean).join(" "))}</td>
+                        <td>${escapeHtml(row.email)}</td>
+                        <td>${escapeHtml(row.department)}</td>
+                        <td>${escapeHtml(row.creatorReviewerRole || row.accountType)}</td>
+                        <td>${escapeHtml(row.status)}</td>
+                        <td>${escapeHtml(String((row.permissions || []).length))}</td>
+                        <td>${escapeHtml(row.message)}</td>
+                      </tr>
+                    `,
+                  )
+                  .join("")
+              : `<tr><td colspan="8">No user rows were found in the file.</td></tr>`
+          }
+        </tbody>
+      </table>
+    `;
+  }
+
+  async function sendBulkImport(commit = false) {
+    if (!(bulkUserFile instanceof HTMLInputElement) || !bulkUserFile.files?.length) {
+      if (bulkImportStatus) {
+        bulkImportStatus.hidden = false;
+        bulkImportStatus.innerHTML = "<strong>Choose a file.</strong><p>Select the completed CSV template before validating.</p>";
+      }
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", bulkUserFile.files[0]);
+    const button = commit ? importBulkUsers : validateBulkUsers;
+    if (button instanceof HTMLButtonElement) {
+      button.disabled = true;
+      button.textContent = commit ? "Importing..." : "Validating...";
+    }
+    if (bulkImportStatus) {
+      bulkImportStatus.hidden = false;
+      bulkImportStatus.innerHTML = commit ? "<strong>Importing users...</strong>" : "<strong>Validating file...</strong>";
+    }
+
+    try {
+      const response = await fetch(`/api/admin/users?type=import&mode=${commit ? "commit" : "validate"}`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data?.error || "The import file could not be processed.");
+      if (commit) {
+        userCache = Array.isArray(data.users) ? data.users.map(normalizeBackendUser) : userCache;
+        highlightedUserId = "";
+        renderUsers();
+        if (bulkImportStatus) {
+          bulkImportStatus.hidden = false;
+          bulkImportStatus.innerHTML = `<strong>Import complete.</strong><p>${escapeHtml(String(data?.summary?.importedRows || 0))} users were imported and the user list was refreshed.</p>`;
+        }
+        if (bulkImportPreview instanceof HTMLElement) bulkImportPreview.hidden = true;
+        if (importBulkUsers instanceof HTMLButtonElement) importBulkUsers.disabled = true;
+      } else {
+        renderBulkPreview(data.preview);
+        const invalidRows = Number(data?.preview?.summary?.invalidRows || 0);
+        if (importBulkUsers instanceof HTMLButtonElement) importBulkUsers.disabled = invalidRows > 0;
+        if (bulkImportStatus) {
+          bulkImportStatus.hidden = false;
+          bulkImportStatus.innerHTML = invalidRows
+            ? `<strong>Validation found issues.</strong><p>Fix ${invalidRows} invalid row${invalidRows === 1 ? "" : "s"} and upload the file again.</p>`
+            : "<strong>File is ready to import.</strong><p>Review the preview, then import users.</p>";
+        }
+      }
+    } catch (error) {
+      if (bulkImportStatus) {
+        bulkImportStatus.hidden = false;
+        bulkImportStatus.innerHTML = `<strong>Import file was not processed.</strong><p>${escapeHtml(messageFromError(error, "The import failed. Please try again."))}</p>`;
+      }
+      if (importBulkUsers instanceof HTMLButtonElement) importBulkUsers.disabled = true;
+    } finally {
+      if (validateBulkUsers instanceof HTMLButtonElement) {
+        validateBulkUsers.disabled = false;
+        validateBulkUsers.textContent = "Validate File";
+      }
+      if (button instanceof HTMLButtonElement && commit) {
+        button.textContent = "Import Users";
+      }
+    }
+  }
+
+  bulkImportToggle?.addEventListener("click", () => {
+    if (bulkImportPanel instanceof HTMLElement) {
+      bulkImportPanel.hidden = !bulkImportPanel.hidden;
+      if (!bulkImportPanel.hidden) bulkImportPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  });
+
+  validateBulkUsers?.addEventListener("click", () => sendBulkImport(false));
+  importBulkUsers?.addEventListener("click", () => sendBulkImport(true));
+  cancelBulkImport?.addEventListener("click", () => {
+    if (bulkImportPanel instanceof HTMLElement) bulkImportPanel.hidden = true;
+    if (bulkImportPreview instanceof HTMLElement) bulkImportPreview.hidden = true;
+    if (bulkImportStatus instanceof HTMLElement) bulkImportStatus.hidden = true;
+    if (bulkUserFile instanceof HTMLInputElement) bulkUserFile.value = "";
+    if (importBulkUsers instanceof HTMLButtonElement) importBulkUsers.disabled = true;
+  });
+  bulkUserFile?.addEventListener("change", () => {
+    if (bulkImportPreview instanceof HTMLElement) bulkImportPreview.hidden = true;
+    if (importBulkUsers instanceof HTMLButtonElement) importBulkUsers.disabled = true;
+  });
 
   editor?.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -697,11 +982,21 @@ const accessLevels = ["Normal User", "Creator / Reviewer", "Admin"];
     const accessLevel = getUserField("accessLevel");
     const role = readRoles().find((item) => item.accessLevel === accessLevel);
     const departmentId = getUserField("departmentId");
+    const subRoleId = getUserField("subRoleId");
     if (!validDepartmentIds().has(departmentId)) {
       if (userConfirmation) {
         userConfirmation.hidden = false;
         userConfirmation.innerHTML =
           "<strong>Select a department.</strong><p>Choose an active department from the list before saving this account.</p>";
+      }
+      updateUserSaveState();
+      return;
+    }
+    if (accessLevel === "Creator / Reviewer" && !selectedSubRoleIsValid()) {
+      if (userConfirmation) {
+        userConfirmation.hidden = false;
+        userConfirmation.innerHTML =
+          "<strong>Select a Creator / Reviewer role.</strong><p>Choose the active Creator / Reviewer team this account belongs to.</p>";
       }
       updateUserSaveState();
       return;
@@ -713,6 +1008,7 @@ const accessLevels = ["Normal User", "Creator / Reviewer", "Admin"];
       email: getUserField("email"),
       departmentId,
       teamId: departmentId,
+      subRoleId: accessLevel === "Creator / Reviewer" ? subRoleId : "",
       accessLevel,
       roleIds: role ? [role.id] : existingUser?.roleIds || [],
       teamIds: existingUser?.teamIds || [],
@@ -740,6 +1036,10 @@ const accessLevels = ["Normal User", "Creator / Reviewer", "Admin"];
       userConfirmation.hidden = false;
       userConfirmation.innerHTML = "<strong>Saving user...</strong>";
     }
+    if (saveUserButton instanceof HTMLButtonElement) {
+      saveUserButton.disabled = true;
+      saveUserButton.textContent = "Saving...";
+    }
 
     try {
       await saveBackendUser(updated, existingId);
@@ -750,13 +1050,22 @@ const accessLevels = ["Normal User", "Creator / Reviewer", "Admin"];
       if (userConfirmation) {
         userConfirmation.hidden = false;
         userConfirmation.innerHTML =
-          "<strong>User saved.</strong><p>This account and permission update is saved in Cloudflare D1.</p>";
+          `<strong>User created successfully.</strong><p>${escapeHtml(updated.name)} is saved in Cloudflare D1 with the selected role, department, and permissions.</p>`;
       }
-    } catch {
+      setTimeout(() => {
+        highlightedUserId = "";
+        renderUsers();
+      }, 3500);
+    } catch (error) {
       if (userConfirmation) {
         userConfirmation.hidden = false;
         userConfirmation.innerHTML =
-          "<strong>User was not saved.</strong><p>The Cloudflare D1 user update failed. Please try again.</p>";
+          `<strong>User was not saved.</strong><p>${escapeHtml(messageFromError(error, "The Cloudflare D1 user update failed. Please try again."))}</p>`;
+      }
+    } finally {
+      if (saveUserButton instanceof HTMLButtonElement) {
+        saveUserButton.textContent = "Save User";
+        updateUserSaveState();
       }
     }
   });

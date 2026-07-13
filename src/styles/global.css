@@ -6579,10 +6579,47 @@ legend {
 
 .admin-toolbar {
   margin: 1rem 0;
+  flex-wrap: wrap;
 }
 
 .user-summary {
   margin-bottom: 1rem;
+}
+
+.admin-import-panel {
+  margin: 1rem 0 1.5rem;
+}
+
+.import-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  align-items: center;
+  padding: 0.8rem 1rem;
+  color: var(--color-ink);
+  background: #f7fbff;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.import-summary span,
+.import-summary strong {
+  min-width: 0;
+}
+
+tbody tr.is-highlighted {
+  background: #ecfdf3;
+  outline: 2px solid #22c55e;
+  outline-offset: -2px;
+}
+
+tbody tr.is-valid td:last-child {
+  color: var(--color-success);
+  font-weight: 800;
+}
+
+tbody tr.is-invalid td:last-child {
+  color: var(--color-danger);
+  font-weight: 800;
 }
 
 .checkbox-grid {

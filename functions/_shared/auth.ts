@@ -41,6 +41,7 @@ interface UserPermissionRow {
   accessLevel: AuthUser["accessLevel"];
   permissionsJson: string | null;
   rolePermissionsCsv: string | null;
+  userPermissionsCsv?: string | null;
 }
 
 const roleByAccessLevel: Record<AuthUser["accessLevel"], ApiRole> = {
@@ -183,33 +184,48 @@ function normalizePermissions(row: UserPermissionRow) {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
-  return Array.from(new Set([...fromRoleJson, ...fromJoin]));
+  const fromUserOverrides = String(row.userPermissionsCsv || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  return Array.from(new Set([...fromRoleJson, ...fromJoin, ...fromUserOverrides]));
 }
 
 async function findUserByEmail(db: D1DatabaseBinding, email: string) {
-  return await db
-    .prepare(
-      `SELECT
-        users.id,
-        users.name,
-        users.email,
-        users.access_level AS accessLevel,
-        roles.permissions_json AS permissionsJson,
-        GROUP_CONCAT(DISTINCT permissions.name) AS rolePermissionsCsv
-       FROM users
-       LEFT JOIN user_roles ON user_roles.user_id = users.id
-         AND (user_roles.expires_at IS NULL OR user_roles.expires_at > CURRENT_TIMESTAMP)
-       LEFT JOIN roles ON roles.id = COALESCE(user_roles.role_id, users.role_id)
-       LEFT JOIN role_permissions ON role_permissions.role_id = roles.id
-       LEFT JOIN permissions ON permissions.id = role_permissions.permission_id
-       WHERE lower(users.email) = lower(?)
-         AND users.status = 'Active'
-         AND COALESCE(users.is_active, 1) = 1
-       GROUP BY users.id
-       LIMIT 1`,
-    )
-    .bind(email)
-    .first<UserPermissionRow>();
+  const baseSelect = `SELECT
+    users.id,
+    users.name,
+    users.email,
+    users.access_level AS accessLevel,
+    roles.permissions_json AS permissionsJson,
+    GROUP_CONCAT(DISTINCT permissions.name) AS rolePermissionsCsv`;
+  const baseJoin = `FROM users
+    LEFT JOIN user_roles ON user_roles.user_id = users.id
+      AND (user_roles.expires_at IS NULL OR user_roles.expires_at > CURRENT_TIMESTAMP)
+    LEFT JOIN roles ON roles.id = COALESCE(user_roles.role_id, users.role_id)
+    LEFT JOIN role_permissions ON role_permissions.role_id = roles.id
+    LEFT JOIN permissions ON permissions.id = role_permissions.permission_id`;
+  const where = `WHERE lower(users.email) = lower(?)
+      AND users.status = 'Active'
+      AND COALESCE(users.is_active, 1) = 1
+    GROUP BY users.id
+    LIMIT 1`;
+
+  try {
+    return await db
+      .prepare(
+        `${baseSelect},
+          GROUP_CONCAT(DISTINCT user_override_permissions.name) AS userPermissionsCsv
+         ${baseJoin}
+         LEFT JOIN user_permission_overrides ON user_permission_overrides.user_id = users.id
+         LEFT JOIN permissions user_override_permissions ON user_override_permissions.id = user_permission_overrides.permission_id
+         ${where}`,
+      )
+      .bind(email)
+      .first<UserPermissionRow>();
+  } catch {
+    return await db.prepare(`${baseSelect}, NULL AS userPermissionsCsv ${baseJoin} ${where}`).bind(email).first<UserPermissionRow>();
+  }
 }
 
 async function previewCreatorUser(request: Request, db: D1DatabaseBinding): Promise<AuthUser | null> {
