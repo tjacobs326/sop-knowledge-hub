@@ -218,7 +218,10 @@ const roleClass = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, 
   function sopEditorNavTarget() {
     if (window.location.pathname !== "/create/") return "";
     const params = new URLSearchParams(window.location.search);
-    return params.has("edit") || params.has("id") ? "/drafts/" : "/create/";
+    if (params.has("edit") || params.has("id")) {
+      return params.get("origin") === "owned-sops" ? "/my-work/" : "/drafts/";
+    }
+    return "/create/";
   }
 
   function applyRouteAwareActiveNav() {

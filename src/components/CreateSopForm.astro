@@ -138,9 +138,50 @@ const sopTypes = [
   const STEP_MEDIA_ACCEPT = "image/png,image/jpeg,image/webp,video/mp4";
   const MAX_STEP_MEDIA_BYTES = 50 * 1024 * 1024;
   const MAX_ALT_TEXT_LENGTH = 125;
+  const EDIT_ORIGINS = {
+    "owned-sops": {
+      breadcrumb: `
+        <li><a href="/">Home</a></li>
+        <li><a href="/my-work/?workFilter=owned#work-section-owned">My Work</a></li>
+        <li><a href="/my-work/?workFilter=owned#work-section-owned">SOPs I Own</a></li>
+        <li><span aria-current="page">Edit SOP</span></li>
+      `,
+      cancelHref: "/my-work/?workFilter=owned#work-section-owned",
+      saveHref: "/my-work/?workFilter=owned#work-section-owned",
+    },
+    "my-drafts": {
+      breadcrumb: `
+        <li><a href="/">Home</a></li>
+        <li><a href="/drafts/">My Drafts</a></li>
+        <li><span aria-current="page">Edit Draft</span></li>
+      `,
+      cancelHref: "/drafts/",
+      saveHref: "/drafts/",
+    },
+    "my-work-drafts": {
+      breadcrumb: `
+        <li><a href="/">Home</a></li>
+        <li><a href="/my-work/?workFilter=drafts#work-section-drafts">My Work</a></li>
+        <li><a href="/my-work/?workFilter=drafts#work-section-drafts">Draft SOPs</a></li>
+        <li><span aria-current="page">Edit Draft</span></li>
+      `,
+      cancelHref: "/my-work/?workFilter=drafts#work-section-drafts",
+      saveHref: "/my-work/?workFilter=drafts#work-section-drafts",
+    },
+    "review-queue": {
+      breadcrumb: `
+        <li><a href="/">Home</a></li>
+        <li><a href="/admin/review/">Review Queue</a></li>
+        <li><span aria-current="page">Edit Draft</span></li>
+      `,
+      cancelHref: "/admin/review/",
+      saveHref: "/admin/review/",
+    },
+  };
   let options = { currentUser: null, categories: [], users: [], reviewers: [], tags: [] };
   let currentSop = null;
   let currentFormMode = "create";
+  let currentEditOrigin = "my-drafts";
   let hasUnsavedChanges = false;
 
   const escapeHtml = (value) =>
@@ -644,15 +685,28 @@ const sopTypes = [
     confirmation.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
+  function editorOrigin() {
+    const params = new URLSearchParams(window.location.search);
+    const origin = params.get("origin") || "";
+    return Object.prototype.hasOwnProperty.call(EDIT_ORIGINS, origin) ? origin : "my-drafts";
+  }
+
+  function hasExplicitEditorOrigin() {
+    const params = new URLSearchParams(window.location.search);
+    const origin = params.get("origin") || "";
+    return Object.prototype.hasOwnProperty.call(EDIT_ORIGINS, origin);
+  }
+
+  function returnHref(type = "cancel") {
+    const origin = EDIT_ORIGINS[currentEditOrigin] || EDIT_ORIGINS["my-drafts"];
+    return type === "save" ? origin.saveHref : origin.cancelHref;
+  }
+
   function renderEditorBreadcrumbs(mode = "create") {
     const breadcrumbs = document.querySelector(".breadcrumbs ol");
     if (!(breadcrumbs instanceof HTMLOListElement)) return;
     if (mode === "edit") {
-      breadcrumbs.innerHTML = `
-        <li><a href="/">Home</a></li>
-        <li><a href="/drafts/">My Drafts</a></li>
-        <li><span aria-current="page">Edit Draft</span></li>
-      `;
+      breadcrumbs.innerHTML = (EDIT_ORIGINS[currentEditOrigin] || EDIT_ORIGINS["my-drafts"]).breadcrumb;
       return;
     }
     breadcrumbs.innerHTML = `
@@ -661,8 +715,9 @@ const sopTypes = [
     `;
   }
 
-  function setCreateMode(mode = "create") {
+  function setCreateMode(mode = "create", originOverride = "") {
     const isEdit = mode === "edit";
+    if (isEdit) currentEditOrigin = originOverride || editorOrigin();
     currentFormMode = isEdit ? "edit" : "create";
     document.body.dataset.sopEditorMode = isEdit ? "edit" : "create";
     document.title = isEdit ? "Edit Draft SOP | SOP Knowledge Hub" : "Create New SOP | SOP Knowledge Hub";
@@ -673,7 +728,7 @@ const sopTypes = [
         : "Create the SOP details, review them for accuracy, then choose the correct backend workflow action.";
     }
     if (saveDraftButton) saveDraftButton.textContent = isEdit ? "Save Changes" : "Save Draft";
-    if (cancelLink) cancelLink.href = isEdit ? "/drafts/" : "/my-work/";
+    if (cancelLink) cancelLink.href = isEdit ? returnHref("cancel") : "/my-work/";
     renderEditorBreadcrumbs(isEdit ? "edit" : "create");
   }
 
@@ -799,8 +854,13 @@ const sopTypes = [
       cache: "no-store",
     });
     const data = await parseApiResponse(response);
-    fillFormFromSource(data.sop || data);
-    setCreateMode("edit");
+    const source = data.sop || data;
+    fillFormFromSource(source);
+    const directOwnedOrigin =
+      !hasExplicitEditorOrigin() &&
+      options.currentUser?.id &&
+      (source.ownerId === options.currentUser.id || source.ownerUserId === options.currentUser.id);
+    setCreateMode("edit", directOwnedOrigin ? "owned-sops" : "");
   }
 
   async function loadEditSource() {
@@ -990,7 +1050,7 @@ const sopTypes = [
           showConfirmation(`<strong>Draft saved.</strong><p>SOP ID: ${escapeHtml(saved.id)}. It is now available to backend My Work and draft workflows.</p>`);
           if (currentFormMode === "edit") {
             window.setTimeout(() => {
-              window.location.assign("/drafts/");
+              window.location.assign(returnHref("save"));
             }, 450);
           }
         }

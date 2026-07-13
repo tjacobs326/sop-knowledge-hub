@@ -84,6 +84,11 @@ function normalizeSop(row: Record<string, unknown>) {
   };
 }
 
+function withEditOrigin(url: string, origin: string) {
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}origin=${encodeURIComponent(origin)}`;
+}
+
 function normalizeReview(row: Record<string, unknown>) {
   return {
     id: row.id,
@@ -240,7 +245,13 @@ async function queryOwnedSops(db: D1DatabaseBinding, workScope: ResolvedWorkScop
     )
     .bind(...values)
     .all<Record<string, unknown>>();
-  return (result.results || []).map(normalizeSop);
+  return (result.results || []).map((row) => {
+    const sop = normalizeSop(row);
+    return {
+      ...sop,
+      editUrl: withEditOrigin(sop.editUrl, "owned-sops"),
+    };
+  });
 }
 
 async function queryAssignments(db: D1DatabaseBinding, workScope: ResolvedWorkScope) {

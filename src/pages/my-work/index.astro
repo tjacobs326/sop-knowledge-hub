@@ -461,7 +461,7 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
         (item) => escapeHtml(item.category || "Uncategorized"),
         (item) => statusBadge(item.status),
         (item) => escapeHtml(formatDateClient(item.reviewDate)),
-        (item) => actionButton(`${item.url}${String(item.url || "").includes("?") ? "&" : "?"}edit=published`, "Edit SOP"),
+        (item) => actionButton(item.editUrl || `/create/?edit=draft&id=${encodeURIComponent(item.id)}&origin=owned-sops`, "Edit SOP"),
       ],
       "No backend SOPs are owned by this selected sub-role.",
     );

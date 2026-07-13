@@ -23,6 +23,15 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
   const publicOnly = !user || user.role === "normal";
   const sop = await getSopById(context.env.DB!, id, publicOnly);
   if (!sop) return failure("NOT_FOUND", "SOP not found.", 404);
+  if (!publicOnly && String(sop.status || "") !== "Published") {
+    const auth = await requirePermission(context, "Edit Drafts");
+    if (auth.response || !auth.user) return auth.response;
+    if (!["Draft", "Needs Revision", "In Review", "Approved"].includes(String(sop.status || ""))) {
+      return failure("WORKFLOW_CONFLICT", "This SOP cannot be edited in its current workflow status.", 409);
+    }
+    const ownership = await requireSopOwnership(context, auth.user, id);
+    if (ownership.response) return ownership.response;
+  }
   const selectedSubRole = await resolveRequestedCreatorSubRole(context.env.DB!, context.request);
   if (selectedSubRole && sop.ownerSubRoleId !== selectedSubRole.id) {
     return failure(
