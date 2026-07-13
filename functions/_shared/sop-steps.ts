@@ -179,10 +179,12 @@ export async function listProcedureSteps(db: D1DatabaseBinding, versionId: strin
         media.asset_type AS assetType,
         media.original_file_name AS fileName,
         media.mime_type AS mimeType,
+        media.size_bytes AS fileSize,
         media.public_url AS url,
         media.alt_text AS altText,
         COALESCE(media.is_decorative, 0) AS isDecorative,
         media.caption,
+        media.created_at AS attachmentCreatedAt,
         step_media.relationship,
         step_media.sort_order AS attachmentSortOrder
        FROM procedure_steps steps
@@ -214,6 +216,7 @@ export async function listProcedureSteps(db: D1DatabaseBinding, versionId: strin
         assetType: row.assetType,
         fileName: row.fileName,
         mimeType: row.mimeType,
+        fileSize: Number(row.fileSize || 0),
         url: row.url || `/api/media/?id=${encodeURIComponent(String(row.mediaAssetId))}`,
         altText: row.altText || "",
         accessibilityStatus: Number(row.isDecorative || 0) === 1 ? "decorative" : row.altText ? "meaningful" : "",
@@ -221,6 +224,7 @@ export async function listProcedureSteps(db: D1DatabaseBinding, versionId: strin
         caption: row.caption || "",
         relationship: row.relationship || "Instructional Media",
         sortOrder: Number(row.attachmentSortOrder || 0),
+        createdAt: row.attachmentCreatedAt || "",
       });
     }
   }

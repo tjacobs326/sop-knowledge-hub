@@ -10,6 +10,7 @@ const sopSteps = readFileSync(resolve(root, "functions/_shared/sop-steps.ts"), "
 const sopData = readFileSync(resolve(root, "functions/_shared/sop-data.ts"), "utf8");
 const publishedPage = readFileSync(resolve(root, "src/pages/published/index.astro"), "utf8");
 const publishedLayout = readFileSync(resolve(root, "src/layouts/SopLayout.astro"), "utf8");
+const styles = readFileSync(resolve(root, "src/styles/global.css"), "utf8");
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -48,8 +49,9 @@ assert(
     mediaApi.includes("MAX_ALT_TEXT_LENGTH = 125") &&
     mediaApi.includes("is_decorative") &&
     mediaApi.includes("env.SOP_MEDIA.put") &&
-    mediaApi.includes("sanitizeFileName"),
-  "Media API must validate PNG/JPG/JPEG/WebP/MP4, size-limit files, cap alt text, store decorative state, sanitize filenames, and store binaries in R2.",
+    mediaApi.includes("sanitizeFileName") &&
+    mediaApi.includes("fileSize: file.size"),
+  "Media API must validate PNG/JPG/JPEG/WebP/MP4, size-limit files, cap alt text, store decorative state, sanitize filenames, return file-size metadata, and store binaries in R2.",
 );
 assert(
   mediaApi.includes('requirePermission({ request, env }, "Upload Media")') &&
@@ -65,18 +67,27 @@ assert(
     sopSteps.includes("procedure_step_media") &&
     sopSteps.includes("validateProcedureStepAttachments") &&
     sopSteps.includes("is_decorative") &&
+    sopSteps.includes("media.size_bytes AS fileSize") &&
+    sopSteps.includes("fileSize: Number(row.fileSize || 0)") &&
     sopSteps.includes("sop_version_media") &&
     sopSteps.includes("sop_media"),
-  "SOP create/update must validate and persist procedure step accessibility and step-media relationships in D1.",
+  "SOP create/update must validate and persist procedure step accessibility, step-media relationships, and file-size metadata in D1.",
 );
 assert(
   sopData.includes("listProcedureSteps") &&
-    publishedPage.includes("step.attachments") &&
+    publishedPage.includes("renderPublishedAttachment") &&
+    publishedPage.includes("isLegacyDataAttachment") &&
+    publishedPage.includes("Attached image") &&
     publishedPage.includes("loading=\"lazy\"") &&
-    publishedPage.includes("isDecorative ? \"\" : attachment.altText") &&
-    publishedLayout.includes("isDecorative ? \"\" : attachment.altText") &&
-    publishedPage.includes("preload=\"metadata\""),
-  "SOP reads and published rendering must return and display step attachments accessibly, decoratively when selected, and lazily.",
+    publishedPage.includes("preload=\"metadata\"") &&
+    publishedLayout.includes("renderPublishedAttachment") &&
+    publishedLayout.includes("isLegacyDataAttachment") &&
+    publishedLayout.includes("Attached file") &&
+    publishedLayout.includes("loading=\"lazy\"") &&
+    publishedLayout.includes("preload=\"metadata\"") &&
+    styles.includes(".attachment-card") &&
+    styles.includes("overflow-wrap: anywhere"),
+  "SOP reads and published rendering must return and display step attachments accessibly, hide legacy Base64 data URLs behind friendly labels, and wrap long filenames.",
 );
 
 console.log("Step attachment smoke checks passed.");

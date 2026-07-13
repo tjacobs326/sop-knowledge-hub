@@ -4073,6 +4073,58 @@ legend {
   background: var(--color-panel);
 }
 
+.attachment-card {
+  display: grid;
+  gap: 0.65rem;
+  max-width: 100%;
+  margin-top: 0.85rem;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.attachment-card figcaption {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.attachment-card figcaption a,
+.attachment-card figcaption span,
+.attachment-card--file a,
+.attachment-card--file span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.attachment-card figcaption small,
+.attachment-card--file small {
+  display: block;
+  color: var(--color-muted);
+  line-height: 1.45;
+}
+
+.attachment-card--file {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  padding: 0.85rem;
+  color: var(--color-ink);
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.attachment-card--file > span[aria-hidden="true"] {
+  padding: 0.3rem 0.5rem;
+  color: var(--color-kindle);
+  font-size: 0.8rem;
+  font-weight: 800;
+  line-height: 1;
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
 .field-help {
   margin: -0.25rem 0 0;
   color: var(--color-muted);

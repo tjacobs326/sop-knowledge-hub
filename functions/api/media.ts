@@ -170,8 +170,9 @@ export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
 
     saved.push({
       id,
-        fileName: file.name,
-        mimeType: file.type,
+      fileName: file.name,
+      mimeType: file.type,
+      fileSize: file.size,
       sizeBytes: file.size,
       assetType: inferAssetType(file.type),
       url: `/api/media/?id=${encodeURIComponent(id)}`,

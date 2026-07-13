@@ -291,6 +291,73 @@ const editPayload = {
     }
   }
 
+  function isLegacyDataAttachment(value) {
+    return /^data:(image|video|application)\//i.test(String(value || ""));
+  }
+
+  function attachmentFallbackLabel(value) {
+    const text = String(value || "");
+    if (/^data:image\//i.test(text)) return "Attached image";
+    if (/^data:video\//i.test(text)) return "Attached video";
+    if (/^data:application\//i.test(text)) return "Attached file";
+    const lastSegment = text.split(/[\\/]/).pop() || "";
+    return lastSegment.trim() || "Step attachment";
+  }
+
+  function normalizePublishedAttachment(attachment, index = 0) {
+    if (typeof attachment === "string") {
+      const isData = isLegacyDataAttachment(attachment);
+      return {
+        fileName: attachmentFallbackLabel(attachment),
+        url: isData ? "" : attachment,
+        mimeType: isData ? attachment.slice(5, attachment.indexOf(";")) : "",
+        caption: isData ? "Legacy attachment" : "",
+        altText: "",
+        isDecorative: true,
+      };
+    }
+    const rawUrl = String(attachment?.url || attachment?.fileUrl || attachment?.href || "");
+    const isData = isLegacyDataAttachment(rawUrl);
+    const fileName = String(
+      attachment?.fileName ||
+        attachment?.originalFileName ||
+        attachment?.displayName ||
+        attachmentFallbackLabel(rawUrl) ||
+        `Attachment ${index + 1}`,
+    );
+    return {
+      ...attachment,
+      fileName,
+      url: isData ? "" : rawUrl,
+      mimeType: String(attachment?.mimeType || ""),
+      caption: String(attachment?.caption || ""),
+      altText: String(attachment?.altText || ""),
+      isDecorative: attachment?.accessibilityStatus === "decorative" || attachment?.isDecorative === true,
+    };
+  }
+
+  function renderPublishedAttachment(attachment, index = 0) {
+    const item = normalizePublishedAttachment(attachment, index);
+    const isVideo = item.mimeType.startsWith("video/") || item.assetType === "Video";
+    const isImage = item.mimeType.startsWith("image/") || item.assetType === "Image";
+    const fileName = escapePublishedHtml(item.fileName || "Step attachment");
+    const caption = escapePublishedHtml(item.caption || "");
+    const url = String(item.url || "");
+    const safeUrl = escapePublishedHtml(url);
+    const link = url
+      ? `<a href="${safeUrl}" target="_blank" rel="noopener">${fileName}</a>`
+      : `<span>${fileName}</span>`;
+
+    if (url && isVideo) {
+      return `<figure class="step-screenshot attachment-card"><video controls preload="metadata" src="${safeUrl}"></video><figcaption>${link}${caption ? `<small>${caption}</small>` : ""}</figcaption></figure>`;
+    }
+    if (url && isImage) {
+      const alt = item.isDecorative ? "" : item.altText || item.caption || item.fileName || "Step attachment";
+      return `<figure class="step-screenshot attachment-card"><img loading="lazy" src="${safeUrl}" alt="${escapePublishedHtml(alt)}" /><figcaption>${link}${caption ? `<small>${caption}</small>` : ""}</figcaption></figure>`;
+    }
+    return `<div class="attachment-card attachment-card--file"><span aria-hidden="true">Attachment</span><div>${link}${caption ? `<small>${caption}</small>` : ""}</div></div>`;
+  }
+
   function renderPublishedSteps(steps) {
     const procedure = document.getElementById("sop-detail-procedure");
     const checklist = document.getElementById("sop-detail-checklist");
@@ -305,15 +372,7 @@ const editPayload = {
               ${step.instructions ? `<p>${escapePublishedHtml(step.instructions)}</p>` : ""}
               ${step.note ? `<p><strong>Note:</strong> ${escapePublishedHtml(step.note)}</p>` : ""}
               ${(step.attachments || [])
-                .map((attachment) => {
-                  const isVideo = String(attachment.mimeType || "").startsWith("video/") || attachment.assetType === "Video";
-                  const isDecorative = attachment.accessibilityStatus === "decorative" || attachment.isDecorative === true;
-                  return `<figure class="step-screenshot">${
-                    isVideo
-                      ? `<video controls preload="metadata" src="${escapePublishedHtml(attachment.url)}"></video>`
-                      : `<img loading="lazy" src="${escapePublishedHtml(attachment.url)}" alt="${escapePublishedHtml(isDecorative ? "" : attachment.altText || "")}" />`
-                  }<figcaption>${escapePublishedHtml(attachment.caption || attachment.altText || attachment.fileName || "Step attachment")}</figcaption></figure>`;
-                })
+                .map((attachment, index) => renderPublishedAttachment(attachment, index))
                 .join("")}
               ${
                 step.screenshot
