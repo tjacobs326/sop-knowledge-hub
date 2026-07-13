@@ -708,13 +708,19 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
       hasUnsavedChanges = false;
       hideReviewStep();
       confirmationEl.hidden = false;
-      confirmationEl.innerHTML = `<strong>Your SOP submission has been saved.</strong><p>Tracking ID: ${escapeHtml(
-        backendRequest?.id || submission.id,
-      )}. Status: ${escapeHtml(
-        backendRequest?.status || "Submitted",
-      )}. Routing: ${escapeHtml(
-        backendRequest?.assignedDepartment || "SOP review queue",
-      )}. The SOP team can now review, assign, accept, decline, convert, approve, and publish this request.</p>`;
+      confirmationEl.classList.add("request-success-message");
+      confirmationEl.innerHTML = `
+        <span class="request-success-message__icon" aria-hidden="true"></span>
+        <div class="request-success-message__content">
+          <strong class="request-success-message__title">Your SOP submission has been saved.</strong>
+          <p class="request-success-message__details">Tracking ID: ${escapeHtml(
+            backendRequest?.id || submission.id,
+          )}. Status: ${escapeHtml(
+            backendRequest?.status || "Submitted",
+          )}. Routing: ${escapeHtml(
+            backendRequest?.assignedDepartment || "SOP review queue",
+          )}. The SOP team can now review, assign, accept, decline, convert, approve, and publish this request.</p>
+        </div>`;
       confirmationEl.scrollIntoView({ behavior: "smooth", block: "center" });
     } catch (error) {
       if (errorsEl instanceof HTMLElement) {

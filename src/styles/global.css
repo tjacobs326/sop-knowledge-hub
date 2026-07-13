@@ -4277,6 +4277,61 @@ legend {
   background-image: url("/assets/tabler-vocate/tabler-illustrations/illustrations/good-news.svg");
 }
 
+.request-success-message {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: clamp(0.85rem, 2vw, 1.25rem);
+  width: 100%;
+  max-width: 100%;
+  padding: clamp(1rem, 2vw, 1.35rem);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.request-success-message::before {
+  display: none;
+  content: none;
+}
+
+.request-success-message__icon {
+  flex: 0 0 auto;
+  width: clamp(3rem, 7vw, 4.4rem);
+  height: clamp(2.8rem, 6vw, 3.8rem);
+  margin-top: 0.1rem;
+  background-image: url("/assets/tabler-vocate/tabler-illustrations/illustrations/good-news.svg");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+.request-success-message__content {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.request-success-message__title {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  margin: 0 0 0.45rem;
+  color: var(--color-success);
+  font-size: clamp(1rem, 1.6vw, 1.15rem);
+  line-height: 1.35;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.request-success-message__details {
+  max-width: 100%;
+  margin: 0;
+  color: var(--color-success);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
 .sop-document__header {
   max-width: 900px;
   margin-bottom: 1.5rem;
@@ -6308,10 +6363,25 @@ legend {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .request-success-message {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
   .form-errors::before,
   .confirmation::before {
     width: 3rem;
     height: 2.5rem;
+  }
+
+  .request-success-message::before {
+    display: none;
+  }
+
+  .request-success-message__icon {
+    width: 3.25rem;
+    height: 2.8rem;
   }
 
   .ticket-guide-hero {
