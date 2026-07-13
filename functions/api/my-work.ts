@@ -199,7 +199,7 @@ async function queryDraftSops(db: D1DatabaseBinding, workScope: ResolvedWorkScop
        LEFT JOIN creator_sub_roles sub_roles ON sub_roles.id = sops.owner_sub_role_id
        WHERE ${scopeFilter}
         AND COALESCE(sops.is_active, 1) = 1
-        AND sops.status IN ('Draft', 'Needs Revision')
+        AND sops.status IN ('Draft', 'Needs Revision', 'In Review', 'Approved')
        ORDER BY sops.updated_at DESC
        LIMIT 100`,
     )

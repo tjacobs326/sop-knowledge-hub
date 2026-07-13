@@ -21,7 +21,7 @@ import { statusBadgeDefinitions } from "../../lib/badges";
       <a class="button button--ghost" href="/my-work/">My Work</a>
     </div>
 
-    <div class="drafts-context" id="drafts-context" role="status">Loading draft access context...</div>
+    <div class="drafts-context" id="drafts-context" role="status">Loading draft workflow context...</div>
 
     <div class="table-wrap" data-drafts-table>
       <table>
@@ -65,7 +65,6 @@ import { statusBadgeDefinitions } from "../../lib/badges";
   const SUB_ROLE_KEY = "sopHubSelectedCreatorSubRole";
   const WORK_SCOPE_KEY = "sopHubMyWorkScope";
   let currentDrafts = [];
-  let canArchive = false;
   let activeDraftRequestId = 0;
 
   const escapeHtml = (value) =>
@@ -144,13 +143,44 @@ import { statusBadgeDefinitions } from "../../lib/badges";
     const subRole = context.selectedSubRole?.label || "selected department";
     const count = Number(data.counts?.drafts || currentDrafts.length || 0);
     if (contextEl) {
-      contextEl.textContent = `${count} editable draft${count === 1 ? "" : "s"} loaded for ${user} in ${subRole}.`;
+      contextEl.textContent = `${count} draft workflow item${count === 1 ? "" : "s"} loaded for ${user} in ${subRole}.`;
     }
+  }
+
+  function actionButton(label, attributes, className = "button--secondary") {
+    return `<button class="button ${className}" type="button" ${attributes}>${escapeHtml(label)}</button>`;
+  }
+
+  function actionLink(label, href, className = "button--secondary") {
+    return `<a class="button ${className}" href="${escapeHtml(href)}">${escapeHtml(label)}</a>`;
+  }
+
+  function renderDraftActions(draft) {
+    const capabilities = draft.capabilities || {};
+    const actions = [];
+    if (capabilities.canEdit) actions.push(actionLink("Edit Draft", draft.editUrl));
+    if (capabilities.canPreview) actions.push(actionLink("Preview", draft.detailUrl, "button--ghost"));
+    if (capabilities.canSubmitForReview) {
+      actions.push(actionButton("Submit for Review", `data-draft-workflow="submit-review" data-draft-id="${escapeHtml(draft.id)}"`));
+    }
+    if (capabilities.canReview) actions.push(actionLink("Review Draft", draft.reviewUrl, "button--secondary"));
+    if (capabilities.canRequestChanges) {
+      actions.push(actionButton("Request Changes", `data-draft-workflow="request-changes" data-draft-id="${escapeHtml(draft.id)}"`, "button--secondary"));
+    }
+    if (capabilities.canApprove) {
+      actions.push(actionButton("Approve SOP", `data-draft-workflow="approve" data-draft-id="${escapeHtml(draft.id)}"`, "button--secondary"));
+    }
+    if (capabilities.canPublish) {
+      actions.push(actionButton("Publish SOP", `data-draft-workflow="publish" data-draft-id="${escapeHtml(draft.id)}"`, "button--primary"));
+    }
+    if (capabilities.canArchive) {
+      actions.push(actionButton("Archive", `data-draft-workflow="archive" data-draft-id="${escapeHtml(draft.id)}"`, "button--danger"));
+    }
+    return actions.length ? actions.join("") : `<span class="muted">No actions available</span>`;
   }
 
   function renderDrafts(data) {
     currentDrafts = Array.isArray(data.drafts) ? data.drafts : [];
-    canArchive = Boolean(data.context?.canArchive);
     renderContext(data);
     if (!list) return;
     if (!currentDrafts.length) {
@@ -174,13 +204,7 @@ import { statusBadgeDefinitions } from "../../lib/badges";
             <td>${escapeHtml(formatDate(draft.updatedDate))}</td>
             <td>
               <div class="table-actions">
-                <a class="button button--secondary" href="${escapeHtml(draft.editUrl)}">Edit Draft</a>
-                <a class="button button--ghost" href="${escapeHtml(draft.detailUrl)}">Preview</a>
-                ${
-                  canArchive
-                    ? `<button class="button button--danger" type="button" data-archive-draft="${escapeHtml(draft.id)}">Archive</button>`
-                    : ""
-                }
+                ${renderDraftActions(draft)}
               </div>
             </td>
           </tr>
@@ -191,9 +215,8 @@ import { statusBadgeDefinitions } from "../../lib/badges";
 
   function clearDraftState(message = "Connecting to the live Cloudflare database.") {
     currentDrafts = [];
-    canArchive = false;
     if (contextEl) {
-      contextEl.textContent = "Loading draft access context...";
+      contextEl.textContent = "Loading draft workflow context...";
     }
     if (list) {
       list.innerHTML = emptyRow("Loading drafts", message);
@@ -202,7 +225,6 @@ import { statusBadgeDefinitions } from "../../lib/badges";
 
   function showError(error) {
     currentDrafts = [];
-    canArchive = false;
     if (errorsEl) {
       errorsEl.hidden = false;
       errorsEl.innerHTML = `<p>${escapeHtml(error instanceof Error ? error.message : "Drafts could not load.")}</p>`;
@@ -227,18 +249,38 @@ import { statusBadgeDefinitions } from "../../lib/badges";
     renderDrafts(data);
   }
 
-  async function archiveDraft(id) {
+  function workflowMessage(action, draft) {
+    if (action === "submit-review") return `Submit "${draft.title}" for review?`;
+    if (action === "request-changes") return `Request changes for "${draft.title}"?`;
+    if (action === "approve") return `Approve "${draft.title}"?`;
+    if (action === "publish") return `Publish "${draft.title}"? Publishing will make this SOP available in the knowledge hub and remove it from active draft lists.`;
+    if (action === "archive") return `Archive "${draft.title}"? This removes it from active draft queues.`;
+    return `Update "${draft.title}"?`;
+  }
+
+  function workflowEndpoint(action) {
+    if (action === "submit-review") return "submit-review";
+    if (action === "request-changes") return "request-changes";
+    return action;
+  }
+
+  async function runDraftWorkflow(id, action, button) {
     const draft = currentDrafts.find((item) => item.id === id);
-    if (!draft || !window.confirm(`Archive "${draft.title}"? This removes it from active draft queues.`)) return;
-    const response = await fetch(`/api/sops/${encodeURIComponent(id)}/archive`, {
+    if (!draft || !window.confirm(workflowMessage(action, draft))) return;
+    if (button instanceof HTMLButtonElement) button.disabled = true;
+    const response = await fetch(`/api/sops/${encodeURIComponent(id)}/${workflowEndpoint(action)}`, {
       method: "POST",
       headers: apiHeaders(),
-      body: JSON.stringify({ notes: "Archived from My Drafts." }),
+      body: JSON.stringify({ notes: `${action} from My Drafts.` }),
     });
     await parseApiResponse(response);
     if (confirmation) {
       confirmation.hidden = false;
-      confirmation.innerHTML = `<strong>Draft archived.</strong><p>${escapeHtml(draft.title)} was removed from active draft queues.</p>`;
+      const publishedLink =
+        action === "publish"
+          ? `<p><a class="button button--secondary" href="${escapeHtml(draft.detailUrl)}">View Published SOP</a></p>`
+          : "";
+      confirmation.innerHTML = `<strong>${escapeHtml(draft.title)} updated.</strong><p>The backend workflow action completed successfully.</p>${publishedLink}`;
     }
     await loadDrafts();
   }
@@ -246,9 +288,13 @@ import { statusBadgeDefinitions } from "../../lib/badges";
   list?.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
-    const archiveButton = target.closest("[data-archive-draft]");
-    if (archiveButton instanceof HTMLElement) {
-      archiveDraft(archiveButton.dataset.archiveDraft || "").catch(showError);
+    const workflowButton = target.closest("[data-draft-workflow]");
+    if (workflowButton instanceof HTMLElement) {
+      runDraftWorkflow(
+        workflowButton.dataset.draftId || "",
+        workflowButton.dataset.draftWorkflow || "",
+        workflowButton instanceof HTMLButtonElement ? workflowButton : null,
+      ).catch(showError);
     }
   });
 

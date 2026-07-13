@@ -37,13 +37,15 @@ assert(
   "My Drafts must ignore stale responses from prior role/sub-role loads.",
 );
 assert(
-  draftsPage.includes("currentDrafts = []") && draftsPage.includes("canArchive = false"),
+  draftsPage.includes("currentDrafts = []") &&
+    draftsPage.includes("renderDraftActions(draft)") &&
+    draftsPage.includes("draft.capabilities || {}"),
   "My Drafts must clear prior draft state before loading a new role/sub-role.",
 );
 assert(
   draftsPage.includes('"x-sop-sub-role": subRole') &&
     draftsPage.includes("selectedSubRoleQuery()") &&
-    draftsPage.includes("subRole=${encodeURIComponent(subRole)}"),
+    draftsPage.includes('params.set("subRole", subRole)'),
   "My Drafts must send the active sub-role through the backend request headers and query string.",
 );
 assert(

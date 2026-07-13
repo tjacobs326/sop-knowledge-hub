@@ -10,6 +10,8 @@ const draftPreview = readFileSync(resolve(root, "src/components/SopDraftPreview.
 const myDraftsApi = readFileSync(resolve(root, "functions/api/my-drafts.ts"), "utf8");
 const reviewQueueApi = readFileSync(resolve(root, "functions/api/review-queue.ts"), "utf8");
 const sopDetailApi = readFileSync(resolve(root, "functions/api/sops/[id].ts"), "utf8");
+const sopWorkflow = readFileSync(resolve(root, "functions/_shared/sop-workflow.ts"), "utf8");
+const publishApi = readFileSync(resolve(root, "functions/api/sops/[id]/publish.ts"), "utf8");
 
 function assert(condition, message) {
   if (!condition) {
@@ -22,11 +24,11 @@ assert(
   "My Work draft rows must route Edit Draft with the selected draft id.",
 );
 assert(
-  myDraftsPage.includes('href="${escapeHtml(draft.editUrl)}"'),
+  myDraftsPage.includes('actionLink("Edit Draft", draft.editUrl)'),
   "My Drafts rows must use the backend-provided draft edit URL.",
 );
 assert(
-  myDraftsApi.includes("editUrl: `/create/?edit=draft&id=${encodeURIComponent(id)}`"),
+  myDraftsApi.includes("editUrl: `/create/?edit=draft&id=${encodeURIComponent(id)}&origin=my-drafts`"),
   "My Drafts API must return edit URLs that include the draft id.",
 );
 assert(
@@ -37,7 +39,8 @@ assert(
 assert(
   createForm.includes("async function loadBackendEditSource(id)") &&
     createForm.includes("fetch(`/api/sops/${encodeURIComponent(id)}`") &&
-    createForm.includes("fillFormFromSource(data.sop || data)"),
+    createForm.includes("const source = data.sop || data") &&
+    createForm.includes("fillFormFromSource(source)"),
   "Create SOP form edit mode must fetch and load the selected backend draft.",
 );
 assert(
@@ -78,8 +81,36 @@ assert(
   draftPreview.includes('id="publish-sop"') &&
     draftPreview.includes('data-draft-action="publish"') &&
     createForm.includes('permissions.has("Publish SOPs")') &&
+    createForm.includes('const isApproved = String(currentSop?.status || "").toLowerCase() === "approved"') &&
     createForm.includes('workflow("publish"'),
-  "Create/Edit SOP must expose Publish only on the review step through the backend publish workflow and permission check.",
+  "Create/Edit SOP must expose Publish only on the review step through the backend publish workflow, approved status, and permission check.",
+);
+assert(
+  myDraftsApi.includes("capabilities: {") &&
+    myDraftsApi.includes('canSubmitForReview') &&
+    myDraftsApi.includes('canPublish') &&
+    myDraftsApi.includes("sops.status IN ('Draft', 'Needs Revision', 'In Review', 'Approved')"),
+  "My Drafts API must return backend-calculated capabilities for the full draft review-to-publish workflow.",
+);
+assert(
+  myDraftsPage.includes('data-draft-workflow="publish"') &&
+    myDraftsPage.includes("Publish SOP") &&
+    myDraftsPage.includes("Submit for Review") &&
+    myDraftsPage.includes("Review Draft") &&
+    myDraftsPage.includes("Approve SOP"),
+  "My Drafts must render workflow actions from backend capabilities, including Publish SOP for approved drafts.",
+);
+assert(
+  reviewQueue.includes('"my-drafts-review"') &&
+    reviewQueue.includes("Home</a></li>") &&
+    reviewQueue.includes("Review Draft"),
+  "Review Draft opened from My Drafts must use the My Drafts creator/reviewer breadcrumb origin.",
+);
+assert(
+  sopWorkflow.includes('publish: ["Approved"]') &&
+    sopWorkflow.includes("SopWorkflowTransitionError") &&
+    publishApi.includes("WORKFLOW_CONFLICT"),
+  "The backend workflow must reject Publish unless the SOP is Approved and return a workflow conflict.",
 );
 assert(
   reviewQueue.includes('"revision"') &&

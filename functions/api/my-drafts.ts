@@ -17,13 +17,21 @@ function detailUrl(row: Record<string, unknown>) {
   return `/sops/detail/?id=${encodeURIComponent(String(row.id || ""))}`;
 }
 
-function normalizeDraft(row: Record<string, unknown>) {
+function normalizeDraft(row: Record<string, unknown>, permissions: Set<string>) {
   const id = String(row.id || "");
+  const status = String(row.status || "Draft");
+  const canEdit = permissions.has("Edit Drafts") && ["Draft", "Needs Revision"].includes(status);
+  const canSubmitForReview = permissions.has("Edit Drafts") && ["Draft", "Needs Revision"].includes(status);
+  const canReview = permissions.has("Review SOPs") && status === "In Review";
+  const canApprove = permissions.has("Approve SOPs") && status === "In Review";
+  const canRequestChanges = permissions.has("Request Changes") && status === "In Review";
+  const canPublish = permissions.has("Publish SOPs") && status === "Approved";
+  const canArchive = permissions.has("Archive SOPs") && ["Draft", "Needs Revision", "In Review", "Approved"].includes(status);
   return {
     id,
     title: row.title || "Untitled SOP Draft",
     category: row.category || "Uncategorized",
-    status: row.status || "Draft",
+    status,
     owner: row.owner || row.ownerSubRole || "Unassigned",
     ownerId: row.ownerId || "",
     ownerSubRoleId: row.ownerSubRoleId || "",
@@ -33,7 +41,18 @@ function normalizeDraft(row: Record<string, unknown>) {
     assignedReviewer: row.assignedReviewer || "Unassigned",
     updatedDate: normalizeDate(row.updatedAt || row.createdAt),
     detailUrl: detailUrl(row),
-    editUrl: `/create/?edit=draft&id=${encodeURIComponent(id)}`,
+    editUrl: `/create/?edit=draft&id=${encodeURIComponent(id)}&origin=my-drafts`,
+    reviewUrl: `/review-queue/?review=${encodeURIComponent(`sop:${id}`)}&origin=my-drafts-review`,
+    capabilities: {
+      canEdit,
+      canPreview: true,
+      canSubmitForReview,
+      canReview,
+      canApprove,
+      canRequestChanges,
+      canPublish,
+      canArchive,
+    },
   };
 }
 
@@ -43,7 +62,7 @@ async function resolveDraftContext(db: D1DatabaseBinding, context: PagesFunction
   return resolveCreatorWorkScope(db, context);
 }
 
-async function queryDrafts(db: D1DatabaseBinding, workScope: ResolvedWorkScope) {
+async function queryDrafts(db: D1DatabaseBinding, workScope: ResolvedWorkScope, permissions: Set<string>) {
   const scope = subRoleSopScopeClause("sops", workScope.subRole);
   const clauses: string[] = [];
   const values: unknown[] = [...scope.values];
@@ -109,7 +128,7 @@ async function queryDrafts(db: D1DatabaseBinding, workScope: ResolvedWorkScope) 
        LEFT JOIN users owner ON owner.id = COALESCE(sops.owner_id, sops.owner_user_id)
        LEFT JOIN creator_sub_roles sub_roles ON sub_roles.id = sops.owner_sub_role_id
        WHERE COALESCE(sops.is_active, 1) = 1
-        AND sops.status IN ('Draft', 'Needs Revision')
+        AND sops.status IN ('Draft', 'Needs Revision', 'In Review', 'Approved')
         AND ${scopeFilter}
        GROUP BY sops.id
        ORDER BY sops.updated_at DESC, sops.title ASC
@@ -118,7 +137,7 @@ async function queryDrafts(db: D1DatabaseBinding, workScope: ResolvedWorkScope) 
     .bind(...values)
     .all<Record<string, unknown>>();
 
-  return (result.results || []).map(normalizeDraft);
+  return (result.results || []).map((row) => normalizeDraft(row, permissions));
 }
 
 export const onRequestGet = async (context: PagesFunctionContext) => {
@@ -129,7 +148,8 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
   const resolved = await resolveDraftContext(db, context);
   if (resolved.response || !resolved.subRole || !resolved.user) return resolved.response;
 
-  const drafts = await queryDrafts(db, resolved);
+  const permissions = new Set(resolved.user.permissions || []);
+  const drafts = await queryDrafts(db, resolved, permissions);
 
   return new Response(
     JSON.stringify({
@@ -144,6 +164,9 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
           workScopeLabel: resolved.label,
           workScopeDescription: resolved.description,
           canArchive: hasPermission(resolved.user, "Archive SOPs"),
+          canPublish: hasPermission(resolved.user, "Publish SOPs"),
+          canApprove: hasPermission(resolved.user, "Approve SOPs"),
+          canReview: hasPermission(resolved.user, "Review SOPs"),
         },
         viewOptions: {
           users: resolved.users,

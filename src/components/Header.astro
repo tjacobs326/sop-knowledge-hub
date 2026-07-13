@@ -227,6 +227,7 @@ const roleClass = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, 
   function reviewQueueNavTarget() {
     if (window.location.pathname !== "/review-queue/") return "";
     const origin = new URLSearchParams(window.location.search).get("origin") || "";
+    if (origin === "my-drafts-review") return "/drafts/";
     return origin.startsWith("my-work-") ? "/my-work/" : "/review-queue/";
   }
 

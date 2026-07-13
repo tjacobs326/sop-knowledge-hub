@@ -182,6 +182,7 @@ const sopTypes = [
   let currentSop = null;
   let currentFormMode = "create";
   let currentEditOrigin = "my-drafts";
+  let canPublishSops = false;
   let hasUnsavedChanges = false;
 
   const escapeHtml = (value) =>
@@ -685,6 +686,13 @@ const sopTypes = [
     confirmation.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
+  function updatePublishAvailability() {
+    if (!publishButton) return;
+    const isApproved = String(currentSop?.status || "").toLowerCase() === "approved";
+    publishButton.hidden = !(canPublishSops && isApproved);
+    publishButton.disabled = !(canPublishSops && isApproved);
+  }
+
   function editorOrigin() {
     const params = new URLSearchParams(window.location.search);
     const origin = params.get("origin") || "";
@@ -777,6 +785,7 @@ const sopTypes = [
         });
     const data = await parseApiResponse(response);
     currentSop = data.sop || currentSop;
+    updatePublishAvailability();
     hasUnsavedChanges = false;
     return currentSop;
   }
@@ -792,7 +801,12 @@ const sopTypes = [
       headers: apiHeaders(),
       body: JSON.stringify({ notes: notes || getField("workflowNotes") || endpoint }),
     });
-    return parseApiResponse(response);
+    const data = await parseApiResponse(response);
+    if (data?.transition?.newStatus) {
+      currentSop = { ...(currentSop || {}), status: data.transition.newStatus };
+      updatePublishAvailability();
+    }
+    return data;
   }
 
   function populateSelect(selectId, items, placeholder, labelFn) {
@@ -816,18 +830,19 @@ const sopTypes = [
     const tagList = document.getElementById("tag-options");
     if (tagList) tagList.innerHTML = (options.tags || []).map((tag) => `<option value="${escapeHtml(tag.name)}"></option>`).join("");
     const permissions = new Set(currentUser?.permissions || []);
-    const canPublish = currentUser?.role === "admin" || permissions.has("Publish SOPs");
-    if (publishButton) {
-      publishButton.hidden = !canPublish;
-      publishButton.disabled = !canPublish;
-    }
+    canPublishSops = currentUser?.role === "admin" || permissions.has("Publish SOPs");
+    updatePublishAvailability();
   }
 
   function fillFormFromSource(source) {
     const version = source.version || {};
     const metadata = source.metadata || version.metadata || {};
     const content = version.content || source.bodyMarkdown || source.content || "";
-    currentSop = source.sourceId ? { id: source.sourceId } : source.id ? { id: source.id, currentVersionId: source.currentVersionId || version.id } : null;
+    currentSop = source.sourceId
+      ? { id: source.sourceId, status: source.status || source.versionStatus || version.status }
+      : source.id
+        ? { id: source.id, status: source.status, currentVersionId: source.currentVersionId || version.id }
+        : null;
     setField("title", source.title);
     setField("purpose", source.purpose || source.summary || version.purpose || version.summary);
     setField("ownerId", source.ownerId);
@@ -845,6 +860,7 @@ const sopTypes = [
     setField("changeSummary", source.changeSummary || version.changeSummary);
     setField("version", source.versionNumber || version.number || source.version || "0.1");
     renderSteps(source.procedureSteps || parseProcedureSteps(content, source.checklist || version.checklist));
+    updatePublishAvailability();
     hasUnsavedChanges = false;
   }
 

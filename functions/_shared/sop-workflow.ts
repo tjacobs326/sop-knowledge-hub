@@ -10,6 +10,23 @@ const statusByAction: Record<SopWorkflowAction, string> = {
   archive: "Archived",
 };
 
+const allowedFallbackStatuses: Record<SopWorkflowAction, string[]> = {
+  "submit-review": ["Draft", "Needs Revision"],
+  "request-changes": ["In Review"],
+  approve: ["In Review"],
+  publish: ["Approved"],
+  archive: ["Draft", "Needs Revision", "In Review", "Approved", "Published"],
+};
+
+export class SopWorkflowTransitionError extends Error {
+  status = 409;
+
+  constructor(message: string) {
+    super(message);
+    this.name = "SopWorkflowTransitionError";
+  }
+}
+
 export interface SopWorkflowInput {
   sopId: string;
   versionId?: string;
@@ -67,6 +84,11 @@ export async function transitionSop(db: D1DatabaseBinding, input: SopWorkflowInp
   if (!sop) return null;
 
   const configured = await configuredTransition(db, input.action, sop.status);
+  if (!configured && !allowedFallbackStatuses[input.action].includes(sop.status)) {
+    throw new SopWorkflowTransitionError(
+      `Cannot ${input.action.replace("-", " ")} an SOP while it is ${sop.status}.`,
+    );
+  }
   const newStatus = configured?.toStatus || statusByAction[input.action];
   const versionId = input.versionId || sop.currentVersionId || null;
   const now = Math.floor(Date.now() / 1000);
