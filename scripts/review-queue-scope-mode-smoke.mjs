@@ -38,11 +38,31 @@ assert(
   "Review Queue API must document that personal/team/admin counts must not be blended.",
 );
 assert(
+  reviewQueueApi.includes("Needs Review is a daily action list") &&
+    reviewQueueApi.includes("const labels = queueLabels(mode, items.length") &&
+    reviewQueueApi.includes("counts: summarize(items)") &&
+    reviewQueueApi.includes('view: view === "needs-review" ? "needs-review" : "queue"'),
+  "Needs Review must label and count the same filtered action list that is displayed.",
+);
+assert(
+  reviewQueueApi.includes('"My Needs Review"') &&
+    reviewQueueApi.includes('"Team Needs Review"') &&
+    reviewQueueApi.includes('"Admin Needs Review"') &&
+    reviewQueueApi.includes("No items currently need your review."),
+  "Needs Review must use practical personal/team/admin labels and empty states.",
+);
+assert(
   reviewQueue.includes('id="review-work-view"') &&
     reviewQueue.includes('id="review-work-scope"') &&
     reviewQueue.includes('params.set("userId", selectedReviewScope)') &&
     reviewQueue.includes('params.set("scope", "admin")'),
   "Review Queue UI must expose the selected queue and pass it to the backend.",
+);
+assert(
+  reviewQueue.includes("Needs Review scope") &&
+    reviewQueue.includes("data.viewOptions?.scopes") &&
+    reviewQueue.includes("scopeLabels"),
+  "Needs Review UI must show backend-provided personal/team/admin scope labels.",
 );
 assert(
   reviewQueue.includes("renderWorkViewOptions") &&

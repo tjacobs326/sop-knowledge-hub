@@ -54,7 +54,7 @@ const description = isNeedsReviewMode
 
   <div class="form-grid work-user-panel">
     <div class="field">
-      <label for="review-work-view">Review work view</label>
+      <label for="review-work-view">{isNeedsReviewMode ? "Needs Review scope" : "Review work view"}</label>
       <select id="review-work-view">
         <option value={isAdminMode ? "admin" : "team"}>Loading review queues...</option>
       </select>
@@ -276,6 +276,7 @@ const description = isNeedsReviewMode
       "in-progress",
       "draft-created",
       "in-approval",
+      "approved",
     ].includes(badgeKey(status));
   }
 
@@ -322,6 +323,7 @@ const description = isNeedsReviewMode
         "in-progress",
         "draft-created",
         "in-approval",
+        "approved",
       ].includes(key);
     }
     if (filter === "summary:urgent") return ["High", "Urgent"].includes(item.priority);
@@ -373,17 +375,21 @@ const description = isNeedsReviewMode
     ].join("");
   }
 
-  function renderWorkViewOptions(options, context) {
+  function renderWorkViewOptions(options, context, scopes = []) {
     if (!(workViewSelect instanceof HTMLSelectElement)) return;
     const mode = context.mode || (isAdminMode ? "admin" : "personal");
     const selectedId = mode === "admin" ? "admin" : mode === "team" ? "team" : context.selectedUser?.id || "";
     selectedReviewScope = selectedId;
     const safeOptions = Array.isArray(options) && options.length ? options : [];
+    const scopeLabels = new Map(
+      (Array.isArray(scopes) ? scopes : []).map((scope) => [String(scope.id || ""), String(scope.label || "")]),
+    );
     workViewSelect.innerHTML = safeOptions
       .map((option) => {
         const suffix = option.id === "team" || option.id === "admin" ? "" : ` - ${option.department || option.accessLevel || "Reviewer"}`;
+        const label = scopeLabels.get(String(option.id || "")) || `${option.name}${suffix}`;
         return `<option value="${escapeHtml(option.id)}" ${option.id === selectedId ? "selected" : ""}>${escapeHtml(
-          `${option.name}${suffix}`,
+          label,
         )}</option>`;
       })
       .join("");
@@ -469,7 +475,7 @@ const description = isNeedsReviewMode
   function renderContext(data) {
     const context = data.context || {};
     const labels = data.labels || {};
-    renderWorkViewOptions(data.viewOptions?.users || [], context);
+    renderWorkViewOptions(data.viewOptions?.users || [], context, data.viewOptions?.scopes || []);
     if (descriptionEl) descriptionEl.textContent = labels.description || descriptionEl.textContent || "";
     if (workScopeInput instanceof HTMLInputElement) {
       workScopeInput.value = context.workScopeLabel || context.accessLevel || "Review Queue";

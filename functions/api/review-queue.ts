@@ -215,10 +215,36 @@ function adminQueueOption(): QueueUser {
   };
 }
 
-function queueLabels(mode: ReviewQueueMode, count: number, selectedUser: QueueUser | null, subRole: CreatorSubRole) {
+function queueLabels(mode: ReviewQueueMode, count: number, selectedUser: QueueUser | null, subRole: CreatorSubRole, view: string | null) {
+  const isNeedsReview = view === "needs-review";
   const teamName = `${subRole.department || subRole.label} Team Review Queue`;
-  const target = mode === "personal" ? selectedUser?.name || "selected reviewer" : mode === "admin" ? "Admin Review Queue" : teamName;
-  const itemWord = count === 1 ? "review item" : "review items";
+  const needsReviewTeamName = `${subRole.department || subRole.label} Team Needs Review`;
+  const target = mode === "personal" ? selectedUser?.name || "you" : mode === "admin" ? "Admin Queue" : isNeedsReview ? needsReviewTeamName : teamName;
+  const itemWord = count === 1 ? "item" : "items";
+  if (isNeedsReview) {
+    return {
+      heading: mode === "personal" ? "My Needs Review" : mode === "team" ? "Team Needs Review" : "Admin Needs Review",
+      description:
+        mode === "personal"
+          ? "Review SOP work assigned directly to you."
+          : mode === "team"
+            ? "Review SOP work assigned to your department or team queue."
+            : "Review SOP work that needs action across authorized backend queues.",
+      loadedMessage:
+        mode === "admin"
+          ? `${count} ${itemWord} need review in ${target}.`
+          : `${count} ${itemWord} need review for ${target}.`,
+      emptyMessage:
+        mode === "personal"
+          ? "No items currently need your review."
+          : mode === "team"
+            ? `No items currently need review for ${needsReviewTeamName}.`
+            : "No items currently need review in the Admin Queue.",
+      newLabel: "New",
+      needsReviewLabel: mode === "personal" ? "Needs my review" : mode === "team" ? "Needs team review" : "Needs review",
+    };
+  }
+  const reviewItemWord = count === 1 ? "review item" : "review items";
   return {
     heading: mode === "personal" ? "My Review Queue" : mode === "team" ? "Team Review Queue" : "Admin Review Control Center",
     description:
@@ -227,7 +253,7 @@ function queueLabels(mode: ReviewQueueMode, count: number, selectedUser: QueueUs
         : mode === "team"
           ? "Review SOP work assigned to your department or team queue."
           : "Review, assign, approve, publish, and archive backend SOP work across authorized areas.",
-    loadedMessage: `${count} ${itemWord} loaded for ${target}.`,
+    loadedMessage: `${count} ${reviewItemWord} loaded for ${target}.`,
     emptyMessage:
       mode === "personal"
         ? `No review items are assigned directly to ${target}.`
@@ -493,6 +519,7 @@ function needsReviewStatus(status: unknown) {
     "in-progress",
     "draft-created",
     "in-approval",
+    "approved",
   ].includes(statusKey(status));
 }
 
@@ -565,10 +592,11 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
     querySopReviews(db, resolved.subRole, selectedUser, resolved.user, mode),
   ]);
   const allItems = [...requests, ...sops].sort((a, b) => String(b.updatedDate).localeCompare(String(a.updatedDate)));
+  // Needs Review is a daily action list; keep personal, team, and admin scopes separate so counts and ownership stay accurate.
   const viewItems = view === "needs-review" ? allItems.filter((item) => needsReviewStatus(item.status)) : allItems;
   const filterItems = requestedFilter ? filterQueueItems(viewItems, requestedFilter) : viewItems;
   const items = requestedReviewId ? filterItems.filter((item) => item.id === requestedReviewId) : filterItems;
-  const labels = queueLabels(mode, allItems.length, selectedUser, resolved.subRole);
+  const labels = queueLabels(mode, items.length, selectedUser, resolved.subRole, view);
   const workScopeLabel =
     mode === "personal"
       ? [selectedUser?.accessLevel || resolved.user.accessLevel, selectedUser?.name, selectedUser?.department].filter(Boolean).join(" - ")
@@ -593,6 +621,7 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
       data: {
         context: {
           mode,
+          view: view === "needs-review" ? "needs-review" : "queue",
           role: resolved.user.role,
           activeUser: {
             id: resolved.user.id,
@@ -616,8 +645,22 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
           permissions: resolved.user.permissions,
         },
         labels,
-        viewOptions: { users: queueOptions, subRoles: [resolved.subRole] },
-        counts: summarize(allItems),
+        viewOptions: {
+          users: queueOptions,
+          subRoles: [resolved.subRole],
+          scopes: queueOptions.map((option) => ({
+            id: option.id,
+            label:
+              option.id === "admin"
+                ? "Admin Needs Review"
+                : option.id === "team"
+                  ? `${resolved.subRole.department || resolved.subRole.label} Team Needs Review`
+                  : option.id === activeUser?.id
+                    ? "My Needs Review"
+                    : `${option.name} Needs Review`,
+          })),
+        },
+        counts: summarize(items),
         items,
       },
     }),
