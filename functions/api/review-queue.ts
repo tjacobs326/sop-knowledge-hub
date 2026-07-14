@@ -24,6 +24,8 @@ interface QueueActionPayload {
   denialReason?: string;
 }
 
+type ReviewQueueMode = "personal" | "team" | "admin";
+
 const managedRequestColumns: Record<string, string> = {
   category_id: "TEXT",
   category_name: "TEXT",
@@ -191,6 +193,52 @@ async function resolveQueueContext(db: D1DatabaseBinding, context: PagesFunction
   return { response: null, user: auth.user, subRole };
 }
 
+function teamQueueOption(subRole: CreatorSubRole): QueueUser {
+  return {
+    id: "team",
+    name: `${subRole.department || subRole.label} Team Review Queue`,
+    email: "",
+    accessLevel: "Team Queue",
+    department: subRole.department,
+    teamId: subRole.teamId,
+  };
+}
+
+function adminQueueOption(): QueueUser {
+  return {
+    id: "admin",
+    name: "Admin Review Queue",
+    email: "",
+    accessLevel: "Admin Queue",
+    department: "All departments",
+    teamId: null,
+  };
+}
+
+function queueLabels(mode: ReviewQueueMode, count: number, selectedUser: QueueUser | null, subRole: CreatorSubRole) {
+  const teamName = `${subRole.department || subRole.label} Team Review Queue`;
+  const target = mode === "personal" ? selectedUser?.name || "selected reviewer" : mode === "admin" ? "Admin Review Queue" : teamName;
+  const itemWord = count === 1 ? "review item" : "review items";
+  return {
+    heading: mode === "personal" ? "My Review Queue" : mode === "team" ? "Team Review Queue" : "Admin Review Control Center",
+    description:
+      mode === "personal"
+        ? "Review SOP work assigned directly to you."
+        : mode === "team"
+          ? "Review SOP work assigned to your department or team queue."
+          : "Review, assign, approve, publish, and archive backend SOP work across authorized areas.",
+    loadedMessage: `${count} ${itemWord} loaded for ${target}.`,
+    emptyMessage:
+      mode === "personal"
+        ? `No review items are assigned directly to ${target}.`
+        : mode === "team"
+          ? `No review items are assigned to ${teamName}.`
+          : "No backend review items are available for the Admin Review Queue.",
+    newLabel: "New",
+    needsReviewLabel: mode === "personal" ? "Needs my review" : mode === "team" ? "Needs team review" : "Needs review",
+  };
+}
+
 function requestActions(user: AuthUser) {
   return [
     "view",
@@ -285,13 +333,19 @@ function normalizeSop(row: Record<string, unknown>, user: AuthUser) {
   };
 }
 
-async function queryRequests(db: D1DatabaseBinding, subRole: CreatorSubRole, selectedUser: QueueUser | null, user: AuthUser) {
-  const clauses = ["sop_requests.owner_sub_role_id = ?", "sop_requests.assigned_department = ?", "sop_requests.assigned_team_id = ?"];
-  const values: unknown[] = [subRole.id, subRole.department, subRole.teamId || ""];
-  if (selectedUser?.id) {
-    clauses.push("sop_requests.assigned_to = ?");
-    values.push(selectedUser.id);
-  }
+async function queryRequests(db: D1DatabaseBinding, subRole: CreatorSubRole, selectedUser: QueueUser | null, user: AuthUser, mode: ReviewQueueMode) {
+  const whereSql =
+    mode === "personal"
+      ? "sop_requests.assigned_to = ?"
+      : mode === "team"
+        ? `(
+            sop_requests.owner_sub_role_id = ?
+            OR sop_requests.assigned_department = ?
+            OR sop_requests.assigned_team_id = ?
+          )`
+        : "1 = 1";
+  const values: unknown[] =
+    mode === "personal" ? [selectedUser!.id] : mode === "team" ? [subRole.id, subRole.department, subRole.teamId || ""] : [];
 
   const result = await db
     .prepare(
@@ -323,7 +377,7 @@ async function queryRequests(db: D1DatabaseBinding, subRole: CreatorSubRole, sel
        FROM sop_requests
        LEFT JOIN users assignee ON assignee.id = sop_requests.assigned_to
        LEFT JOIN creator_sub_roles sub_roles ON sub_roles.id = sop_requests.owner_sub_role_id
-       WHERE (${clauses.join(" OR ")})
+       WHERE ${whereSql}
        ORDER BY sop_requests.updated_at DESC, sop_requests.created_at DESC
        LIMIT 200`,
     )
@@ -333,24 +387,23 @@ async function queryRequests(db: D1DatabaseBinding, subRole: CreatorSubRole, sel
   return (result.results || []).map((row) => normalizeRequest(row, user));
 }
 
-async function querySopReviews(db: D1DatabaseBinding, subRole: CreatorSubRole, selectedUser: QueueUser | null, user: AuthUser) {
-  const scopeClauses = ["sops.owner_sub_role_id = ?"];
-  const scopeValues: unknown[] = [subRole.id];
-  if (subRole.teamId) {
-    scopeClauses.push("sops.owner_team_id = ?");
-    scopeValues.push(subRole.teamId);
-    scopeClauses.push("assignments.team_id = ?");
-    scopeValues.push(subRole.teamId);
-  }
-
-  const userClauses: string[] = [];
-  const userValues: unknown[] = [];
-  if (selectedUser?.id) {
-    userClauses.push("assignments.user_id = ?");
-    userValues.push(selectedUser.id);
-    userClauses.push("COALESCE(sops.owner_id, sops.owner_user_id) = ?");
-    userValues.push(selectedUser.id);
-  }
+async function querySopReviews(db: D1DatabaseBinding, subRole: CreatorSubRole, selectedUser: QueueUser | null, user: AuthUser, mode: ReviewQueueMode) {
+  const whereSql =
+    mode === "personal"
+      ? "assignments.user_id = ?"
+      : mode === "team"
+        ? `(
+            sops.owner_sub_role_id = ?
+            OR sops.owner_team_id = ?
+            OR assignments.team_id = ?
+          )`
+        : "1 = 1";
+  const values: unknown[] =
+    mode === "personal"
+      ? [selectedUser!.id]
+      : mode === "team"
+        ? [subRole.id, subRole.teamId || "", subRole.teamId || ""]
+        : [];
 
   const result = await db
     .prepare(
@@ -384,13 +437,12 @@ async function querySopReviews(db: D1DatabaseBinding, subRole: CreatorSubRole, s
        LEFT JOIN users reviewer ON reviewer.id = assignments.user_id
        WHERE COALESCE(sops.is_active, 1) = 1
         AND sops.status IN ('In Review', 'Approved')
-        AND (${scopeClauses.join(" OR ")})
-        ${userClauses.length ? `AND (${userClauses.join(" OR ")})` : ""}
+        AND ${whereSql}
        GROUP BY sops.id
        ORDER BY sops.updated_at DESC, assignments.due_at ASC, sops.title ASC
        LIMIT 200`,
     )
-    .bind(...scopeValues, ...userValues)
+    .bind(...values)
     .all<Record<string, unknown>>();
 
   return (result.results || []).map((row) => normalizeSop(row, user));
@@ -490,35 +542,81 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
   if (url.searchParams.get("review") && !requestedReviewId) {
     return failure("VALIDATION_ERROR", "Unsupported review identifier.", 400, { review: "Invalid review id" });
   }
+  const requestedScope = optionalText(url.searchParams.get("scope"), 40);
   const requestedUserId = optionalText(url.searchParams.get("userId"), 160);
   const users = await usersForSubRole(db, resolved.subRole);
-  const selectedUser =
-    users.find((user) => user.id === requestedUserId) ||
-    users.find((user) => user.id === resolved.user?.id) ||
-    users[0] ||
-    null;
+  const activeUser =
+    users.find((user) => user.id === resolved.user?.id || user.email.toLowerCase() === resolved.user?.email.toLowerCase()) || null;
+  const personalUsers = resolved.user.role === "admin" ? users : activeUser ? [activeUser] : [];
+  const wantsAdmin = requestedScope === "admin" || requestedUserId === "admin";
+  if (wantsAdmin && resolved.user.role !== "admin") {
+    return failure("FORBIDDEN", "Only admins can view the Admin Review Queue.", 403);
+  }
+  const selectedUserId = wantsAdmin ? "admin" : requestedUserId || activeUser?.id || "team";
+  const mode: ReviewQueueMode = wantsAdmin ? "admin" : selectedUserId === "team" ? "team" : "personal";
+  const selectedUser = mode === "personal" ? personalUsers.find((user) => user.id === selectedUserId) || null : null;
+  if (mode === "personal" && !selectedUser) {
+    return failure("USER_OUT_OF_SCOPE", "The selected reviewer is not available in this Creator / Reviewer scope.", 403);
+  }
 
+  // Personal, team, and admin queues must remain separate so counts do not blend individual and department-wide work.
   const [requests, sops] = await Promise.all([
-    queryRequests(db, resolved.subRole, selectedUser, resolved.user),
-    querySopReviews(db, resolved.subRole, selectedUser, resolved.user),
+    queryRequests(db, resolved.subRole, selectedUser, resolved.user, mode),
+    querySopReviews(db, resolved.subRole, selectedUser, resolved.user, mode),
   ]);
   const allItems = [...requests, ...sops].sort((a, b) => String(b.updatedDate).localeCompare(String(a.updatedDate)));
   const viewItems = view === "needs-review" ? allItems.filter((item) => needsReviewStatus(item.status)) : allItems;
   const filterItems = requestedFilter ? filterQueueItems(viewItems, requestedFilter) : viewItems;
   const items = requestedReviewId ? filterItems.filter((item) => item.id === requestedReviewId) : filterItems;
+  const labels = queueLabels(mode, allItems.length, selectedUser, resolved.subRole);
+  const workScopeLabel =
+    mode === "personal"
+      ? [selectedUser?.accessLevel || resolved.user.accessLevel, selectedUser?.name, selectedUser?.department].filter(Boolean).join(" - ")
+      : mode === "admin"
+        ? "Admin Review Queue - All departments"
+        : `Team Review Queue - ${resolved.subRole.department || resolved.subRole.label}`;
+  const canReview = hasPermission(resolved.user, "Review SOPs");
+  const canApprove = hasPermission(resolved.user, "Approve SOPs");
+  const canPublish = hasPermission(resolved.user, "Publish SOPs");
+  const canArchive = hasPermission(resolved.user, "Archive SOPs");
+  const canAssign = canReview;
+  const canViewAdminQueue = resolved.user.role === "admin";
+  const queueOptions = [
+    ...(canViewAdminQueue ? [adminQueueOption()] : []),
+    teamQueueOption(resolved.subRole),
+    ...personalUsers,
+  ];
 
   return new Response(
     JSON.stringify({
       success: true,
       data: {
         context: {
+          mode,
           role: resolved.user.role,
-          accessLevel: selectedUser?.accessLevel || resolved.user.accessLevel,
+          activeUser: {
+            id: resolved.user.id,
+            name: resolved.user.name,
+            email: resolved.user.email,
+            role: resolved.user.role,
+            accessLevel: resolved.user.accessLevel,
+            department: activeUser?.department || null,
+            teamId: activeUser?.teamId || null,
+          },
+          accessLevel: workScopeLabel,
+          workScopeLabel,
           selectedUser,
           selectedSubRole: resolved.subRole,
+          canReview,
+          canApprove,
+          canPublish,
+          canArchive,
+          canAssign,
+          canViewAdminQueue,
           permissions: resolved.user.permissions,
         },
-        viewOptions: { users, subRoles: [resolved.subRole] },
+        labels,
+        viewOptions: { users: queueOptions, subRoles: [resolved.subRole] },
         counts: summarize(allItems),
         items,
       },

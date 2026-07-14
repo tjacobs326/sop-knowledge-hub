@@ -47,9 +47,22 @@ const description = isNeedsReviewMode
     <div>
       <p class="eyebrow">{eyebrow}</p>
       <h1 id="review-heading">{heading}</h1>
-      <p>{description}</p>
+      <p id="review-description">{description}</p>
     </div>
     <AppIllustration name={isNeedsReviewMode ? "needsReview" : "review"} size="md" />
+  </div>
+
+  <div class="form-grid work-user-panel">
+    <div class="field">
+      <label for="review-work-view">Review work view</label>
+      <select id="review-work-view">
+        <option value={isAdminMode ? "admin" : "team"}>Loading review queues...</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="review-work-scope">Current work scope</label>
+      <input id="review-work-scope" type="text" readonly value="Loading..." />
+    </div>
   </div>
 
   <div class="drafts-context" id="review-context" role="status">Loading review queue context...</div>
@@ -97,6 +110,9 @@ const description = isNeedsReviewMode
 <script is:inline define:vars={{ summaryFilters, priorityBadgeDefinitions, statusBadgeDefinitions, isNeedsReviewMode, isCreatorReviewMode, isAdminMode }}>
   const list = document.getElementById("review-list");
   const contextEl = document.getElementById("review-context");
+  const descriptionEl = document.getElementById("review-description");
+  const workViewSelect = document.getElementById("review-work-view");
+  const workScopeInput = document.getElementById("review-work-scope");
   const errorsEl = document.getElementById("review-errors");
   const confirmation = document.getElementById("review-confirmation");
   const tabs = Array.from(document.querySelectorAll("[data-review-filter]"));
@@ -193,7 +209,9 @@ const description = isNeedsReviewMode
   let activeFilter = requestedQueueFilter();
   let queueItems = [];
   let queueCounts = {};
+  let queueLabels = {};
   let reviewerMembers = [];
+  let selectedReviewScope = isAdminMode ? "admin" : "";
   let activeQueueRequestId = 0;
 
   const escapeHtml = (value) =>
@@ -215,6 +233,11 @@ const description = isNeedsReviewMode
     const subRole = localStorage.getItem(SUB_ROLE_KEY) || "";
     const params = new URLSearchParams();
     if (subRole) params.set("subRole", subRole);
+    if (selectedReviewScope === "admin") {
+      params.set("scope", "admin");
+    } else if (selectedReviewScope) {
+      params.set("userId", selectedReviewScope);
+    }
     if (isNeedsReviewMode) params.set("view", "needs-review");
     const requestedFilter = new URLSearchParams(window.location.search).get("filter") || "";
     if (requestedFilter) params.set("filter", requestedFilter);
@@ -350,6 +373,22 @@ const description = isNeedsReviewMode
     ].join("");
   }
 
+  function renderWorkViewOptions(options, context) {
+    if (!(workViewSelect instanceof HTMLSelectElement)) return;
+    const mode = context.mode || (isAdminMode ? "admin" : "personal");
+    const selectedId = mode === "admin" ? "admin" : mode === "team" ? "team" : context.selectedUser?.id || "";
+    selectedReviewScope = selectedId;
+    const safeOptions = Array.isArray(options) && options.length ? options : [];
+    workViewSelect.innerHTML = safeOptions
+      .map((option) => {
+        const suffix = option.id === "team" || option.id === "admin" ? "" : ` - ${option.department || option.accessLevel || "Reviewer"}`;
+        return `<option value="${escapeHtml(option.id)}" ${option.id === selectedId ? "selected" : ""}>${escapeHtml(
+          `${option.name}${suffix}`,
+        )}</option>`;
+      })
+      .join("");
+  }
+
   function actionButton(item, action, label, className = "button--secondary") {
     if (!Array.isArray(item.availableActions) || !item.availableActions.includes(action)) return "";
     if (isCreatorReviewMode && ["assign", "convert", "archive"].includes(action)) return "";
@@ -429,19 +468,22 @@ const description = isNeedsReviewMode
 
   function renderContext(data) {
     const context = data.context || {};
-    const user = context.selectedUser?.name || "Selected reviewer";
-    const subRole = context.selectedSubRole?.label || "selected department";
-    const visibleItems = queueItems.filter(filterItem);
-    if (contextEl) {
-      const itemWord = isSubmittedRequestOrigin()
-        ? visibleItems.length === 1
-          ? "submitted request"
-          : "submitted requests"
-        : visibleItems.length === 1
-          ? "review"
-          : "reviews";
-      contextEl.textContent = `${visibleItems.length} ${itemWord} loaded for ${user} in ${subRole}.`;
+    const labels = data.labels || {};
+    renderWorkViewOptions(data.viewOptions?.users || [], context);
+    if (descriptionEl) descriptionEl.textContent = labels.description || descriptionEl.textContent || "";
+    if (workScopeInput instanceof HTMLInputElement) {
+      workScopeInput.value = context.workScopeLabel || context.accessLevel || "Review Queue";
     }
+    const headingEl = document.getElementById("review-heading");
+    if (headingEl && !requestedReviewId()) {
+      headingEl.textContent = labels.heading || headingEl.textContent || "Review Queue";
+    }
+    const needsReviewSummary = summaryCards.find((card) => card.dataset.summaryKey === "needsReview");
+    if (needsReviewSummary && labels.needsReviewLabel) {
+      const labelEl = needsReviewSummary.querySelector("span");
+      if (labelEl) labelEl.textContent = labels.needsReviewLabel;
+    }
+    if (contextEl) contextEl.textContent = labels.loadedMessage || "Review queue loaded.";
   }
 
   function render() {
@@ -450,12 +492,15 @@ const description = isNeedsReviewMode
     const items = queueItems.filter(filterItem);
     list.innerHTML = items.length
       ? items.map(renderItem).join("")
-      : `<div class="empty-state"><strong>No review items</strong><p>No backend review records ${isNeedsReviewMode ? "currently need your review" : "match this filter"} for the selected user, role, department, or sub-role.</p></div>`;
+      : `<div class="empty-state"><strong>No review items</strong><p>${escapeHtml(
+          queueLabels.emptyMessage || `No backend review records ${isNeedsReviewMode ? "currently need your review" : "match this filter"} for the selected review queue.`,
+        )}</p></div>`;
   }
 
   function clearQueueState(message = "Connecting to the live Cloudflare database.", { resetFilter = false } = {}) {
     queueItems = [];
     queueCounts = {};
+    queueLabels = {};
     reviewerMembers = [];
     if (resetFilter) {
       setActiveFilter(DEFAULT_FILTER);
@@ -465,6 +510,9 @@ const description = isNeedsReviewMode
     if (contextEl) {
       contextEl.textContent = "Loading review queue context...";
     }
+    if (workScopeInput instanceof HTMLInputElement) {
+      workScopeInput.value = "Loading...";
+    }
     if (list) {
       list.innerHTML = `<div class="empty-state"><strong>Loading review items</strong><p>${escapeHtml(message)}</p></div>`;
     }
@@ -473,6 +521,7 @@ const description = isNeedsReviewMode
   function showError(error) {
     queueItems = [];
     queueCounts = {};
+    queueLabels = {};
     reviewerMembers = [];
     renderSummaryCounts();
     if (errorsEl) {
@@ -498,7 +547,8 @@ const description = isNeedsReviewMode
     if (requestId !== activeQueueRequestId || requestedSubRole !== selectedSubRole()) return;
     queueItems = Array.isArray(data.items) ? data.items : [];
     queueCounts = data.counts || {};
-    reviewerMembers = data.viewOptions?.users || [];
+    queueLabels = data.labels || {};
+    reviewerMembers = (data.viewOptions?.users || []).filter((member) => member.id !== "team" && member.id !== "admin");
     renderContext(data);
     render();
   }
@@ -561,6 +611,13 @@ const description = isNeedsReviewMode
     card.addEventListener("click", () => setActiveFilter(card.dataset.reviewSummaryFilter));
   });
 
+  workViewSelect?.addEventListener("change", () => {
+    selectedReviewScope = workViewSelect instanceof HTMLSelectElement ? workViewSelect.value || "team" : "team";
+    activeQueueRequestId += 1;
+    clearQueueState("Refreshing review items for the selected queue.", { resetFilter: true });
+    loadQueue().catch(showError);
+  });
+
   list?.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
@@ -573,6 +630,7 @@ const description = isNeedsReviewMode
 
   window.addEventListener("storage", (event) => {
     if (event.key === SUB_ROLE_KEY || event.key === ROLE_KEY) {
+      selectedReviewScope = isAdminMode ? "admin" : "";
       activeQueueRequestId += 1;
       clearQueueState("Refreshing review items for the newly selected role.", { resetFilter: true });
       loadQueue().catch(showError);
@@ -582,6 +640,7 @@ const description = isNeedsReviewMode
   window.addEventListener(ROLE_CONTEXT_EVENT, (event) => {
     const detail = event instanceof CustomEvent ? event.detail || {} : {};
     if (detail.previousSubRole !== detail.subRole || detail.previousRole !== detail.role) {
+      selectedReviewScope = isAdminMode ? "admin" : "";
       activeQueueRequestId += 1;
       clearQueueState("Refreshing review items for the newly selected role.", { resetFilter: true });
       loadQueue().catch(showError);
