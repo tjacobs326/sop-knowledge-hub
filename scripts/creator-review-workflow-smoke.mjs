@@ -11,11 +11,12 @@ const adminReviewPage = readFileSync(resolve(root, "src/pages/admin/review.astro
 const reviewQueue = readFileSync(resolve(root, "src/components/ReviewQueue.astro"), "utf8");
 const reviewApi = readFileSync(resolve(root, "functions/api/review-queue.ts"), "utf8");
 const myWorkApi = readFileSync(resolve(root, "functions/api/my-work.ts"), "utf8");
+const styles = readFileSync(resolve(root, "src/styles/global.css"), "utf8");
 
 const failures = [];
 
 for (const fragment of [
-  "/review-queue/?review=",
+  "scopedReviewUrl",
   "submittedRequestUrl(item)",
   "my-work-submitted-requests",
   "my-work-reviews-needed",
@@ -44,6 +45,13 @@ for (const fragment of [
   'my-work-reviews-needed',
   'my-work-overdue-reviews',
   'detailHref(item)',
+  'scopedOriginHref()',
+  'review-item-navigation',
+  'review-actions__utility',
+  'review-actions__workflow',
+  'aria-label="Publishing actions"',
+  'review-actions__group-label',
+  'review-actions__decisions',
   'requestedReviewId',
   'item.id === reviewId',
   '["assign", "convert", "archive"].includes(action)',
@@ -74,6 +82,19 @@ for (const fragment of [
 
 if (myWorkApi.includes("url: `/admin/review/?request=")) {
   failures.push("My Work API still exposes the admin review URL for submitted requests.");
+}
+
+if (!myWork.includes("scopedReviewUrl") || !myWork.includes('params.set("scope"') || !myWork.includes('params.set("subRole"')) {
+  failures.push("My Work review links do not preserve the selected scope and Creator/Reviewer sub-role.");
+}
+if (reviewQueue.includes('? `<a class="button button--ghost" href="${escapeHtml(safeOrigins[requestedOrigin()].href)}">Back to')) {
+  failures.push("Back navigation is still mixed into the review decision action row.");
+}
+if (reviewQueue.indexOf("${backNavigation()}") > reviewQueue.indexOf('<article class="review-card"')) {
+  failures.push("Back navigation must render before the review item card.");
+}
+for (const fragment of [".review-back-link", ".review-actions__bar", ".review-actions__workflow", ".review-actions__group", ".review-actions__decisions", "@media (max-width: 720px)"]) {
+  if (!styles.includes(fragment)) failures.push(`Responsive review action styling is missing: ${fragment}`);
 }
 
 if (failures.length) {

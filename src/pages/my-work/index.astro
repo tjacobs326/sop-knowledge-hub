@@ -269,13 +269,23 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
     const rawId = String(item.id || "");
     const itemType = String(item.itemType || "");
     const reviewId = rawId.includes(":") ? rawId : `${itemType === "request" ? "request" : "sop"}:${rawId}`;
-    return `/review-queue/?review=${encodeURIComponent(reviewId)}&origin=${encodeURIComponent(origin)}`;
+    return scopedReviewUrl(reviewId, origin);
   }
 
   function submittedRequestUrl(item) {
     const rawId = String(item.id || "");
     const requestId = rawId.startsWith("request:") ? rawId : `request:${rawId}`;
-    return `/review-queue/?review=${encodeURIComponent(requestId)}&origin=my-work-submitted-requests`;
+    return scopedReviewUrl(requestId, "my-work-submitted-requests");
+  }
+
+  function scopedReviewUrl(reviewId, origin) {
+    const params = new URLSearchParams({ review: reviewId, origin });
+    const parsedScope = parseScopeValue(selectedScope || routeScopeValue() || "team");
+    params.set("scope", parsedScope.scope);
+    if (parsedScope.userId) params.set("userId", parsedScope.userId);
+    const subRole = localStorage.getItem(SUB_ROLE_KEY) || new URLSearchParams(window.location.search).get("subRole") || "";
+    if (subRole) params.set("subRole", subRole);
+    return `/review-queue/?${params.toString()}`;
   }
 
   function badge(definitions, value, fallbackLabel, fallbackClass, baseClass) {

@@ -206,6 +206,30 @@ const description = isNeedsReviewMode
     return requestedOrigin() === "my-work-submitted-requests";
   }
 
+  function scopedOriginHref() {
+    const url = new URL(safeOrigins[requestedOrigin()].href, window.location.origin);
+    const current = new URLSearchParams(window.location.search);
+    for (const key of ["scope", "userId", "subRole"]) {
+      const value = current.get(key) || (key === "subRole" ? localStorage.getItem(SUB_ROLE_KEY) || "" : "");
+      if (value) url.searchParams.set(key, value);
+    }
+    const origin = requestedOrigin();
+    if (origin === "my-work-reviews-needed") url.searchParams.set("view", "team-reviews-needed");
+    if (origin === "my-work-overdue-reviews") url.searchParams.set("view", "team-overdue-reviews");
+    return `${url.pathname}${url.search}${url.hash}`;
+  }
+
+  function backNavigation() {
+    const origin = requestedOrigin();
+    if (!isCreatorReviewMode || !requestedReviewId() || !origin.startsWith("my-work-")) return "";
+    const label = `Back to ${safeOrigins[origin].label}`;
+    return `<nav class="review-item-navigation no-print" aria-label="Review item navigation">
+      <a class="button button--ghost review-back-link" href="${escapeHtml(scopedOriginHref())}" aria-label="${escapeHtml(label)}">
+        <span aria-hidden="true">←</span><span>${escapeHtml(label)}</span>
+      </a>
+    </nav>`;
+  }
+
   let activeFilter = requestedQueueFilter();
   let queueItems = [];
   let queueCounts = {};
@@ -427,7 +451,24 @@ const description = isNeedsReviewMode
 
   function renderItem(item) {
     const editHref = editorHref(item);
+    const reviewActions = [
+      actionButton(item, "review", "Review"),
+      actionButton(item, "accept", "Accept"),
+      actionButton(item, "more-info", "Need Info"),
+      actionButton(item, "decline", "Decline", "button--danger"),
+      actionButton(item, "revision", "Request Changes"),
+    ].filter(Boolean).join("");
+    const publishingActions = [
+      actionButton(item, "approve", "Approve"),
+      actionButton(item, "publish", "Publish", "button--primary"),
+    ].filter(Boolean).join("");
+    const managementActions = [
+      actionButton(item, "assign", "Assign"),
+      actionButton(item, "archive", "Archive", "button--ghost"),
+      actionButton(item, "convert", "Convert to SOP Draft", "button--primary"),
+    ].filter(Boolean).join("");
     return `
+      ${backNavigation()}
       <article class="review-card" data-review-id="${escapeHtml(item.id)}" data-review-type="${escapeHtml(item.itemType)}">
         <div class="review-card__header">
           <div>
@@ -457,33 +498,48 @@ const description = isNeedsReviewMode
                 </label>`
               : ""
           }
-          <label class="field--full">
+          <label class="field--full review-actions__notes">
             <span>Reviewer notes / reason</span>
             <textarea data-review-notes rows="2" placeholder="Add reviewer notes, denial reason, or instructions.">${escapeHtml(
               item.reviewerNotes || item.denialReason || "",
             )}</textarea>
           </label>
-          <a class="button button--ghost" href="${escapeHtml(detailHref(item))}">View Details</a>
-          ${
-            isCreatorReviewMode
-              ? `<a class="button button--ghost" href="${escapeHtml(safeOrigins[requestedOrigin()].href)}">Back to ${escapeHtml(safeOrigins[requestedOrigin()].label)}</a>`
-              : ""
-          }
-          ${
-            editHref && item.availableActions?.includes("edit")
-              ? `<a class="button button--secondary" href="${escapeHtml(editHref)}">Edit Draft</a>`
-              : ""
-          }
-          ${actionButton(item, "review", "Review")}
-          ${actionButton(item, "accept", "Accept")}
-          ${actionButton(item, "assign", "Assign")}
-          ${actionButton(item, "more-info", "Need Info")}
-          ${actionButton(item, "decline", "Decline", "button--danger")}
-          ${actionButton(item, "revision", "Request Changes")}
-          ${actionButton(item, "approve", "Approve")}
-          ${actionButton(item, "publish", "Publish", "button--primary")}
-          ${actionButton(item, "archive", "Archive", "button--ghost")}
-          ${actionButton(item, "convert", "Convert to SOP Draft", "button--primary")}
+          <div class="review-actions__bar">
+            <div class="review-actions__utility">
+              <a class="button button--ghost" href="${escapeHtml(detailHref(item))}">View Details</a>
+              ${
+                editHref && item.availableActions?.includes("edit")
+                  ? `<a class="button button--secondary" href="${escapeHtml(editHref)}">Edit Draft</a>`
+                  : ""
+              }
+            </div>
+            <div class="review-actions__workflow">
+              ${
+                reviewActions
+                  ? `<div class="review-actions__group" role="group" aria-label="Review actions">
+                      <span class="review-actions__group-label">Review actions</span>
+                      <div class="review-actions__decisions">${reviewActions}</div>
+                    </div>`
+                  : ""
+              }
+              ${
+                publishingActions
+                  ? `<div class="review-actions__group" role="group" aria-label="Publishing actions">
+                      <span class="review-actions__group-label">Publishing actions</span>
+                      <div class="review-actions__decisions">${publishingActions}</div>
+                    </div>`
+                  : ""
+              }
+              ${
+                managementActions
+                  ? `<div class="review-actions__group" role="group" aria-label="Additional actions">
+                      <span class="review-actions__group-label">Additional actions</span>
+                      <div class="review-actions__decisions">${managementActions}</div>
+                    </div>`
+                  : ""
+              }
+            </div>
+          </div>
         </div>
       </article>
     `;
