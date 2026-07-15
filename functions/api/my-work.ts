@@ -435,9 +435,19 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
   const today = isoToday();
   const activeReviewItems = uniqueById(reviewItems);
   const assigned = uniqueById(assignedItems);
-  const overdueReviews = uniqueById([
-    ...activeReviewItems.filter((item) => item.reviewDate && item.reviewDate < today),
+  const overdueOpenStatuses = new Set([
+    "under review",
+    "needs more information",
+    "assigned",
+    "in approval",
+    "in review",
+    "needs revision",
   ]);
+  const overdueReviews = uniqueById(
+    activeReviewItems.filter(
+      (item) => item.reviewDate && item.reviewDate < today && overdueOpenStatuses.has(String(item.status || "").trim().toLowerCase()),
+    ),
+  );
 
   return success({
     context: {

@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 const root = resolve(import.meta.dirname, "..");
 const myWorkPage = readFileSync(resolve(root, "src/pages/my-work/index.astro"), "utf8");
 const header = readFileSync(resolve(root, "src/components/Header.astro"), "utf8");
+const myWorkApi = readFileSync(resolve(root, "functions/api/my-work.ts"), "utf8");
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -27,6 +28,46 @@ assert(
 assert(
   !myWorkPage.includes('href="/drafts/?source=my-work"'),
   "My Work Draft SOPs summary card must not route to the standalone My Drafts page.",
+);
+assert(
+  myWorkPage.includes('href="/my-work/?view=team-reviews-needed&scope=team&workFilter=review#work-section-review"') &&
+    myWorkPage.includes('data-work-view="team-reviews-needed"'),
+  "Team Reviews Needed must remain inside the scoped My Work dashboard.",
+);
+assert(
+  myWorkPage.includes('if (params.get("view") === "team-reviews-needed") return "review"') &&
+    myWorkPage.includes('context.workScope === "team" ? "Team Reviews Needed"'),
+  "The filtered My Work route must restore and label the team review view.",
+);
+assert(
+  myWorkPage.includes("routeScopeValue") && myWorkPage.includes("syncScopeToUrl") && myWorkPage.includes("updateWorkSummaryRoutes"),
+  "My Work routes must preserve validated role and team scope across refresh and navigation.",
+);
+assert(
+  !myWorkPage.includes('href="/review-queue/?filter=review-needed"'),
+  "Team Reviews Needed must not route to the standalone Review Queue.",
+);
+assert(
+  myWorkPage.includes('href="/my-work/?view=team-overdue-reviews&scope=team&workFilter=overdue#work-section-overdue"') &&
+    myWorkPage.includes('data-work-view="team-overdue-reviews"'),
+  "Team Overdue Reviews must remain inside the scoped My Work dashboard.",
+);
+assert(
+  myWorkPage.includes('if (params.get("view") === "team-overdue-reviews") return "overdue"') &&
+    myWorkPage.includes('context.workScope === "team" ? "Team Overdue Reviews"') &&
+    myWorkPage.includes('id="clear-work-filter"'),
+  "The overdue route must restore its filter, label its team section, and offer a return to the dashboard.",
+);
+assert(
+  !myWorkPage.includes('href="/review-queue/?filter=overdue"'),
+  "Team Overdue Reviews must not route to the standalone Review Queue.",
+);
+for (const status of ['"under review"', '"needs more information"', '"assigned"', '"in approval"', '"in review"', '"needs revision"']) {
+  assert(myWorkApi.includes(status), `Overdue backend filtering is missing the open status: ${status}`);
+}
+assert(
+  myWorkApi.includes("item.reviewDate < today") && myWorkApi.includes("overdueOpenStatuses.has"),
+  "The overdue count and section must share the same backend due-date and open-status filter.",
 );
 
 console.log("My Work card navigation smoke checks passed.");
