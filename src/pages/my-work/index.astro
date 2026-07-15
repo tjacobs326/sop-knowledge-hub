@@ -461,7 +461,7 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
         (item) => statusBadge(item.status),
         (item) => escapeHtml(formatDateClient(item.reviewDate)),
         (item) => escapeHtml(item.owner || "Unassigned"),
-        (item) => actionButton(item.url || "/admin/needs-review/", "Open Item"),
+        (item) => actionButton(item.url || "/needs-review/", "Open Item"),
       ],
       "No backend SOPs are assigned to this sub-role or selected user.",
     );

@@ -3,13 +3,13 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../lib/badges"
 import AppIllustration from "./AppIllustration.astro";
 
 interface Props {
-  mode?: "admin" | "queue" | "creator-reviewer" | "needs-review";
+  mode?: "admin" | "queue" | "creator-reviewer" | "needs-review" | "admin-needs-review";
 }
 
 const { mode = "admin" } = Astro.props;
 const isCreatorReviewMode = mode === "creator-reviewer";
-const isAdminMode = mode === "admin" || mode === "queue";
-const isNeedsReviewMode = mode === "needs-review";
+const isAdminMode = mode === "admin" || mode === "queue" || mode === "admin-needs-review";
+const isNeedsReviewMode = mode === "needs-review" || mode === "admin-needs-review";
 
 const filters = [
   "All",

@@ -4,6 +4,10 @@ import { resolve } from "node:path";
 const root = resolve(import.meta.dirname, "..");
 const reviewQueueApi = readFileSync(resolve(root, "functions/api/review-queue.ts"), "utf8");
 const reviewQueue = readFileSync(resolve(root, "src/components/ReviewQueue.astro"), "utf8");
+const header = readFileSync(resolve(root, "src/components/Header.astro"), "utf8");
+const platformConfig = readFileSync(resolve(root, "src/data/platform-config.ts"), "utf8");
+const creatorNeedsReviewPage = readFileSync(resolve(root, "src/pages/needs-review/index.astro"), "utf8");
+const adminNeedsReviewPage = readFileSync(resolve(root, "src/pages/admin/needs-review/index.astro"), "utf8");
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -69,6 +73,23 @@ assert(
     reviewQueue.includes('selectedReviewScope = isAdminMode ? "admin" : ""') &&
     reviewQueue.includes('selectedReviewScope = isAdminMode ? "admin" : "";'),
   "Review Queue UI must reset to the logged-in user's queue after role/sub-role changes instead of keeping a stale person.",
+);
+assert(
+  header.includes('{ href: "/needs-review/", label: "Needs Review"') &&
+    !header.includes('{ href: "/admin/needs-review/", label: "Needs Review"'),
+  "Creator / Reviewer sidebar must open the creator-scoped Needs Review route, not the admin route.",
+);
+assert(
+  platformConfig.includes('{ pattern: "^/admin/needs-review/", roles: ["admin"] }') &&
+    platformConfig.includes('{ pattern: "^/needs-review/", roles: ["creator", "admin"] }'),
+  "Role routing must keep admin Needs Review separate from creator-scoped Needs Review.",
+);
+assert(
+  creatorNeedsReviewPage.includes('<ReviewQueue mode="needs-review" />') &&
+    adminNeedsReviewPage.includes('<ReviewQueue mode="admin-needs-review" />') &&
+    reviewQueue.includes('"admin-needs-review"') &&
+    reviewQueue.includes('mode === "admin-needs-review"'),
+  "Needs Review pages must use separate component modes for creator/team scope and full admin scope.",
 );
 
 console.log("Review Queue scope mode smoke checks passed.");
