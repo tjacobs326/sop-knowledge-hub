@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
 const myWorkPage = readFileSync(resolve(root, "src/pages/my-work/index.astro"), "utf8");
+const globalStyles = readFileSync(resolve(root, "src/styles/global.css"), "utf8");
 const header = readFileSync(resolve(root, "src/components/Header.astro"), "utf8");
 const myWorkApi = readFileSync(resolve(root, "functions/api/my-work.ts"), "utf8");
 
@@ -62,6 +63,29 @@ assert(
   !myWorkPage.includes('href="/review-queue/?filter=overdue"'),
   "Team Overdue Reviews must not route to the standalone Review Queue.",
 );
+for (const fragment of [
+  'id="my-work-top"',
+  'id="my-work-heading" tabindex="-1"',
+  'id="my-work-back-to-top"',
+  'href="#my-work-heading"',
+  'aria-label="Back to top"',
+  'myWorkTop.scrollIntoView',
+  'myWorkHeading.focus({ preventScroll: true })',
+  'window.matchMedia("(prefers-reduced-motion: reduce)")',
+]) {
+  assert(myWorkPage.includes(fragment), `My Work Back to Top behavior is missing: ${fragment}`);
+}
+for (const fragment of [
+  ".my-work-back-to-top-row",
+  ".my-work-back-to-top",
+  "html:has(#my-work-top)",
+  "min-height: 2.75rem",
+  "@media (max-width: 640px)",
+  "@media (prefers-reduced-motion: reduce)",
+  "scroll-behavior: auto",
+]) {
+  assert(globalStyles.includes(fragment), `My Work Back to Top styling is missing: ${fragment}`);
+}
 for (const status of ['"under review"', '"needs more information"', '"assigned"', '"in approval"', '"in review"', '"needs revision"']) {
   assert(myWorkApi.includes(status), `Overdue backend filtering is missing the open status: ${status}`);
 }

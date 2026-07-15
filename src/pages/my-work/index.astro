@@ -5,11 +5,11 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
 ---
 
 <Layout title="My Work" wide>
-  <section class="tool-surface" aria-labelledby="my-work-heading">
+  <section class="tool-surface" id="my-work-top" aria-labelledby="my-work-heading">
     <div class="section-heading surface-intro">
       <div>
         <p class="eyebrow">Workflow Dashboard</p>
-        <h1 id="my-work-heading">My Work</h1>
+        <h1 id="my-work-heading" tabindex="-1">My Work</h1>
         <p>See the requests, drafts, assignments, owned SOPs, reviews, and overdue work tied to the current Creator / Reviewer sub-role.</p>
       </div>
       <AppIllustration name="work" size="md" />
@@ -194,6 +194,12 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
         </div>
       </section>
     </div>
+    <div class="my-work-back-to-top-row no-print">
+      <a class="button button--secondary my-work-back-to-top" id="my-work-back-to-top" href="#my-work-heading" aria-label="Back to top">
+        <span aria-hidden="true">↑</span>
+        <span>Back to top</span>
+      </a>
+    </div>
   </section>
 </Layout>
 
@@ -212,6 +218,9 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
   const workSummaryLinks = Array.from(document.querySelectorAll("[data-work-summary-link]"));
   const workSummaryStatus = document.getElementById("work-summary-status");
   const clearWorkFilter = document.getElementById("clear-work-filter");
+  const backToTopButton = document.getElementById("my-work-back-to-top");
+  const myWorkTop = document.getElementById("my-work-top");
+  const myWorkHeading = document.getElementById("my-work-heading");
   const tableIds = ["submitted-list", "draft-list", "assigned-list", "owned-list", "review-list", "overdue-list"];
   const workFilterLabels = {
     submitted: "submitted requests",
@@ -664,6 +673,25 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
     if (target.closest('a[href^="/create/?edit="]')) preserveWorkScope();
+  });
+
+  backToTopButton?.addEventListener("click", () => {
+    if (!(myWorkTop instanceof HTMLElement) || !(myWorkHeading instanceof HTMLElement)) return;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    myWorkTop.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+    if (reduceMotion) {
+      myWorkHeading.focus({ preventScroll: true });
+      return;
+    }
+    const focusTimer = window.setTimeout(() => myWorkHeading.focus({ preventScroll: true }), 650);
+    window.addEventListener(
+      "scrollend",
+      () => {
+        window.clearTimeout(focusTimer);
+        myWorkHeading.focus({ preventScroll: true });
+      },
+      { once: true },
+    );
   });
 
   window.addEventListener(ROLE_CONTEXT_EVENT, (event) => {
