@@ -219,7 +219,11 @@ const roleClass = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, 
     if (window.location.pathname !== "/create/") return "";
     const params = new URLSearchParams(window.location.search);
     if (params.has("edit") || params.has("id")) {
-      return params.get("origin") === "owned-sops" ? "/my-work/" : "/drafts/";
+      const origin = params.get("origin") || "";
+      if (origin === "owned-sops" || origin === "my-work-drafts") return "/my-work/";
+      if (origin === "review-queue") return "/review-queue/";
+      if (origin === "needs-review") return "/admin/needs-review/";
+      return "/drafts/";
     }
     return "/create/";
   }

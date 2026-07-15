@@ -44,7 +44,7 @@ function normalizeDraft(row: Record<string, unknown>, permissions: Set<string>) 
     updatedDate: normalizeDate(row.updatedAt || row.createdAt),
     detailUrl: detailUrl(row),
     previewUrl: `/drafts/preview/?id=${encodeURIComponent(id)}&origin=my-drafts`,
-    editUrl: `/create/?edit=draft&id=${encodeURIComponent(id)}&origin=my-drafts`,
+    editUrl: `/create/?edit=draft&id=${encodeURIComponent(id)}&origin=my-drafts&returnTo=${encodeURIComponent("/drafts/")}`,
     reviewUrl: `/review-queue/?review=${encodeURIComponent(`sop:${id}`)}&origin=my-drafts-review`,
     capabilities: {
       canEdit,

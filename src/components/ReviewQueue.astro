@@ -409,7 +409,24 @@ const description = isNeedsReviewMode
     return item.detailUrl || "#";
   }
 
+  function editorHref(item) {
+    const rawHref = String(item.editUrl || "");
+    if (!rawHref.startsWith("/create/")) return "";
+    try {
+      const url = new URL(rawHref, window.location.origin);
+      if (url.origin !== window.location.origin || url.pathname !== "/create/") return "";
+      const origin = isNeedsReviewMode ? "needs-review" : "review-queue";
+      const returnTo = isNeedsReviewMode ? "/admin/needs-review/" : "/review-queue/";
+      url.searchParams.set("origin", origin);
+      url.searchParams.set("returnTo", returnTo);
+      return `${url.pathname}${url.search}${url.hash}`;
+    } catch {
+      return "";
+    }
+  }
+
   function renderItem(item) {
+    const editHref = editorHref(item);
     return `
       <article class="review-card" data-review-id="${escapeHtml(item.id)}" data-review-type="${escapeHtml(item.itemType)}">
         <div class="review-card__header">
@@ -453,8 +470,8 @@ const description = isNeedsReviewMode
               : ""
           }
           ${
-            item.editUrl && item.availableActions?.includes("edit")
-              ? `<a class="button button--secondary" href="${escapeHtml(item.editUrl)}">Edit Draft</a>`
+            editHref && item.availableActions?.includes("edit")
+              ? `<a class="button button--secondary" href="${escapeHtml(editHref)}">Edit Draft</a>`
               : ""
           }
           ${actionButton(item, "review", "Review")}

@@ -86,9 +86,9 @@ function normalizeSop(row: Record<string, unknown>) {
   };
 }
 
-function withEditOrigin(url: string, origin: string) {
+function withEditReturn(url: string, origin: string, returnTo: string) {
   const separator = url.includes("?") ? "&" : "?";
-  return `${url}${separator}origin=${encodeURIComponent(origin)}`;
+  return `${url}${separator}origin=${encodeURIComponent(origin)}&returnTo=${encodeURIComponent(returnTo)}`;
 }
 
 function normalizeReview(row: Record<string, unknown>) {
@@ -206,7 +206,13 @@ async function queryDraftSops(db: D1DatabaseBinding, workScope: ResolvedWorkScop
     .bind(...values)
     .all<Record<string, unknown>>();
 
-  return (result.results || []).map(normalizeSop);
+  return (result.results || []).map((row) => {
+    const sop = normalizeSop(row);
+    return {
+      ...sop,
+      editUrl: withEditReturn(sop.editUrl, "my-work-drafts", "/my-work/?workFilter=drafts#work-section-drafts"),
+    };
+  });
 }
 
 async function queryOwnedSops(db: D1DatabaseBinding, workScope: ResolvedWorkScope) {
@@ -251,7 +257,7 @@ async function queryOwnedSops(db: D1DatabaseBinding, workScope: ResolvedWorkScop
     const sop = normalizeSop(row);
     return {
       ...sop,
-      editUrl: withEditOrigin(sop.editUrl, "owned-sops"),
+      editUrl: withEditReturn(sop.editUrl, "owned-sops", "/my-work/?workFilter=owned#work-section-owned"),
     };
   });
 }

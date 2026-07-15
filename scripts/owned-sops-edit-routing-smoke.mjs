@@ -12,12 +12,19 @@ const failures = [];
 
 for (const fragment of [
   '/create/?edit=draft&id=${encodeURIComponent(item.id)}&origin=owned-sops',
+  'returnTo=${encodeURIComponent("/my-work/?workFilter=owned#work-section-owned")}',
   'item.editUrl ||',
+  'owned: "SOPs I Own"',
+  "focusTarget.focus({ preventScroll: true })",
 ]) {
   if (!myWorkPage.includes(fragment)) failures.push(`My Work owned edit route is missing: ${fragment}`);
 }
 
-for (const fragment of ["withEditOrigin", '"owned-sops"', "editUrl: withEditOrigin(sop.editUrl, \"owned-sops\")"]) {
+for (const fragment of [
+  "withEditReturn",
+  '"owned-sops"',
+  'editUrl: withEditReturn(sop.editUrl, "owned-sops", "/my-work/?workFilter=owned#work-section-owned")',
+]) {
   if (!myWorkApi.includes(fragment)) failures.push(`My Work API owned origin is missing: ${fragment}`);
 }
 
@@ -26,13 +33,15 @@ for (const fragment of [
   "SOPs I Own",
   "/my-work/?workFilter=owned#work-section-owned",
   "returnHref",
+  "validatedReturnHref",
+  "normalizeInternalReturn",
   "directOwnedOrigin",
   "hasExplicitEditorOrigin",
 ]) {
   if (!createForm.includes(fragment)) failures.push(`Create SOP editor owned-origin handling is missing: ${fragment}`);
 }
 
-for (const fragment of ['params.get("origin") === "owned-sops" ? "/my-work/" : "/drafts/"']) {
+for (const fragment of ['if (origin === "owned-sops" || origin === "my-work-drafts") return "/my-work/"']) {
   if (!header.includes(fragment)) failures.push(`Header active-nav owned-origin handling is missing: ${fragment}`);
 }
 
