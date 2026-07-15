@@ -1,0 +1,131 @@
+---
+import Layout from "../../../components/Layout.astro";
+import AppIllustration from "../../../components/AppIllustration.astro";
+---
+
+<Layout title="Archived SOPs" wide>
+  <section class="tool-surface archived-sops" aria-labelledby="archived-sops-heading">
+    <div class="section-heading surface-intro">
+      <div>
+        <p class="eyebrow">Creators / Reviewers</p>
+        <h1 id="archived-sops-heading">Archived SOPs</h1>
+        <p>Find inactive SOPs available to your current role and department, view their archive history, or restore one as a draft.</p>
+      </div>
+      <AppIllustration name="documents" size="md" />
+    </div>
+
+    <form class="archived-filter-panel no-print" id="archived-filters" role="search" aria-label="Filter archived SOPs">
+      <label class="field archived-filter-panel__search">
+        <span>Search archived SOPs</span>
+        <input id="archived-search" name="q" type="search" placeholder="Title, SOP ID, owner, category, tag, or keyword" />
+      </label>
+      <label class="field"><span>Department</span><select id="archived-department" name="department"><option value="">All authorized departments</option></select></label>
+      <label class="field"><span>Category</span><select id="archived-category" name="category"><option value="">All categories</option></select></label>
+      <label class="field"><span>Owner</span><select id="archived-owner" name="owner"><option value="">All owners</option></select></label>
+      <label class="field"><span>Archived date</span><input id="archived-date" name="archivedDate" type="date" /></label>
+      <div class="archived-filter-panel__actions">
+        <button class="button button--primary" type="submit">Apply filters</button>
+        <button class="button button--ghost" id="clear-archived-filters" type="button">Clear</button>
+      </div>
+    </form>
+
+    <p class="drafts-context" id="archived-context" role="status" aria-live="polite">Loading archived SOPs...</p>
+    <div class="form-errors" id="archived-errors" role="alert" hidden></div>
+    <div class="confirmation" id="archived-confirmation" role="status" hidden></div>
+
+    <div class="table-wrap archived-table-wrap">
+      <table>
+        <thead><tr><th scope="col">SOP title</th><th scope="col">Category</th><th scope="col">Owner</th><th scope="col">Previous status</th><th scope="col">Archived</th><th scope="col">Archived by</th><th scope="col">Archive reason</th><th scope="col">Last updated</th><th scope="col">Actions</th></tr></thead>
+        <tbody id="archived-list"><tr><td colspan="9"><div class="empty-state empty-state--table"><strong>Loading archived SOPs</strong><p>Connecting to the live Cloudflare database.</p></div></td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <dialog id="restore-archived-dialog" aria-labelledby="restore-dialog-heading" aria-describedby="restore-dialog-description">
+    <form method="dialog" class="archived-dialog">
+      <h2 id="restore-dialog-heading">Restore this archived SOP as a draft?</h2>
+      <p id="restore-dialog-description">The SOP will be moved to My Drafts, where it can be edited and submitted for review when ready.</p>
+      <p><strong id="restore-dialog-title"></strong></p>
+      <div class="form-actions">
+        <button class="button button--ghost" value="cancel">Cancel</button>
+        <button class="button button--primary" value="confirm">Restore as Draft</button>
+      </div>
+    </form>
+  </dialog>
+</Layout>
+
+<script>
+  // @ts-nocheck
+  const SUB_ROLE_KEY = "sopHubSelectedCreatorSubRole";
+  const ROLE_CONTEXT_EVENT = "sop-role-context-change";
+  const filterForm = document.getElementById("archived-filters");
+  const list = document.getElementById("archived-list");
+  const contextEl = document.getElementById("archived-context");
+  const errorsEl = document.getElementById("archived-errors");
+  const confirmation = document.getElementById("archived-confirmation");
+  const restoreDialog = document.getElementById("restore-archived-dialog");
+  let archivedSops = [];
+  let restoreId = "";
+  let activeRequestId = 0;
+
+  const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
+  const formatDate = (value) => value ? new Date(value).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "Not recorded";
+  function apiHeaders() { const subRole = localStorage.getItem(SUB_ROLE_KEY) || ""; return { accept: "application/json", "content-type": "application/json", ...(subRole ? { "x-sop-sub-role": subRole } : {}) }; }
+  async function parseResponse(response) { const data = await response.json().catch(() => ({})); if (!response.ok || data?.success === false) throw new Error(data?.error?.message || `Request failed: ${response.status}`); return data.data || data; }
+  function requestParams() {
+    const form = filterForm instanceof HTMLFormElement ? new FormData(filterForm) : new FormData();
+    const params = new URLSearchParams();
+    for (const [key, value] of form.entries()) if (String(value).trim()) params.set(key, String(value).trim());
+    const subRole = localStorage.getItem(SUB_ROLE_KEY) || new URLSearchParams(location.search).get("subRole") || "";
+    if (subRole) params.set("subRole", subRole);
+    const route = new URLSearchParams(location.search);
+    if (route.get("scope")) params.set("scope", route.get("scope"));
+    if (route.get("userId")) params.set("userId", route.get("userId"));
+    return params;
+  }
+  function optionMarkup(items, selected = "") { return items.map((item) => { const value = typeof item === "string" ? item : item.id; const label = typeof item === "string" ? item : item.label; return `<option value="${escapeHtml(value)}" ${value === selected ? "selected" : ""}>${escapeHtml(label)}</option>`; }).join(""); }
+  function renderFilters(filters = {}) {
+    const department = document.getElementById("archived-department"); const category = document.getElementById("archived-category"); const owner = document.getElementById("archived-owner");
+    if (department) { const value = department.value; department.innerHTML = `<option value="">All authorized departments</option>${optionMarkup(filters.departments || [], value)}`; }
+    if (category) { const value = category.value; category.innerHTML = `<option value="">All categories</option>${optionMarkup(filters.categories || [], value)}`; }
+    if (owner) { const value = owner.value; owner.innerHTML = `<option value="">All owners</option>${optionMarkup(filters.owners || [], value)}`; }
+  }
+  function render(data) {
+    archivedSops = Array.isArray(data.archivedSops) ? data.archivedSops : [];
+    renderFilters(data.filters);
+    if (contextEl) contextEl.textContent = `${archivedSops.length} archived SOP${archivedSops.length === 1 ? "" : "s"} available for ${data.context?.workScopeLabel || "the selected role and department"}.`;
+    if (!list) return;
+    if (!archivedSops.length) { list.innerHTML = `<tr><td colspan="9"><div class="empty-state empty-state--table"><strong>No archived SOPs found</strong><p>Adjust the filters or confirm that the current role and department have archived records.</p></div></td></tr>`; return; }
+    list.innerHTML = archivedSops.map((sop) => `<tr><td><strong>${escapeHtml(sop.title)}</strong><br><small>${escapeHtml(sop.id)}</small></td><td>${escapeHtml(sop.category)}</td><td>${escapeHtml(sop.owner)}</td><td>${escapeHtml(sop.previousStatus)}</td><td>${escapeHtml(formatDate(sop.archivedAt))}</td><td>${escapeHtml(sop.archivedBy)}</td><td>${escapeHtml(sop.archiveReason)}</td><td>${escapeHtml(formatDate(sop.updatedAt))}</td><td><div class="table-actions"><a class="button button--ghost" href="/my-work/archived/view/?id=${encodeURIComponent(sop.id)}">View</a><button class="button button--secondary" type="button" data-restore-id="${escapeHtml(sop.id)}">Restore as Draft</button></div></td></tr>`).join("");
+  }
+  function showError(error) { if (errorsEl) { errorsEl.hidden = false; errorsEl.textContent = error instanceof Error ? error.message : "Archived SOPs could not be loaded."; } }
+  async function loadArchived() { const requestId = ++activeRequestId; if (errorsEl) errorsEl.hidden = true; const response = await fetch(`/api/sops/archived?${requestParams().toString()}`, { headers: apiHeaders(), cache: "no-store" }); const data = await parseResponse(response); if (requestId === activeRequestId) render(data); }
+  async function restoreArchived() {
+    const sop = archivedSops.find((item) => item.id === restoreId); if (!sop) return;
+    const response = await fetch(`/api/sops/${encodeURIComponent(restoreId)}/restore-as-draft`, { method: "POST", headers: apiHeaders(), body: JSON.stringify({ notes: "Restored from the Archived SOPs page." }) });
+    const data = await parseResponse(response);
+    archivedSops = archivedSops.filter((item) => item.id !== restoreId);
+    render({ archivedSops, filters: {}, context: { workScopeLabel: "the selected role and department" } });
+    if (confirmation) { confirmation.hidden = false; confirmation.innerHTML = `<strong>${escapeHtml(sop.title)} restored as a draft.</strong><p><a class="button button--primary" href="${escapeHtml(data.editUrl)}">Edit restored draft</a> <a class="button button--ghost" href="/drafts/">Go to My Drafts</a></p>`; confirmation.scrollIntoView({ behavior: "smooth", block: "center" }); }
+  }
+  filterForm?.addEventListener("submit", (event) => { event.preventDefault(); loadArchived().catch(showError); });
+  document.getElementById("clear-archived-filters")?.addEventListener("click", () => { if (filterForm instanceof HTMLFormElement) filterForm.reset(); loadArchived().catch(showError); });
+  list?.addEventListener("click", (event) => { const target = event.target; if (!(target instanceof HTMLElement)) return; const button = target.closest("[data-restore-id]"); if (!(button instanceof HTMLElement) || !(restoreDialog instanceof HTMLDialogElement)) return; restoreId = button.dataset.restoreId || ""; const sop = archivedSops.find((item) => item.id === restoreId); const title = document.getElementById("restore-dialog-title"); if (title) title.textContent = sop?.title || ""; restoreDialog.showModal(); });
+  restoreDialog?.addEventListener("close", () => { if (restoreDialog.returnValue === "confirm") restoreArchived().catch(showError); });
+  window.addEventListener(ROLE_CONTEXT_EVENT, () => { activeRequestId += 1; loadArchived().catch(showError); });
+  loadArchived().catch(showError);
+</script>
+
+<style>
+  .archived-filter-panel { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin: 1rem 0; padding: 1rem; border: 1px solid var(--color-border); border-radius: 0.75rem; background: var(--color-panel); }
+  .archived-filter-panel__search { grid-column: 1 / -1; }
+  .archived-filter-panel__actions { display: flex; flex-wrap: wrap; align-items: end; gap: 0.65rem; }
+  .archived-table-wrap { overflow-x: auto; }
+  .archived-table-wrap table { min-width: 76rem; }
+  dialog { width: min(calc(100% - 2rem), 38rem); border: 0; border-radius: 1rem; padding: 0; box-shadow: 0 24px 60px rgba(15,23,42,.28); }
+  dialog::backdrop { background: rgba(15,23,42,.58); }
+  .archived-dialog { padding: 1.5rem; }
+  .archived-dialog h2 { margin-top: 0; }
+  @media (max-width: 900px) { .archived-filter-panel { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 560px) { .archived-filter-panel { grid-template-columns: 1fr; } .archived-filter-panel__search { grid-column: auto; } .archived-filter-panel__actions .button { width: 100%; min-height: 2.75rem; } }
+</style>

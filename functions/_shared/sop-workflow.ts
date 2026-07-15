@@ -33,6 +33,8 @@ export interface SopWorkflowInput {
   action: SopWorkflowAction;
   actorUserId?: string;
   notes?: string;
+  actorRole?: string;
+  actorDepartment?: string;
 }
 
 interface WorkflowTransitionRow {
@@ -113,8 +115,14 @@ export async function transitionSop(db: D1DatabaseBinding, input: SopWorkflowInp
   } else if (input.action === "archive") {
     statements.push(
       db
-        .prepare("UPDATE sops SET status = ?, archived_at = ?, is_active = 0, updated_at = ? WHERE id = ?")
-        .bind(newStatus, nowIso, nowIso, input.sopId),
+        .prepare(
+          `UPDATE sops
+           SET status = ?, archive_previous_status = ?, archived_at = ?, archived_by_user_id = ?,
+               archive_reason = ?, restored_at = NULL, restored_by_user_id = NULL,
+               is_active = 0, updated_at = ?
+           WHERE id = ?`,
+        )
+        .bind(newStatus, sop.status, nowIso, input.actorUserId || null, input.notes || null, nowIso, input.sopId),
     );
   } else {
     statements.push(
@@ -193,7 +201,14 @@ export async function transitionSop(db: D1DatabaseBinding, input: SopWorkflowInp
         input.action,
         "sop",
         input.sopId,
-        JSON.stringify({ previousStatus: sop.status, newStatus, versionId, notes: input.notes || "" }),
+        JSON.stringify({
+          previousStatus: sop.status,
+          newStatus,
+          versionId,
+          notes: input.notes || "",
+          activeRole: input.actorRole || "",
+          department: input.actorDepartment || "",
+        }),
         now,
       ),
   );

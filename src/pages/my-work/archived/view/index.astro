@@ -1,0 +1,55 @@
+---
+import Layout from "../../../../components/Layout.astro";
+---
+
+<Layout title="View Archived SOP" wide>
+  <article class="sop-document archived-sop-view" aria-labelledby="archived-view-heading">
+    <div class="archived-warning" role="status">
+      <strong>Archived SOP</strong>
+      <span>— This SOP is inactive and should not be used as current guidance.</span>
+    </div>
+    <div class="sop-document__header">
+      <p class="eyebrow">Read-only archive record</p>
+      <h1 id="archived-view-heading">Loading archived SOP...</h1>
+      <p class="lede" id="archived-view-summary">Loading the authorized archive record from Cloudflare D1.</p>
+      <dl class="sop-hero-meta" id="archived-view-meta"></dl>
+      <div class="form-actions no-print"><a class="button button--ghost" href="/my-work/archived/">Back to Archived SOPs</a></div>
+    </div>
+    <div class="form-errors" id="archived-view-errors" role="alert" hidden></div>
+    <div class="sop-layout" id="archived-view-content" hidden>
+      <aside class="metadata-panel" aria-label="Archived SOP metadata"><dl id="archived-view-details"></dl></aside>
+      <div class="sop-content">
+        <section class="sop-section"><h2>Purpose</h2><p id="archived-view-purpose"></p></section>
+        <section class="sop-section sop-callout"><h2>Before You Begin</h2><p id="archived-view-before"></p></section>
+        <section class="sop-section"><h2>Step-by-Step Procedure</h2><ol class="procedure-list" id="archived-view-steps"></ol></section>
+        <section class="sop-section"><h2>Troubleshooting / Notes</h2><p id="archived-view-troubleshooting"></p></section>
+      </div>
+    </div>
+  </article>
+</Layout>
+
+<script>
+  // @ts-nocheck
+  const SUB_ROLE_KEY = "sopHubSelectedCreatorSubRole";
+  const sopId = new URLSearchParams(location.search).get("id") || "";
+  const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
+  const formatDate = (value) => value ? new Date(value).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "Not recorded";
+  function headers() { const subRole = localStorage.getItem(SUB_ROLE_KEY) || ""; return { accept: "application/json", ...(subRole ? { "x-sop-sub-role": subRole } : {}) }; }
+  function setText(id, value) { const element = document.getElementById(id); if (element) element.textContent = value || ""; }
+  function renderAttachment(attachment) { const url = String(attachment.url || ""); const caption = attachment.caption || attachment.altText || attachment.fileName || "Archived attachment"; const decorative = attachment.accessibilityStatus === "decorative" || attachment.isDecorative === true; if (url && (String(attachment.mimeType || "").startsWith("image/") || attachment.assetType === "Image")) return `<figure class="step-screenshot attachment-card"><img src="${escapeHtml(url)}" alt="${escapeHtml(decorative ? "" : attachment.altText || caption)}"><figcaption>${escapeHtml(caption)}</figcaption></figure>`; if (url && (String(attachment.mimeType || "").startsWith("video/") || attachment.assetType === "Video")) return `<figure class="step-screenshot attachment-card"><video controls preload="metadata" src="${escapeHtml(url)}"></video><figcaption>${escapeHtml(caption)}</figcaption></figure>`; return `<div class="attachment-card attachment-card--file">${escapeHtml(caption)}</div>`; }
+  function render(sop) {
+    document.title = `${sop.title} | Archived SOP | SOP Knowledge Hub`;
+    setText("archived-view-heading", sop.title || "Archived SOP"); setText("archived-view-summary", sop.summary || sop.purpose || "Archived SOP record."); setText("archived-view-purpose", sop.purpose || sop.summary || "No purpose recorded."); setText("archived-view-before", sop.version?.beforeYouBegin || sop.beforeYouBegin || "No before-you-begin notes recorded."); setText("archived-view-troubleshooting", sop.version?.troubleshooting || sop.troubleshooting || "No troubleshooting notes recorded.");
+    const meta = document.getElementById("archived-view-meta"); if (meta) meta.innerHTML = `<div><dt>SOP ID</dt><dd>${escapeHtml(sop.id)}</dd></div><div><dt>Owner</dt><dd>${escapeHtml(sop.owner || "Unassigned")}</dd></div><div><dt>Category</dt><dd>${escapeHtml(sop.category || "Uncategorized")}</dd></div><div><dt>Archived</dt><dd>${escapeHtml(formatDate(sop.archivedAt))}</dd></div>`;
+    const details = document.getElementById("archived-view-details"); if (details) details.innerHTML = `<div><dt>Status</dt><dd>Archived</dd></div><div><dt>Previous status</dt><dd>${escapeHtml(sop.previousStatus)}</dd></div><div><dt>Archived by</dt><dd>${escapeHtml(sop.archivedBy)}</dd></div><div><dt>Archive reason</dt><dd>${escapeHtml(sop.archiveReason)}</dd></div><div><dt>Department</dt><dd>${escapeHtml(sop.department || sop.ownerDepartment || "Not listed")}</dd></div><div><dt>Last updated</dt><dd>${escapeHtml(formatDate(sop.updatedAt))}</dd></div>`;
+    const steps = document.getElementById("archived-view-steps"); if (steps) { const items = Array.isArray(sop.procedureSteps) ? sop.procedureSteps : []; steps.innerHTML = items.length ? items.map((step) => `<li><h3>${escapeHtml(step.title || "Step")}</h3><p>${escapeHtml(step.instructions || "")}</p>${step.note ? `<p><strong>Note:</strong> ${escapeHtml(step.note)}</p>` : ""}${(step.attachments || []).map(renderAttachment).join("")}</li>`).join("") : "<li>No saved procedure steps are available.</li>"; }
+    const content = document.getElementById("archived-view-content"); if (content) content.hidden = false;
+  }
+  async function load() { if (!sopId) throw new Error("Missing archived SOP ID."); const subRole = localStorage.getItem(SUB_ROLE_KEY) || ""; const params = new URLSearchParams({ id: sopId }); if (subRole) params.set("subRole", subRole); const response = await fetch(`/api/sops/archived?${params}`, { headers: headers(), cache: "no-store" }); const data = await response.json().catch(() => ({})); if (!response.ok || data?.success === false) throw new Error(data?.error?.message || "Archived SOP could not be loaded."); render((data.data || data).sop); }
+  load().catch((error) => { setText("archived-view-heading", "Archived SOP unavailable"); const errors = document.getElementById("archived-view-errors"); if (errors) { errors.hidden = false; errors.innerHTML = `<p>${escapeHtml(error.message)}</p><p><a class="button button--ghost" href="/my-work/archived/">Back to Archived SOPs</a></p>`; } });
+</script>
+
+<style>
+  .archived-warning { display: flex; flex-wrap: wrap; gap: .35rem; margin-bottom: 1rem; padding: 1rem; color: #5f2d00; background: #fff4df; border: 2px solid #f59e0b; border-radius: .75rem; }
+  .archived-warning strong { color: #7c2d12; }
+</style>

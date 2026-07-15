@@ -9,6 +9,7 @@ interface WorkflowPayload {
   versionId?: string;
   actorUserId?: string;
   notes?: string;
+  reason?: string;
 }
 
 export const onRequestPost = async (context: PagesFunctionContext) => {
@@ -21,14 +22,18 @@ export const onRequestPost = async (context: PagesFunctionContext) => {
 
   const [payload, parseError] = await readBody<WorkflowPayload>(context.request);
   if (parseError) return parseError;
+  const reason = String(payload?.reason || payload?.notes || "").trim();
+  if (reason.length < 3) return failure("VALIDATION_ERROR", "An archive reason is required.", 400, { reason: "Enter an archive reason." });
 
   try {
     const transition = await transitionSop(context.env.DB!, {
       sopId: getRouteParam(context, "id"),
       versionId: payload?.versionId,
       actorUserId: payload?.actorUserId || auth.user?.id,
-      notes: payload?.notes || "Archived.",
+      notes: reason,
       action: "archive",
+      actorRole: auth.user?.accessLevel,
+      actorDepartment: ownership.subRole?.department || auth.user?.selectedSubRole?.department || "",
     });
     if (!transition) return failure("NOT_FOUND", "SOP not found.", 404);
     return success({ transition }, "SOP archived.");

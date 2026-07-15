@@ -24,6 +24,7 @@ const navGroups = [
       { href: "/drafts/", label: "My Drafts", icon: "drafts" },
       { href: "/review-queue/", label: "Review Queue", icon: "review" },
       { href: "/needs-review/", label: "Needs Review", icon: "needsReview" },
+      { href: "/my-work/archived/", label: "Archived SOPs", icon: "archive" },
     ],
   },
   {
@@ -41,7 +42,11 @@ const navGroups = [
 ];
 
 const pathname = Astro.url.pathname;
-const isCurrent = (href: string) => pathname === href || (href !== "/" && pathname.startsWith(href));
+const currentHref = navGroups
+  .flatMap((group) => group.items.map((item) => item.href))
+  .filter((href) => pathname === href || (href !== "/" && pathname.startsWith(href)))
+  .sort((a, b) => b.length - a.length)[0];
+const isCurrent = (href: string) => href === currentHref;
 const roleClass = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 ---
 

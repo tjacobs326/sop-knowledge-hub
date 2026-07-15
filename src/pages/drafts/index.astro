@@ -53,6 +53,16 @@ import { statusBadgeDefinitions } from "../../lib/badges";
     <div class="form-errors" id="drafts-errors" role="alert" hidden></div>
     <div class="confirmation" id="drafts-confirmation" role="status" hidden></div>
   </section>
+
+  <dialog id="archive-draft-dialog" aria-labelledby="archive-draft-heading" aria-describedby="archive-draft-description">
+    <form method="dialog" class="archive-draft-dialog">
+      <h2 id="archive-draft-heading">Archive this SOP draft?</h2>
+      <p id="archive-draft-description">The SOP will be removed from My Drafts and added to Archived SOPs. Its content, attachments, and history will be preserved.</p>
+      <label class="field"><span>Archive reason <span aria-hidden="true">*</span></span><textarea id="archive-draft-reason" rows="4" required aria-required="true"></textarea></label>
+      <p class="form-errors" id="archive-draft-error" role="alert" hidden>Enter an archive reason.</p>
+      <div class="form-actions"><button class="button button--ghost" value="cancel">Cancel</button><button class="button button--danger" value="confirm">Archive SOP</button></div>
+    </form>
+  </dialog>
 </Layout>
 
 <script is:inline define:vars={{ statusBadgeDefinitions }}>
@@ -60,12 +70,17 @@ import { statusBadgeDefinitions } from "../../lib/badges";
   const contextEl = document.getElementById("drafts-context");
   const errorsEl = document.getElementById("drafts-errors");
   const confirmation = document.getElementById("drafts-confirmation");
+  const archiveDialog = document.getElementById("archive-draft-dialog");
+  const archiveReason = document.getElementById("archive-draft-reason");
+  const archiveError = document.getElementById("archive-draft-error");
   const ROLE_CONTEXT_EVENT = "sop-role-context-change";
   const ROLE_KEY = "sopHubSelectedRole";
   const SUB_ROLE_KEY = "sopHubSelectedCreatorSubRole";
   const WORK_SCOPE_KEY = "sopHubMyWorkScope";
   let currentDrafts = [];
   let activeDraftRequestId = 0;
+  let pendingArchiveId = "";
+  let pendingArchiveButton = null;
 
   const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (character) => {
@@ -267,14 +282,14 @@ import { statusBadgeDefinitions } from "../../lib/badges";
     return action;
   }
 
-  async function runDraftWorkflow(id, action, button) {
+  async function runDraftWorkflow(id, action, button, reason = "") {
     const draft = currentDrafts.find((item) => item.id === id);
-    if (!draft || !window.confirm(workflowMessage(action, draft))) return;
+    if (!draft || (action !== "archive" && !window.confirm(workflowMessage(action, draft)))) return;
     if (button instanceof HTMLButtonElement) button.disabled = true;
     const response = await fetch(`/api/sops/${encodeURIComponent(id)}/${workflowEndpoint(action)}`, {
       method: "POST",
       headers: apiHeaders(),
-      body: JSON.stringify({ notes: `${action} from My Drafts.` }),
+      body: JSON.stringify(action === "archive" ? { reason, notes: reason } : { notes: `${action} from My Drafts.` }),
     });
     await parseApiResponse(response);
     if (confirmation) {
@@ -293,12 +308,33 @@ import { statusBadgeDefinitions } from "../../lib/badges";
     if (!(target instanceof HTMLElement)) return;
     const workflowButton = target.closest("[data-draft-workflow]");
     if (workflowButton instanceof HTMLElement) {
+      if (workflowButton.dataset.draftWorkflow === "archive" && archiveDialog instanceof HTMLDialogElement) {
+        pendingArchiveId = workflowButton.dataset.draftId || "";
+        pendingArchiveButton = workflowButton instanceof HTMLButtonElement ? workflowButton : null;
+        if (archiveReason instanceof HTMLTextAreaElement) archiveReason.value = "";
+        if (archiveError) archiveError.hidden = true;
+        archiveDialog.showModal();
+        window.requestAnimationFrame(() => archiveReason?.focus());
+        return;
+      }
       runDraftWorkflow(
         workflowButton.dataset.draftId || "",
         workflowButton.dataset.draftWorkflow || "",
         workflowButton instanceof HTMLButtonElement ? workflowButton : null,
       ).catch(showError);
     }
+  });
+
+  archiveDialog?.addEventListener("close", () => {
+    if (archiveDialog.returnValue !== "confirm") return;
+    const reason = archiveReason instanceof HTMLTextAreaElement ? archiveReason.value.trim() : "";
+    if (!reason) {
+      if (archiveError) archiveError.hidden = false;
+      archiveDialog.showModal();
+      archiveReason?.focus();
+      return;
+    }
+    runDraftWorkflow(pendingArchiveId, "archive", pendingArchiveButton, reason).catch(showError);
   });
 
   window.addEventListener("storage", (event) => {
@@ -320,3 +356,10 @@ import { statusBadgeDefinitions } from "../../lib/badges";
 
   loadDrafts().catch(showError);
 </script>
+
+<style>
+  #archive-draft-dialog { width: min(calc(100% - 2rem), 38rem); border: 0; border-radius: 1rem; padding: 0; box-shadow: 0 24px 60px rgba(15,23,42,.28); }
+  #archive-draft-dialog::backdrop { background: rgba(15,23,42,.58); }
+  .archive-draft-dialog { padding: 1.5rem; }
+  .archive-draft-dialog h2 { margin-top: 0; }
+</style>

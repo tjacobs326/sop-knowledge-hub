@@ -14,6 +14,7 @@
     "test:my-work-card-navigation": "node scripts/my-work-card-navigation-smoke.mjs",
     "test:editor-return-routing": "node scripts/editor-return-routing-smoke.mjs",
     "test:sop-inventory": "node scripts/sop-inventory-smoke.mjs",
+    "test:archived-sops": "node scripts/archived-sops-smoke.mjs",
     "test:admin-departments": "node scripts/admin-departments-smoke.mjs",
     "test:step-attachments": "node scripts/step-attachments-smoke.mjs",
     "test:guided-finder": "node scripts/guided-finder-smoke.mjs",
