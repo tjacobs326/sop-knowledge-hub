@@ -11,6 +11,7 @@
     "test:role-switching": "node scripts/my-drafts-role-switching-smoke.mjs",
     "test:my-drafts-role-switching": "npm run test:role-switching",
     "test:review-queue-scope": "node scripts/review-queue-scope-mode-smoke.mjs",
+    "test:my-work-card-navigation": "node scripts/my-work-card-navigation-smoke.mjs",
     "test:admin-departments": "node scripts/admin-departments-smoke.mjs",
     "test:step-attachments": "node scripts/step-attachments-smoke.mjs",
     "test:guided-finder": "node scripts/guided-finder-smoke.mjs",

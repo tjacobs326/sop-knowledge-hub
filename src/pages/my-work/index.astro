@@ -41,7 +41,7 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
       </a>
       <a
         class="stat-card work-summary-card"
-        href="/drafts/?source=my-work"
+        href="/my-work/?workFilter=drafts#my-draft-sops"
         data-work-summary-link
         data-work-filter="drafts"
         aria-label="View draft SOPs for the current work scope"
@@ -101,7 +101,8 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
         </div>
       </section>
 
-      <section class="dashboard-section work-section" id="work-section-drafts" data-work-section="drafts" aria-labelledby="drafts-heading">
+      <section class="dashboard-section work-section" id="my-draft-sops" data-work-section="drafts" aria-labelledby="drafts-heading">
+        <span id="work-section-drafts" class="sr-only" aria-hidden="true"></span>
         <h2 id="drafts-heading">My Draft SOPs</h2>
         <div class="table-wrap">
           <table>
