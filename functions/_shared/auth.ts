@@ -20,6 +20,7 @@ export type PermissionName =
   | "View Analytics"
   | "Upload Media"
   | "Manage Media"
+  | "Manage SOP Inventory"
   | "Settings";
 
 export interface AuthUser {
@@ -84,6 +85,7 @@ const fallbackPermissionsByRole: Record<ApiRole, PermissionName[]> = {
     "View Analytics",
     "Upload Media",
     "Manage Media",
+    "Manage SOP Inventory",
     "Settings",
   ],
 };
