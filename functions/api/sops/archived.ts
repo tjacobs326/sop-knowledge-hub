@@ -5,12 +5,41 @@ import { type D1DatabaseBinding, type PagesFunctionContext } from "../../_shared
 import { getSopById } from "../../_shared/sop-data";
 import { resolveCreatorWorkScope, subRoleSopScopeClause, type ResolvedWorkScope } from "../../_shared/work-scope";
 
+const DEFAULT_PAGE_SIZE = 50;
+const MAX_PAGE_SIZE = 100;
+const MAX_SEARCH_BYTES = 48;
+
+interface ArchiveCursor {
+  archivedAt: string;
+  id: string;
+}
+
 function normalizeDate(value: unknown) {
   if (!value) return "";
   if (typeof value === "number") return new Date(value * 1000).toISOString();
   const raw = String(value);
   if (/^\d+$/.test(raw)) return new Date(Number(raw) * 1000).toISOString();
   return raw;
+}
+
+function encodeCursor(cursor: ArchiveCursor) {
+  const bytes = new TextEncoder().encode(JSON.stringify(cursor));
+  let binary = "";
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function decodeCursor(value: string): ArchiveCursor | null {
+  if (!value) return null;
+  try {
+    const padded = value.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
+    const binary = atob(padded);
+    const parsed = JSON.parse(new TextDecoder().decode(Uint8Array.from(binary, (character) => character.charCodeAt(0))));
+    if (!parsed?.archivedAt || !parsed?.id) return null;
+    return { archivedAt: String(parsed.archivedAt), id: String(parsed.id) };
+  } catch {
+    return null;
+  }
 }
 
 function scopeSql(workScope: ResolvedWorkScope) {
@@ -29,12 +58,19 @@ function scopeSql(workScope: ResolvedWorkScope) {
   return { sql: clauses.map((clause) => `(${clause})`).join(" AND "), values };
 }
 
+function archivedFrom() {
+  return `FROM sops
+   LEFT JOIN categories ON categories.id = sops.category_id
+   LEFT JOIN users owner ON owner.id = COALESCE(sops.owner_id, sops.owner_user_id)
+   LEFT JOIN users archived_by ON archived_by.id = sops.archived_by_user_id
+   LEFT JOIN creator_sub_roles sub_roles ON sub_roles.id = sops.owner_sub_role_id
+   LEFT JOIN sop_tags ON sop_tags.sop_id = sops.id
+   LEFT JOIN tags ON tags.id = sop_tags.tag_id`;
+}
+
 function archivedSelect() {
   return `SELECT
-    sops.id,
-    sops.title,
-    sops.slug,
-    sops.status,
+    sops.id, sops.title, sops.slug, sops.status,
     sops.archive_previous_status AS previousStatus,
     sops.archived_at AS archivedAt,
     sops.archive_reason AS archiveReason,
@@ -46,13 +82,7 @@ function archivedSelect() {
     sub_roles.department AS department,
     archived_by.name AS archivedBy,
     GROUP_CONCAT(DISTINCT tags.name) AS tags
-   FROM sops
-   LEFT JOIN categories ON categories.id = sops.category_id
-   LEFT JOIN users owner ON owner.id = COALESCE(sops.owner_id, sops.owner_user_id)
-   LEFT JOIN users archived_by ON archived_by.id = sops.archived_by_user_id
-   LEFT JOIN creator_sub_roles sub_roles ON sub_roles.id = sops.owner_sub_role_id
-   LEFT JOIN sop_tags ON sop_tags.sop_id = sops.id
-   LEFT JOIN tags ON tags.id = sop_tags.tag_id`;
+   ${archivedFrom()}`;
 }
 
 function normalizeArchived(row: Record<string, unknown>) {
@@ -74,7 +104,7 @@ function normalizeArchived(row: Record<string, unknown>) {
   };
 }
 
-async function queryArchived(db: D1DatabaseBinding, workScope: ResolvedWorkScope, request: Request) {
+function archiveFilters(workScope: ResolvedWorkScope, request: Request) {
   const url = new URL(request.url);
   const scope = scopeSql(workScope);
   const clauses = ["sops.status = 'Archived'", "COALESCE(sops.is_active, 0) = 0", scope.sql];
@@ -85,6 +115,9 @@ async function queryArchived(db: D1DatabaseBinding, workScope: ResolvedWorkScope
   const owner = String(url.searchParams.get("owner") || "").trim();
   const archivedDate = String(url.searchParams.get("archivedDate") || "").trim();
   const id = String(url.searchParams.get("id") || "").trim();
+  if (new TextEncoder().encode(q).length > MAX_SEARCH_BYTES) {
+    return { error: `Search terms must be ${MAX_SEARCH_BYTES} bytes or fewer.`, clauses, values, id };
+  }
   if (q) {
     const like = `%${q}%`;
     clauses.push(`(
@@ -105,26 +138,57 @@ async function queryArchived(db: D1DatabaseBinding, workScope: ResolvedWorkScope
   if (owner) { clauses.push("owner.id = ?"); values.push(owner); }
   if (archivedDate) { clauses.push("date(sops.archived_at) = date(?)"); values.push(archivedDate); }
   if (id) { clauses.push("sops.id = ?"); values.push(id); }
+  return { error: "", clauses, values, id };
+}
 
-  const result = await db.prepare(
-    `${archivedSelect()} WHERE ${clauses.join(" AND ")}
-     GROUP BY sops.id ORDER BY sops.archived_at DESC, sops.title ASC LIMIT 250`,
-  ).bind(...values).all<Record<string, unknown>>();
-  return (result.results || []).map(normalizeArchived);
+async function queryArchived(db: D1DatabaseBinding, workScope: ResolvedWorkScope, request: Request) {
+  const url = new URL(request.url);
+  const filters = archiveFilters(workScope, request);
+  if (filters.error) return { error: filters.error, records: [], total: 0, nextCursor: "" };
+  const requestedLimit = Number(url.searchParams.get("limit") || DEFAULT_PAGE_SIZE);
+  const limit = Number.isInteger(requestedLimit) ? Math.min(Math.max(requestedLimit, 1), MAX_PAGE_SIZE) : DEFAULT_PAGE_SIZE;
+  const cursorValue = String(url.searchParams.get("cursor") || "");
+  const cursor = decodeCursor(cursorValue);
+  if (cursorValue && !cursor) return { error: "The archive cursor is invalid or expired.", records: [], total: 0, nextCursor: "" };
+  const pageClauses = [...filters.clauses];
+  const pageValues = [...filters.values];
+  if (cursor) {
+    pageClauses.push("(sops.archived_at < ? OR (sops.archived_at = ? AND sops.id > ?))");
+    pageValues.push(cursor.archivedAt, cursor.archivedAt, cursor.id);
+  }
+
+  const [result, count] = await Promise.all([
+    db.prepare(
+      `${archivedSelect()} WHERE ${pageClauses.join(" AND ")}
+       GROUP BY sops.id ORDER BY sops.archived_at DESC, sops.id ASC LIMIT ?`,
+    ).bind(...pageValues, limit + 1).all<Record<string, unknown>>(),
+    db.prepare(`SELECT COUNT(DISTINCT sops.id) AS total ${archivedFrom()} WHERE ${filters.clauses.join(" AND ")}`)
+      .bind(...filters.values).first<{ total: number }>(),
+  ]);
+  const allRows = (result.results || []).map(normalizeArchived);
+  const hasMore = allRows.length > limit;
+  const records = allRows.slice(0, limit);
+  const last = records.at(-1);
+  return {
+    error: "",
+    records,
+    total: Number(count?.total || 0),
+    nextCursor: hasMore && last ? encodeCursor({ archivedAt: last.archivedAt, id: last.id }) : "",
+  };
 }
 
 async function filterOptions(db: D1DatabaseBinding, workScope: ResolvedWorkScope) {
   const scope = scopeSql(workScope);
-  const result = await db.prepare(
-    `${archivedSelect()} WHERE sops.status = 'Archived' AND COALESCE(sops.is_active, 0) = 0 AND ${scope.sql}
-     GROUP BY sops.id ORDER BY sops.title ASC`,
-  ).bind(...scope.values).all<Record<string, unknown>>();
-  const rows = (result.results || []).map(normalizeArchived);
-  const unique = (items: Array<{ id: string; label: string }>) => Array.from(new Map(items.filter((item) => item.id).map((item) => [item.id, item])).values());
+  const where = `sops.status = 'Archived' AND COALESCE(sops.is_active, 0) = 0 AND ${scope.sql}`;
+  const [departments, categories, owners] = await Promise.all([
+    db.prepare(`SELECT DISTINCT sub_roles.department AS value FROM sops LEFT JOIN creator_sub_roles sub_roles ON sub_roles.id = sops.owner_sub_role_id WHERE ${where} AND sub_roles.department IS NOT NULL ORDER BY lower(sub_roles.department)`).bind(...scope.values).all<{ value: string }>(),
+    db.prepare(`SELECT DISTINCT categories.id, categories.name AS label FROM sops LEFT JOIN categories ON categories.id = sops.category_id WHERE ${where} AND categories.id IS NOT NULL ORDER BY lower(categories.name)`).bind(...scope.values).all<{ id: string; label: string }>(),
+    db.prepare(`SELECT DISTINCT owner.id, owner.name AS label FROM sops LEFT JOIN users owner ON owner.id = COALESCE(sops.owner_id, sops.owner_user_id) WHERE ${where} AND owner.id IS NOT NULL ORDER BY lower(owner.name)`).bind(...scope.values).all<{ id: string; label: string }>(),
+  ]);
   return {
-    departments: Array.from(new Set(rows.map((row) => row.department).filter(Boolean))).sort(),
-    categories: unique(rows.map((row) => ({ id: row.categoryId, label: row.category }))).sort((a, b) => a.label.localeCompare(b.label)),
-    owners: unique(rows.map((row) => ({ id: row.ownerId, label: row.owner }))).sort((a, b) => a.label.localeCompare(b.label)),
+    departments: (departments.results || []).map((row) => row.value),
+    categories: categories.results || [],
+    owners: owners.results || [],
   };
 }
 
@@ -133,24 +197,28 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
   if (missingDb) return missingDb;
   const auth = await requirePermission(context, "Archive SOPs");
   if (auth.response || !auth.user) return auth.response;
-  const resolved = await resolveCreatorWorkScope(context.env.DB!, context);
+  const resolved = await resolveCreatorWorkScope(context.env.DB!, context, auth.user);
   if (resolved.response || !resolved.subRole || !resolved.user) return resolved.response;
-  const records = await queryArchived(context.env.DB!, resolved, context.request);
+  const page = await queryArchived(context.env.DB!, resolved, context.request);
+  if (page.error) return failure("VALIDATION_ERROR", page.error, 400);
   const id = String(new URL(context.request.url).searchParams.get("id") || "").trim();
+  const canRestoreAsDraft = hasPermission(auth.user, "Edit Drafts");
   if (id) {
-    const archived = records[0];
+    const archived = page.records[0];
     if (!archived) return failure("NOT_FOUND", "Archived SOP not found for the selected role and department.", 404);
     const sop = await getSopById(context.env.DB!, id, false);
     if (!sop) return failure("NOT_FOUND", "Archived SOP not found.", 404);
-    return new Response(JSON.stringify({ success: true, data: { sop: { ...sop, ...archived, status: "Archived" }, capabilities: { canRestoreAsDraft: hasPermission(auth.user, "Edit Drafts") } } }), {
+    return new Response(JSON.stringify({ success: true, data: { sop: { ...sop, ...archived, status: "Archived" }, capabilities: { canRestoreAsDraft } } }), {
       headers: { "content-type": "application/json; charset=utf-8", ...cacheHeaders("private"), vary: "x-sop-sub-role" },
     });
   }
   const filters = await filterOptions(context.env.DB!, resolved);
   return new Response(JSON.stringify({ success: true, data: {
     context: { selectedSubRole: resolved.subRole, workScope: resolved.scope, workScopeLabel: resolved.label },
-    count: records.length,
-    archivedSops: records,
+    capabilities: { canRestoreAsDraft },
+    count: page.total,
+    archivedSops: page.records,
+    nextCursor: page.nextCursor,
     filters,
   } }), {
     headers: { "content-type": "application/json; charset=utf-8", ...cacheHeaders("private"), vary: "x-sop-sub-role" },

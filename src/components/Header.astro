@@ -229,6 +229,8 @@ const roleClass = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, 
       if (origin === "owned-sops" || origin === "my-work-drafts") return "/my-work/";
       if (origin === "review-queue") return "/review-queue/";
       if (origin === "needs-review") return "/admin/needs-review/";
+      if (origin === "admin-review-queue") return "/admin/review/";
+      if (origin.startsWith("my-work-")) return "/my-work/";
       return "/drafts/";
     }
     return "/create/";

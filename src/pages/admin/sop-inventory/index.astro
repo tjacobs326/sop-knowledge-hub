@@ -31,14 +31,14 @@ import AppIllustration from "../../../components/AppIllustration.astro";
 
     <section class="dashboard-section" aria-labelledby="upload-heading">
       <div class="section-heading compact-heading">
-        <div><h2 id="upload-heading">Select and validate a CSV</h2><p>Maximum 5 MB and 5,000 data rows. Required columns are marked below.</p></div>
+         <div><h2 id="upload-heading">Select and validate a CSV</h2><p>Maximum 5 MB and 20 data rows per atomic import. Required columns are marked below.</p></div>
       </div>
       <details class="column-guide">
         <summary>View CSV column instructions</summary>
         <div class="column-guide__content">
-          <p><strong>Required:</strong> <code>sop_id</code>, <code>title</code>, <code>summary</code>, <code>category</code>, <code>department</code>, <code>creator_reviewer_role</code>, <code>status</code>, <code>version_number</code>.</p>
-          <p><strong>Optional:</strong> <code>owner_user_id</code>, <code>author_user_id</code>, <code>review_due_date</code> (YYYY-MM-DD), <code>tags</code> (pipe-separated), <code>source</code>, <code>type</code>, and <code>visibility</code>.</p>
-          <p>Categories, departments, roles, and user IDs must already exist. Spreadsheet formulas are rejected. Imported status never bypasses normal review or publishing.</p>
+          <p><strong>Required:</strong> <code>sop_id</code>, <code>title</code>, <code>summary</code>, <code>category</code>, <code>department</code>, and <code>creator_reviewer_role</code>.</p>
+          <p><strong>Optional:</strong> <code>owner_user_id</code>, <code>author_user_id</code>, <code>status</code>, <code>version_number</code>, <code>review_due_date</code> (YYYY-MM-DD), <code>tags</code> (up to 20, pipe-separated), <code>source</code>, <code>type</code>, and <code>visibility</code>.</p>
+          <p>Categories, departments, roles, and user IDs must already exist. Spreadsheet formulas are rejected. New SOPs always use Draft status, Imported source, and Internal visibility. Existing SOP status, author, content, steps, attachments, approvals, and version history are preserved.</p>
         </div>
       </details>
 
@@ -64,8 +64,9 @@ import AppIllustration from "../../../components/AppIllustration.astro";
         <label><input type="radio" name="existing-strategy" value="update" /> Update supported inventory fields</label>
       </fieldset>
       <p class="safety-note"><strong>Protected:</strong> SOP content, steps, attachments, workflow status, approvals, reviews, publication state, and version history are never overwritten by this import.</p>
-      <div class="table-wrap preview-table-wrap">
-        <table>
+      <div class="table-wrap preview-table-wrap" role="region" aria-labelledby="preview-heading" tabindex="0">
+        <table class="inventory-preview-table">
+          <caption class="sr-only">Validated SOP inventory rows</caption>
           <thead><tr><th scope="col">Row</th><th scope="col">SOP ID</th><th scope="col">Title</th><th scope="col">Result</th><th scope="col">Validation details</th></tr></thead>
           <tbody id="preview-rows"></tbody>
         </table>
@@ -78,7 +79,7 @@ import AppIllustration from "../../../components/AppIllustration.astro";
 
     <section class="dashboard-section" aria-labelledby="history-heading">
       <div class="section-heading compact-heading"><div><h2 id="history-heading">Import and Export History</h2><p>Recent inventory actions recorded for audit and operations review.</p></div><button class="button button--secondary" id="refresh-history" type="button">Refresh</button></div>
-      <div class="table-wrap"><table><thead><tr><th scope="col">Action</th><th scope="col">Admin</th><th scope="col">File</th><th scope="col">Date</th><th scope="col">Rows</th><th scope="col">Created</th><th scope="col">Updated</th><th scope="col">Skipped</th><th scope="col">Status</th></tr></thead><tbody id="history-rows"><tr><td colspan="9">Loading inventory history…</td></tr></tbody></table></div>
+      <div class="table-wrap" role="region" aria-labelledby="history-heading" tabindex="0"><table class="inventory-history-table"><caption class="sr-only">Recent inventory import and export jobs</caption><thead><tr><th scope="col">Action</th><th scope="col">Admin</th><th scope="col">File</th><th scope="col">Date</th><th scope="col">Rows</th><th scope="col">Created</th><th scope="col">Updated</th><th scope="col">Skipped</th><th scope="col">Status</th></tr></thead><tbody id="history-rows"><tr><td colspan="9">Loading inventory history…</td></tr></tbody></table></div>
     </section>
   </section>
 
@@ -92,7 +93,9 @@ import AppIllustration from "../../../components/AppIllustration.astro";
   </dialog>
 </Layout>
 
-<script is:inline>
+<script>
+  // @ts-nocheck
+  import { apiErrorMessage as errorMessage, escapeHtml } from "../../../lib/client-utils";
   const fileInput = document.getElementById("inventory-file");
   const dropZone = document.getElementById("inventory-drop-zone");
   const statusBox = document.getElementById("inventory-status");
@@ -105,7 +108,6 @@ import AppIllustration from "../../../components/AppIllustration.astro";
   let selectedFile = null;
   let currentPreview = null;
 
-  const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
   function announce(message, kind = "info") { statusBox.textContent = message; statusBox.dataset.kind = kind; }
   function setBusy(busy, message) { progress.hidden = !busy; progress.removeAttribute("value"); if (message) announce(message); document.querySelectorAll("#preview-import,#commit-import").forEach((button) => button.disabled = busy); }
   function resetImport() { selectedFile = null; currentPreview = null; fileInput.value = ""; previewSection.hidden = true; progress.hidden = true; announce("Choose a CSV file to begin."); }
@@ -113,7 +115,7 @@ import AppIllustration from "../../../components/AppIllustration.astro";
     announce(`Preparing ${fallbackName}…`);
     try {
       const response = await fetch(url);
-      if (!response.ok) { const data = await response.json().catch(() => ({})); throw new Error(data.error || "Download failed."); }
+       if (!response.ok) { const data = await response.json().catch(() => ({})); throw new Error(errorMessage(data, "Download failed.")); }
       const disposition = response.headers.get("content-disposition") || "";
       const fileName = disposition.match(/filename="([^"]+)"/)?.[1] || fallbackName;
       const objectUrl = URL.createObjectURL(await response.blob());
@@ -140,19 +142,20 @@ import AppIllustration from "../../../components/AppIllustration.astro";
     summaryGrid.innerHTML = stats.map(([label,value]) => `<article class="stat-card"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></article>`).join("");
     previewRows.innerHTML = preview.rows.map((row) => {
       const messages = [...row.errors.map((error) => `<li><strong>${escapeHtml(error.column)}:</strong> ${escapeHtml(error.message)}</li>`), ...row.warnings.map((warning) => `<li>${escapeHtml(warning)}</li>`)].join("");
-      return `<tr><td>${row.rowNumber}</td><td><code>${escapeHtml(row.sopId)}</code></td><td>${escapeHtml(row.title)}</td><td><span class="status-badge ${row.valid ? "status-published" : "status-archived"}">${escapeHtml(row.action)}</span></td><td>${messages ? `<ul class="validation-list">${messages}</ul>` : "Ready"}</td></tr>`;
+      return `<tr><td data-label="Row">${row.rowNumber}</td><td data-label="SOP ID"><code>${escapeHtml(row.sopId)}</code></td><td data-label="Title">${escapeHtml(row.title)}</td><td data-label="Result"><span class="status-badge ${row.valid ? "status-published" : "status-archived"}">${escapeHtml(row.action)}</span></td><td data-label="Validation details">${messages ? `<ul class="validation-list">${messages}</ul>` : "Ready"}</td></tr>`;
     }).join("");
     previewSection.hidden = false;
     document.getElementById("commit-import").disabled = summary.invalidRows > 0;
     announce(summary.invalidRows ? `${summary.invalidRows} invalid row(s) must be corrected before import.` : "Validation passed. Review every action before confirming.", summary.invalidRows ? "error" : "success");
-    previewSection.querySelector("h2")?.focus();
+    const previewHeading = previewSection.querySelector("h2");
+    if (previewHeading instanceof HTMLElement) { previewHeading.tabIndex = -1; previewHeading.focus(); }
   }
 
   async function previewImport() {
     if (!selectedFile) return announce("Choose a CSV file first.", "error");
     setBusy(true, "Validating the CSV against the live inventory…");
     const body = new FormData(); body.append("file", selectedFile);
-    try { const response = await fetch("/api/admin/sop-inventory?action=preview", { method: "POST", body }); const data = await response.json(); if (!response.ok) throw new Error(data.error || "Validation failed."); renderPreview(data.preview); }
+    try { const response = await fetch("/api/admin/sop-inventory?action=preview", { method: "POST", body }); const data = await response.json(); if (!response.ok) throw new Error(errorMessage(data, "Validation failed.")); renderPreview(data.preview); }
     catch (error) { announce(error.message || "Validation failed.", "error"); }
     finally { setBusy(false); }
   }
@@ -161,13 +164,13 @@ import AppIllustration from "../../../components/AppIllustration.astro";
     const strategy = document.querySelector('input[name="existing-strategy"]:checked')?.value || "skip";
     const body = new FormData(); body.append("file", selectedFile); body.append("existingStrategy", strategy);
     setBusy(true, "Importing records in an atomic D1 transaction…");
-    try { const response = await fetch("/api/admin/sop-inventory?action=commit", { method: "POST", body }); const data = await response.json(); if (!response.ok) throw new Error(data.error || "Import failed."); announce(`Import complete: ${data.summary.createdRecords} created, ${data.summary.updatedRecords} updated, and ${data.summary.skippedRecords} skipped.`, "success"); currentPreview = null; previewSection.hidden = true; await loadHistory(); }
+    try { const response = await fetch("/api/admin/sop-inventory?action=commit", { method: "POST", body }); const data = await response.json(); if (!response.ok) throw new Error(errorMessage(data, "Import failed.")); announce(`Import complete: ${data.summary.createdRecords} created, ${data.summary.updatedRecords} updated, and ${data.summary.skippedRecords} skipped.`, "success"); currentPreview = null; previewSection.hidden = true; await loadHistory(); }
     catch (error) { announce(error.message || "Import failed. No changes were made.", "error"); }
     finally { setBusy(false); }
   }
 
   async function loadHistory() {
-    try { const response = await fetch("/api/admin/sop-inventory?action=history"); const data = await response.json(); if (!response.ok) throw new Error(data.error || "History unavailable."); historyRows.innerHTML = data.history.length ? data.history.map((item) => `<tr><td>${escapeHtml(item.actionType)}</td><td>${escapeHtml(item.adminUser)}</td><td>${escapeHtml(item.fileName)}</td><td>${escapeHtml(new Date(item.createdAt).toLocaleString())}</td><td>${escapeHtml(item.totalRows)}</td><td>${escapeHtml(item.createdRecords)}</td><td>${escapeHtml(item.updatedRecords)}</td><td>${escapeHtml(item.skippedRecords)}</td><td>${escapeHtml(item.status)}</td></tr>`).join("") : '<tr><td colspan="9">No inventory actions have been recorded.</td></tr>'; }
+    try { const response = await fetch("/api/admin/sop-inventory?action=history"); const data = await response.json(); if (!response.ok) throw new Error(errorMessage(data, "History unavailable.")); historyRows.innerHTML = data.history.length ? data.history.map((item) => `<tr><td data-label="Action">${escapeHtml(item.actionType)}</td><td data-label="Admin">${escapeHtml(item.adminUser)}</td><td data-label="File">${escapeHtml(item.fileName)}</td><td data-label="Date">${escapeHtml(new Date(item.createdAt).toLocaleString())}</td><td data-label="Rows">${escapeHtml(item.totalRows)}</td><td data-label="Created">${escapeHtml(item.createdRecords)}</td><td data-label="Updated">${escapeHtml(item.updatedRecords)}</td><td data-label="Skipped">${escapeHtml(item.skippedRecords)}</td><td data-label="Status">${escapeHtml(item.status)}</td></tr>`).join("") : '<tr><td colspan="9">No inventory actions have been recorded.</td></tr>'; }
     catch (error) { historyRows.innerHTML = `<tr><td colspan="9">${escapeHtml(error.message || "History unavailable.")}</td></tr>`; }
   }
   document.getElementById("preview-import")?.addEventListener("click", previewImport);
@@ -182,7 +185,7 @@ import AppIllustration from "../../../components/AppIllustration.astro";
   loadHistory();
 </script>
 
-<style>
+<style is:global>
   .inventory-page { display: grid; gap: 1.5rem; }
   .inventory-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1rem; }
   .inventory-action-card { border: 1px solid var(--border-color,#d8dee9); border-radius: 1rem; padding: 1.25rem; background: var(--surface,#fff); }
@@ -207,5 +210,20 @@ import AppIllustration from "../../../components/AppIllustration.astro";
   dialog { max-width: 38rem; border: 0; border-radius: 1rem; padding: 0; box-shadow: 0 24px 60px rgba(15,23,42,.28); }
   dialog::backdrop { background: rgba(15,23,42,.55); }
   .confirmation-dialog { padding: 1.5rem; }
-  @media (max-width: 760px) { .inventory-actions { grid-template-columns: 1fr; } .inventory-controls .button { width: 100%; justify-content: center; } .drop-zone { padding: 1.4rem .75rem; } }
+  @media (max-width: 760px) {
+    .inventory-actions { grid-template-columns: 1fr; }
+    .inventory-controls .button { width: 100%; justify-content: center; }
+    .drop-zone { padding: 1.4rem .75rem; }
+    .preview-table-wrap, .inventory-page .table-wrap { overflow: visible; border: 0; box-shadow: none; background: transparent; }
+    .inventory-preview-table, .inventory-history-table, .inventory-preview-table tbody, .inventory-history-table tbody,
+    .inventory-preview-table tr, .inventory-history-table tr, .inventory-preview-table td, .inventory-history-table td { display: block; width: 100%; min-width: 0; }
+    .inventory-preview-table thead, .inventory-history-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    .inventory-preview-table tbody, .inventory-history-table tbody { display: grid; gap: 1rem; }
+    .inventory-preview-table tr, .inventory-history-table tr { padding: 1rem; border: 1px solid var(--color-border); border-radius: .75rem; background: #fff; }
+    .inventory-preview-table td, .inventory-history-table td { display: grid; grid-template-columns: minmax(7rem, 35%) minmax(0, 1fr); gap: .75rem; padding: .4rem 0; border: 0; overflow-wrap: anywhere; }
+    .inventory-preview-table td::before, .inventory-history-table td::before { content: attr(data-label); color: var(--color-muted); font-size: .72rem; font-weight: 900; text-transform: uppercase; }
+    .inventory-preview-table td[colspan], .inventory-history-table td[colspan] { display: block; }
+    .inventory-preview-table td[colspan]::before, .inventory-history-table td[colspan]::before { display: none; }
+    .validation-list { min-width: 0; }
+  }
 </style>

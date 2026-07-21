@@ -14,7 +14,8 @@ function assert(condition, message) {
 }
 
 assert(
-  myWorkApi.includes('withEditReturn(sop.editUrl, "owned-sops", "/my-work/?workFilter=owned#work-section-owned")') &&
+  myWorkApi.includes('withEditReturn(sop.editUrl, "owned-sops", scopedMyWorkReturn(workScope, "owned"))') &&
+    myWorkApi.includes('params.set("userId", workScope.selectedUser.id)') &&
     myWorkPage.includes('returnTo=${encodeURIComponent("/my-work/?workFilter=owned#work-section-owned")}'),
   "SOPs I Own must pass an explicit persistent return destination to the editor.",
 );
@@ -32,8 +33,8 @@ assert(
 );
 
 assert(
-  reviewQueue.includes('const origin = isNeedsReviewMode ? "needs-review" : "review-queue"') &&
-    reviewQueue.includes('const returnTo = isNeedsReviewMode ? "/admin/needs-review/" : "/review-queue/"') &&
+  reviewQueue.includes('requested.startsWith("my-work-")') &&
+    reviewQueue.includes('scopedOriginHref()') &&
     reviewQueue.includes('url.searchParams.set("returnTo", returnTo)') &&
     reviewQueue.includes('url.origin !== window.location.origin || url.pathname !== "/create/"'),
   "Review Queue and Needs Review must supply safe, entry-point-specific editor returns.",
@@ -44,6 +45,8 @@ for (const fragment of [
   '"my-drafts"',
   '"review-queue"',
   '"needs-review"',
+  '"my-work-reviews-needed"',
+  '"my-work-overdue-reviews"',
   'cancelHref: "/my-work/?workFilter=owned#work-section-owned"',
   'cancelHref: "/drafts/"',
   'cancelHref: "/review-queue/"',
@@ -51,7 +54,7 @@ for (const fragment of [
   'function normalizeInternalReturn(value)',
   'value.startsWith("//")',
   'url.origin !== window.location.origin',
-  'return requested === fallback ? requested : fallback',
+  'return requestedUrl.pathname === fallbackUrl.pathname ? requested : fallback',
   'cancelLink.href = isEdit ? returnHref("cancel") : "/my-work/"',
 ]) {
   assert(createForm.includes(fragment), `Editor return handling is missing: ${fragment}`);

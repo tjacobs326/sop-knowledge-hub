@@ -91,6 +91,12 @@ function withEditReturn(url: string, origin: string, returnTo: string) {
   return `${url}${separator}origin=${encodeURIComponent(origin)}&returnTo=${encodeURIComponent(returnTo)}`;
 }
 
+function scopedMyWorkReturn(workScope: ResolvedWorkScope, filter: "drafts" | "owned") {
+  const params = new URLSearchParams({ workFilter: filter, scope: workScope.scope, subRole: workScope.subRole.slug || workScope.subRole.id });
+  if (workScope.selectedUser?.id && workScope.scope === "user") params.set("userId", workScope.selectedUser.id);
+  return `/my-work/?${params.toString()}#work-section-${filter}`;
+}
+
 function normalizeReview(row: Record<string, unknown>) {
   const sopId = String(row.sopId || row.id || "");
   return {
@@ -210,7 +216,7 @@ async function queryDraftSops(db: D1DatabaseBinding, workScope: ResolvedWorkScop
     const sop = normalizeSop(row);
     return {
       ...sop,
-      editUrl: withEditReturn(sop.editUrl, "my-work-drafts", "/my-work/?workFilter=drafts#work-section-drafts"),
+      editUrl: withEditReturn(sop.editUrl, "my-work-drafts", scopedMyWorkReturn(workScope, "drafts")),
     };
   });
 }
@@ -257,7 +263,7 @@ async function queryOwnedSops(db: D1DatabaseBinding, workScope: ResolvedWorkScop
     const sop = normalizeSop(row);
     return {
       ...sop,
-      editUrl: withEditReturn(sop.editUrl, "owned-sops", "/my-work/?workFilter=owned#work-section-owned"),
+      editUrl: withEditReturn(sop.editUrl, "owned-sops", scopedMyWorkReturn(workScope, "owned")),
     };
   });
 }

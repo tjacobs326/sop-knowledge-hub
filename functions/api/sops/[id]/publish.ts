@@ -7,7 +7,6 @@ import { SopWorkflowTransitionError, transitionSop } from "../../../_shared/sop-
 
 interface WorkflowPayload {
   versionId?: string;
-  actorUserId?: string;
   notes?: string;
 }
 
@@ -26,7 +25,7 @@ export const onRequestPost = async (context: PagesFunctionContext) => {
     const transition = await transitionSop(context.env.DB!, {
       sopId: getRouteParam(context, "id"),
       versionId: payload?.versionId,
-      actorUserId: payload?.actorUserId || auth.user?.id,
+      actorUserId: auth.user?.id,
       notes: payload?.notes || "Published.",
       action: "publish",
     });

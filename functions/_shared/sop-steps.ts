@@ -184,6 +184,8 @@ export async function listProcedureSteps(db: D1DatabaseBinding, versionId: strin
         media.alt_text AS altText,
         COALESCE(media.is_decorative, 0) AS isDecorative,
         media.caption,
+        media.caption_url AS captionUrl,
+        media.transcript,
         media.created_at AS attachmentCreatedAt,
         step_media.relationship,
         step_media.sort_order AS attachmentSortOrder
@@ -222,6 +224,8 @@ export async function listProcedureSteps(db: D1DatabaseBinding, versionId: strin
         accessibilityStatus: Number(row.isDecorative || 0) === 1 ? "decorative" : row.altText ? "meaningful" : "",
         isDecorative: Number(row.isDecorative || 0) === 1,
         caption: row.caption || "",
+        captionUrl: row.captionUrl || "",
+        transcript: row.transcript || "",
         relationship: row.relationship || "Instructional Media",
         sortOrder: Number(row.attachmentSortOrder || 0),
         createdAt: row.attachmentCreatedAt || "",

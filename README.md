@@ -135,9 +135,9 @@ Roles represented in the model are Submitter, SOP Owner, Reviewer, and Publisher
 
 ## Permissions and Cloudflare Access
 
-Real authentication is intentionally not implemented yet.
+Production API authentication requires a signed Cloudflare Access application JWT. The backend validates the token signature, issuer, application audience, expiry, and authenticated email before mapping that email to an active database user. Request-supplied identity or role headers are accepted only on `localhost` for local development.
 
-For production, protect the full site with Cloudflare Access / Zero Trust so only organization users can reach it. Then restrict:
+Protect the full site with Cloudflare Access / Zero Trust so only organization users can reach it. Then restrict:
 
 - `/create`
 - `/admin`
@@ -191,6 +191,9 @@ After the Pages deployment is live, protect the site with Cloudflare Access / Ze
 4. Add an allow policy for your organization identity provider, email domain, or approved user groups.
 5. Require login for all organization users.
 6. Add a stricter policy for `/create`, `/admin`, and `/admin/review` when role-specific groups are ready.
+7. Under Workers & Pages > this Pages project > Settings > Environment variables, set `TEAM_DOMAIN` to the full Access team URL (for example, `https://example.cloudflareaccess.com`) and `POLICY_AUD` to this application's Access audience tag.
+
+The backend fails closed when either Access variable or the `Cf-Access-Jwt-Assertion` header is missing or invalid. Configure the same variables separately for Preview if preview deployments must use authenticated APIs.
 
 Suggested access model:
 

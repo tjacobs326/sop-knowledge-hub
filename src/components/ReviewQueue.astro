@@ -439,8 +439,19 @@ const description = isNeedsReviewMode
     try {
       const url = new URL(rawHref, window.location.origin);
       if (url.origin !== window.location.origin || url.pathname !== "/create/") return "";
-      const origin = isNeedsReviewMode ? "needs-review" : "review-queue";
-      const returnTo = isNeedsReviewMode ? "/admin/needs-review/" : "/review-queue/";
+      const requested = requestedOrigin();
+      const origin = isNeedsReviewMode
+        ? "needs-review"
+        : requested === "my-drafts-review"
+          ? "my-drafts"
+          : requested.startsWith("my-work-") || requested === "admin-review-queue"
+            ? requested
+            : "review-queue";
+      const returnTo = requested.startsWith("my-work-")
+        ? scopedOriginHref()
+        : requested === "my-drafts-review"
+          ? "/drafts/"
+          : safeOrigins[requested]?.href || "/review-queue/";
       url.searchParams.set("origin", origin);
       url.searchParams.set("returnTo", returnTo);
       return `${url.pathname}${url.search}${url.hash}`;

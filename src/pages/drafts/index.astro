@@ -58,8 +58,8 @@ import { statusBadgeDefinitions } from "../../lib/badges";
     <form method="dialog" class="archive-draft-dialog">
       <h2 id="archive-draft-heading">Archive this SOP draft?</h2>
       <p id="archive-draft-description">The SOP will be removed from My Drafts and added to Archived SOPs. Its content, attachments, and history will be preserved.</p>
-      <label class="field"><span>Archive reason <span aria-hidden="true">*</span></span><textarea id="archive-draft-reason" rows="4" required aria-required="true"></textarea></label>
-      <p class="form-errors" id="archive-draft-error" role="alert" hidden>Enter an archive reason.</p>
+      <label class="field"><span>Archive reason <span aria-hidden="true">*</span></span><textarea id="archive-draft-reason" rows="4" required minlength="3" maxlength="2000" aria-required="true"></textarea></label>
+      <p class="form-errors" id="archive-draft-error" role="alert" hidden>Enter an archive reason of at least 3 characters.</p>
       <div class="form-actions"><button class="button button--ghost" value="cancel">Cancel</button><button class="button button--danger" value="confirm">Archive SOP</button></div>
     </form>
   </dialog>
@@ -328,13 +328,18 @@ import { statusBadgeDefinitions } from "../../lib/badges";
   archiveDialog?.addEventListener("close", () => {
     if (archiveDialog.returnValue !== "confirm") return;
     const reason = archiveReason instanceof HTMLTextAreaElement ? archiveReason.value.trim() : "";
-    if (!reason) {
+    if (reason.length < 3) {
       if (archiveError) archiveError.hidden = false;
       archiveDialog.showModal();
       archiveReason?.focus();
       return;
     }
-    runDraftWorkflow(pendingArchiveId, "archive", pendingArchiveButton, reason).catch(showError);
+    runDraftWorkflow(pendingArchiveId, "archive", pendingArchiveButton, reason).catch((error) => {
+      if (pendingArchiveButton instanceof HTMLButtonElement) pendingArchiveButton.disabled = false;
+      if (archiveError) { archiveError.hidden = false; archiveError.textContent = error instanceof Error ? error.message : "The SOP could not be archived."; }
+      archiveDialog.showModal();
+      archiveReason?.focus();
+    });
   });
 
   window.addEventListener("storage", (event) => {

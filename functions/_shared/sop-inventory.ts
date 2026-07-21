@@ -2,12 +2,13 @@ import { idFrom, slugify } from "./admin";
 import { newId, safeJsonParse, type D1DatabaseBinding } from "./cloudflare";
 
 export const MAX_INVENTORY_BYTES = 5 * 1024 * 1024;
-export const MAX_INVENTORY_ROWS = 5000;
+export const MAX_INVENTORY_ROWS = 20;
+export const MAX_INVENTORY_TAGS = 20;
 export const IMPORT_COLUMNS = [
   "sop_id", "title", "summary", "category", "department", "creator_reviewer_role", "owner_user_id",
   "author_user_id", "status", "version_number", "review_due_date", "tags", "source", "type", "visibility",
 ] as const;
-export const REQUIRED_IMPORT_COLUMNS = ["sop_id", "title", "summary", "category", "department", "creator_reviewer_role", "status", "version_number"];
+export const REQUIRED_IMPORT_COLUMNS = ["sop_id", "title", "summary", "category", "department", "creator_reviewer_role"];
 export const SOP_STATUSES = new Set(["Draft", "In Review", "Approved", "Needs Revision", "Published", "Archived"]);
 const SOP_TYPES = new Set(["Process", "Troubleshooting Guide", "Template", "Checklist", "Job Aid", "Decision Tree"]);
 const VISIBILITIES = new Set(["Internal", "Restricted", "Public"]);
@@ -70,9 +71,17 @@ export function inventoryTemplateCsv() {
 function canonical(value: unknown) { return String(value || "").trim().toLowerCase(); }
 function validDate(value: string) {
   if (!value) return true;
-  return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(new Date(`${value}T00:00:00Z`).getTime());
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return false;
+  const year = Number(match[1]), month = Number(match[2]), day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 }
 function unsafe(value: string) { return FORMULA_PREFIX.test(value); }
+
+function inventorySlug(title: string, sopId: string) {
+  return `${slugify(title, "sop")}-${sopId.slice(-12).toLowerCase().replace(/[^a-z0-9]+/g, "-")}`.replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+}
 
 export async function buildInventoryPreview(db: D1DatabaseBinding, csvText: string) {
   let parsed: string[][];
@@ -89,13 +98,15 @@ export async function buildInventoryPreview(db: D1DatabaseBinding, csvText: stri
     db.prepare("SELECT id, name FROM categories").all<{ id: string; name: string }>(),
     db.prepare("SELECT id, label, department FROM creator_sub_roles WHERE status = 'Active'").all<{ id: string; label: string; department: string }>(),
     db.prepare("SELECT id FROM users WHERE status = 'Active' AND COALESCE(is_active, 1) = 1").all<{ id: string }>(),
-    db.prepare("SELECT id FROM sops").all<{ id: string }>(),
+    db.prepare("SELECT id, slug FROM sops").all<{ id: string; slug: string }>(),
   ]);
   const categoryMap = new Map((categories.results || []).map((item) => [canonical(item.name), item]));
   const roleMap = new Map((roles.results || []).map((item) => [canonical(item.label), item]));
   const userIds = new Set((users.results || []).map((item) => item.id));
   const existingIds = new Set((existing.results || []).map((item) => item.id));
+  const existingSlugOwners = new Map((existing.results || []).map((item) => [canonical(item.slug), item.id]));
   const seen = new Set<string>();
+  const plannedSlugOwners = new Map<string, string>();
   const indexFor = (name: string) => headers.indexOf(name);
   const cell = (values: string[], name: string) => indexFor(name) < 0 ? "" : String(values[indexFor(name)] || "").trim();
   const rows: InventoryPreviewRow[] = dataRows.map((values, offset) => {
@@ -103,7 +114,7 @@ export async function buildInventoryPreview(db: D1DatabaseBinding, csvText: stri
     const sopId = cell(values, "sop_id"), title = cell(values, "title"), summary = cell(values, "summary");
     const categoryName = cell(values, "category"), department = cell(values, "department"), roleName = cell(values, "creator_reviewer_role");
     const ownerUserId = cell(values, "owner_user_id"), authorUserId = cell(values, "author_user_id");
-    const status = cell(values, "status"), versionNumber = cell(values, "version_number");
+    const status = cell(values, "status") || "Draft", versionNumber = cell(values, "version_number") || "0.1";
     const reviewDueDate = cell(values, "review_due_date"), source = cell(values, "source") || "Imported";
     const type = cell(values, "type") || "Process", visibility = cell(values, "visibility") || "Internal";
     const rawTags = cell(values, "tags"), errors: Array<{ column: string; message: string }> = [], warnings: string[] = [];
@@ -120,7 +131,7 @@ export async function buildInventoryPreview(db: D1DatabaseBinding, csvText: stri
     if (ownerUserId && !userIds.has(ownerUserId)) add("owner_user_id", "Owner user ID is not an active user.");
     if (authorUserId && !userIds.has(authorUserId)) add("author_user_id", "Author user ID is not an active user.");
     if (!SOP_STATUSES.has(status)) add("status", "Status is not part of the SOP workflow.");
-    if (!versionNumber || versionNumber.length > 40) add("version_number", "Version number is required and must be 40 characters or fewer.");
+    if (versionNumber.length > 40) add("version_number", "Version number must be 40 characters or fewer.");
     if (!validDate(reviewDueDate)) add("review_due_date", "Use a valid date in YYYY-MM-DD format.");
     if (!SOURCES.has(source)) add("source", "Source must be Markdown, Database, or Imported.");
     if (!SOP_TYPES.has(type)) add("type", "SOP type is not recognized.");
@@ -129,10 +140,17 @@ export async function buildInventoryPreview(db: D1DatabaseBinding, csvText: stri
       if (unsafe(value)) add(column, "Spreadsheet formulas are not allowed.");
     }
     const exists = existingIds.has(sopId);
+    const slug = inventorySlug(title, sopId);
+    const slugOwner = existingSlugOwners.get(canonical(slug)) || plannedSlugOwners.get(canonical(slug));
+    if (!exists && slugOwner && slugOwner !== sopId) add("title", `The generated slug conflicts with SOP ${slugOwner}. Change the title or SOP ID.`);
+    if (!exists && slug) plannedSlugOwners.set(canonical(slug), sopId);
     if (!exists && status !== "Draft") warnings.push(`New SOP will be created as Draft, not ${status}.`);
     if (!exists && visibility === "Public") warnings.push("New SOP visibility will be Internal until normal review and publishing are complete.");
-    if (exists) warnings.push("Workflow status, content, steps, attachments, approvals, and version history will be preserved.");
+    if (!exists && source !== "Imported") warnings.push(`New SOP source will be Imported, not ${source}.`);
+    if (exists) warnings.push("Workflow status, author, content, steps, attachments, approvals, and version history will be preserved.");
     const tags = Array.from(new Set(rawTags.split("|").map((tag) => tag.trim()).filter(Boolean)));
+    if (tags.length > MAX_INVENTORY_TAGS) add("tags", `Use no more than ${MAX_INVENTORY_TAGS} tags per SOP.`);
+    if (tags.some((tag) => tag.length > 120)) add("tags", "Each tag must be 120 characters or fewer.");
     const valid = errors.length === 0;
     return { rowNumber, sopId, title, valid, existing: exists, duplicate, action: valid ? (exists ? "Update" : "Create") : "Invalid", errors, warnings,
       payload: valid ? { sopId, title, summary, categoryId: category!.id, category: category!.name, department: role!.department, ownerSubRoleId: role!.id, creatorReviewerRole: role!.label, ownerUserId: ownerUserId || null, authorUserId: authorUserId || null, requestedStatus: status, versionNumber, reviewDueDate: reviewDueDate || null, tags, source, type, visibility } : undefined };
@@ -169,16 +187,21 @@ export const EXPORT_COLUMNS = ["sop_id","title","summary","category","department
 
 export function tagStatements(db: D1DatabaseBinding, sopId: string, tags: string[]) {
   const statements = [db.prepare("DELETE FROM sop_tags WHERE sop_id = ?").bind(sopId)];
-  for (const name of tags) {
-    const id = idFrom(name, "tag"), slug = slugify(name, id);
-    statements.push(db.prepare("INSERT OR IGNORE INTO tags (id, name, slug, created_at, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)").bind(id, name.slice(0, 120), slug));
-    statements.push(db.prepare("INSERT OR IGNORE INTO sop_tags (sop_id, tag_id) VALUES (?, ?)").bind(sopId, id));
-  }
+  if (!tags.length) return statements;
+  const values = tags.map(() => "(?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)").join(",");
+  const tagBindings = tags.flatMap((name) => {
+    const id = idFrom(name, "tag");
+    return [id, name, slugify(name, id)];
+  });
+  statements.push(
+    db.prepare(`INSERT OR IGNORE INTO tags (id, name, slug, created_at, updated_at) VALUES ${values}`).bind(...tagBindings),
+    db.prepare(`INSERT OR IGNORE INTO sop_tags (sop_id, tag_id) SELECT ?, id FROM tags WHERE name IN (${tags.map(() => "?").join(",")})`).bind(sopId, ...tags),
+  );
   return statements;
 }
 
 export function newSopStatements(db: D1DatabaseBinding, payload: InventoryPayload, actorId: string) {
-  const versionId = newId("version"), slug = `${slugify(payload.title, "sop")}-${payload.sopId.slice(-12).toLowerCase().replace(/[^a-z0-9]+/g, "-")}`.replace(/-+/g, "-");
+  const versionId = newId("version"), slug = inventorySlug(payload.title, payload.sopId);
   const metadata = JSON.stringify({ tags: payload.tags, importedInventory: true });
   return [
     db.prepare(`INSERT INTO sops (id,title,slug,summary,purpose,category_id,owner_id,owner_user_id,owner_team_id,owner_sub_role_id,status,type,current_version_id,review_date,review_due_at,is_active,created_by_user_id,source_type,visibility,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,NULL,?,'Draft',?,?,?,CASE WHEN ? IS NULL THEN NULL ELSE unixepoch(?) END,1,?,'Imported','Internal',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`).bind(payload.sopId,payload.title,slug,payload.summary,payload.summary,payload.categoryId,payload.ownerUserId,payload.ownerUserId,payload.ownerSubRoleId,payload.type,versionId,payload.reviewDueDate,payload.reviewDueDate,payload.reviewDueDate,payload.authorUserId || actorId),
@@ -188,7 +211,7 @@ export function newSopStatements(db: D1DatabaseBinding, payload: InventoryPayloa
 }
 
 export function updateSopStatements(db: D1DatabaseBinding, payload: InventoryPayload) {
-  return [db.prepare(`UPDATE sops SET title=?,summary=?,purpose=?,category_id=?,owner_id=?,owner_user_id=?,owner_sub_role_id=?,review_date=?,review_due_at=CASE WHEN ? IS NULL THEN NULL ELSE unixepoch(?) END,source_type=?,type=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`).bind(payload.title,payload.summary,payload.summary,payload.categoryId,payload.ownerUserId,payload.ownerUserId,payload.ownerSubRoleId,payload.reviewDueDate,payload.reviewDueDate,payload.reviewDueDate,payload.source,payload.type,payload.sopId), ...tagStatements(db, payload.sopId, payload.tags)];
+  return [db.prepare(`UPDATE sops SET title=?,summary=?,purpose=?,category_id=?,owner_id=?,owner_user_id=?,owner_sub_role_id=?,review_date=?,review_due_at=CASE WHEN ? IS NULL THEN NULL ELSE unixepoch(?) END,source_type=?,type=?,visibility=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`).bind(payload.title,payload.summary,payload.summary,payload.categoryId,payload.ownerUserId,payload.ownerUserId,payload.ownerSubRoleId,payload.reviewDueDate,payload.reviewDueDate,payload.reviewDueDate,payload.source,payload.type,payload.visibility,payload.sopId), ...tagStatements(db, payload.sopId, payload.tags)];
 }
 
 export function auditStatement(db: D1DatabaseBinding, actorId: string, action: string, sopId: string, before: unknown, after: unknown, request: Request) {

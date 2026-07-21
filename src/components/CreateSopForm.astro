@@ -186,6 +186,35 @@ const sopTypes = [
       cancelHref: "/admin/needs-review/",
       saveHref: "/admin/needs-review/",
     },
+    "admin-review-queue": {
+      breadcrumb: `
+        <li><a href="/">Home</a></li>
+        <li><a href="/admin/review/">Admin Review Queue</a></li>
+        <li><span aria-current="page">Edit Draft</span></li>
+      `,
+      cancelHref: "/admin/review/",
+      saveHref: "/admin/review/",
+    },
+    "my-work-reviews-needed": {
+      breadcrumb: `
+        <li><a href="/">Home</a></li>
+        <li><a href="/my-work/?view=team-reviews-needed&workFilter=review#work-section-review">My Work</a></li>
+        <li><a href="/my-work/?view=team-reviews-needed&workFilter=review#work-section-review">Reviews Needed</a></li>
+        <li><span aria-current="page">Edit Draft</span></li>
+      `,
+      cancelHref: "/my-work/?view=team-reviews-needed&workFilter=review#work-section-review",
+      saveHref: "/my-work/?view=team-reviews-needed&workFilter=review#work-section-review",
+    },
+    "my-work-overdue-reviews": {
+      breadcrumb: `
+        <li><a href="/">Home</a></li>
+        <li><a href="/my-work/?view=team-overdue-reviews&workFilter=overdue#work-section-overdue">My Work</a></li>
+        <li><a href="/my-work/?view=team-overdue-reviews&workFilter=overdue#work-section-overdue">Overdue Reviews</a></li>
+        <li><span aria-current="page">Edit Draft</span></li>
+      `,
+      cancelHref: "/my-work/?view=team-overdue-reviews&workFilter=overdue#work-section-overdue",
+      saveHref: "/my-work/?view=team-overdue-reviews&workFilter=overdue#work-section-overdue",
+    },
   };
   let options = { currentUser: null, categories: [], users: [], reviewers: [], tags: [] };
   let currentSop = null;
@@ -729,7 +758,10 @@ const sopTypes = [
     const origin = EDIT_ORIGINS[originKey] || EDIT_ORIGINS["my-drafts"];
     const fallback = type === "save" ? origin.saveHref : origin.cancelHref;
     const requested = normalizeInternalReturn(new URLSearchParams(window.location.search).get("returnTo") || "");
-    return requested === fallback ? requested : fallback;
+    if (!requested) return fallback;
+    const requestedUrl = new URL(requested, window.location.origin);
+    const fallbackUrl = new URL(fallback, window.location.origin);
+    return requestedUrl.pathname === fallbackUrl.pathname ? requested : fallback;
   }
 
   function returnHref(type = "cancel") {

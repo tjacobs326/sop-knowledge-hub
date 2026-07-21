@@ -33,9 +33,9 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
     const rows = await inventoryExportRows(db);
     await recordExport(db, auth.user!.id, fileName, rows.length);
     return csvResponse(toCsv(EXPORT_COLUMNS, rows), fileName);
-  } catch (error) {
+  } catch {
     await recordExport(db, auth.user!.id, fileName, 0, "Failed").catch(() => undefined);
-    return jsonResponse({ error: error instanceof Error ? error.message : "Unable to export SOP inventory." }, 500);
+    return jsonResponse({ error: "Unable to export SOP inventory." }, 500);
   }
 };
 

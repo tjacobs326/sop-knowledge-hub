@@ -7,7 +7,6 @@ import { SopWorkflowTransitionError, transitionSop } from "../../../_shared/sop-
 
 interface WorkflowPayload {
   versionId?: string;
-  actorUserId?: string;
   notes?: string;
   reason?: string;
 }
@@ -24,12 +23,13 @@ export const onRequestPost = async (context: PagesFunctionContext) => {
   if (parseError) return parseError;
   const reason = String(payload?.reason || payload?.notes || "").trim();
   if (reason.length < 3) return failure("VALIDATION_ERROR", "An archive reason is required.", 400, { reason: "Enter an archive reason." });
+  if (reason.length > 2000) return failure("VALIDATION_ERROR", "Archive reasons must be 2,000 characters or fewer.", 400, { reason: "Shorten the archive reason." });
 
   try {
     const transition = await transitionSop(context.env.DB!, {
       sopId: getRouteParam(context, "id"),
       versionId: payload?.versionId,
-      actorUserId: payload?.actorUserId || auth.user?.id,
+      actorUserId: auth.user?.id,
       notes: reason,
       action: "archive",
       actorRole: auth.user?.accessLevel,
