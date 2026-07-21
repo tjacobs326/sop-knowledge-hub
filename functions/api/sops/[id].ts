@@ -71,7 +71,6 @@ interface UpdateSopPayload {
   changeSummary?: string;
   reviewDate?: string;
   reviewDueAt?: number | string;
-  actorUserId?: string;
   procedureSteps?: ProcedureStepInput[];
 }
 
@@ -197,7 +196,7 @@ export const onRequestPut = async (context: PagesFunctionContext) => {
   )
     .bind(
       newId("audit"),
-      payload?.actorUserId || auth.user?.id || null,
+      auth.user?.id || null,
       "update_sop",
       "sop",
       id,

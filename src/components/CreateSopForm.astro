@@ -177,6 +177,44 @@ const sopTypes = [
       cancelHref: "/review-queue/",
       saveHref: "/review-queue/",
     },
+    "needs-review": {
+      breadcrumb: `
+        <li><a href="/">Home</a></li>
+        <li><a href="/admin/needs-review/">Needs Review</a></li>
+        <li><span aria-current="page">Edit Draft</span></li>
+      `,
+      cancelHref: "/admin/needs-review/",
+      saveHref: "/admin/needs-review/",
+    },
+    "admin-review-queue": {
+      breadcrumb: `
+        <li><a href="/">Home</a></li>
+        <li><a href="/admin/review/">Admin Review Queue</a></li>
+        <li><span aria-current="page">Edit Draft</span></li>
+      `,
+      cancelHref: "/admin/review/",
+      saveHref: "/admin/review/",
+    },
+    "my-work-reviews-needed": {
+      breadcrumb: `
+        <li><a href="/">Home</a></li>
+        <li><a href="/my-work/?view=team-reviews-needed&workFilter=review#work-section-review">My Work</a></li>
+        <li><a href="/my-work/?view=team-reviews-needed&workFilter=review#work-section-review">Reviews Needed</a></li>
+        <li><span aria-current="page">Edit Draft</span></li>
+      `,
+      cancelHref: "/my-work/?view=team-reviews-needed&workFilter=review#work-section-review",
+      saveHref: "/my-work/?view=team-reviews-needed&workFilter=review#work-section-review",
+    },
+    "my-work-overdue-reviews": {
+      breadcrumb: `
+        <li><a href="/">Home</a></li>
+        <li><a href="/my-work/?view=team-overdue-reviews&workFilter=overdue#work-section-overdue">My Work</a></li>
+        <li><a href="/my-work/?view=team-overdue-reviews&workFilter=overdue#work-section-overdue">Overdue Reviews</a></li>
+        <li><span aria-current="page">Edit Draft</span></li>
+      `,
+      cancelHref: "/my-work/?view=team-overdue-reviews&workFilter=overdue#work-section-overdue",
+      saveHref: "/my-work/?view=team-overdue-reviews&workFilter=overdue#work-section-overdue",
+    },
   };
   let options = { currentUser: null, categories: [], users: [], reviewers: [], tags: [] };
   let currentSop = null;
@@ -705,9 +743,29 @@ const sopTypes = [
     return Object.prototype.hasOwnProperty.call(EDIT_ORIGINS, origin);
   }
 
+  function normalizeInternalReturn(value) {
+    if (!value || !value.startsWith("/") || value.startsWith("//")) return "";
+    try {
+      const url = new URL(value, window.location.origin);
+      if (url.origin !== window.location.origin) return "";
+      return `${url.pathname}${url.search}${url.hash}`;
+    } catch {
+      return "";
+    }
+  }
+
+  function validatedReturnHref(originKey = currentEditOrigin, type = "cancel") {
+    const origin = EDIT_ORIGINS[originKey] || EDIT_ORIGINS["my-drafts"];
+    const fallback = type === "save" ? origin.saveHref : origin.cancelHref;
+    const requested = normalizeInternalReturn(new URLSearchParams(window.location.search).get("returnTo") || "");
+    if (!requested) return fallback;
+    const requestedUrl = new URL(requested, window.location.origin);
+    const fallbackUrl = new URL(fallback, window.location.origin);
+    return requestedUrl.pathname === fallbackUrl.pathname ? requested : fallback;
+  }
+
   function returnHref(type = "cancel") {
-    const origin = EDIT_ORIGINS[currentEditOrigin] || EDIT_ORIGINS["my-drafts"];
-    return type === "save" ? origin.saveHref : origin.cancelHref;
+    return validatedReturnHref(currentEditOrigin, type);
   }
 
   function renderEditorBreadcrumbs(mode = "create") {
@@ -726,10 +784,15 @@ const sopTypes = [
   function setCreateMode(mode = "create", originOverride = "") {
     const isEdit = mode === "edit";
     if (isEdit) currentEditOrigin = originOverride || editorOrigin();
+    const isOwnedSop = isEdit && currentEditOrigin === "owned-sops";
     currentFormMode = isEdit ? "edit" : "create";
     document.body.dataset.sopEditorMode = isEdit ? "edit" : "create";
-    document.title = isEdit ? "Edit Draft SOP | SOP Knowledge Hub" : "Create New SOP | SOP Knowledge Hub";
-    if (createHeading) createHeading.textContent = isEdit ? "Edit Draft SOP" : "Create New SOP";
+    document.title = isOwnedSop
+      ? "Edit SOP | SOP Knowledge Hub"
+      : isEdit
+        ? "Edit Draft SOP | SOP Knowledge Hub"
+        : "Create New SOP | SOP Knowledge Hub";
+    if (createHeading) createHeading.textContent = isOwnedSop ? "Edit SOP" : isEdit ? "Edit Draft SOP" : "Create New SOP";
     if (createDescription) {
       createDescription.textContent = isEdit
         ? "Edit the selected backend draft, review your changes, then save, submit, or publish from the confirmation step."

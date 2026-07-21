@@ -12,6 +12,12 @@
     "test:my-drafts-role-switching": "npm run test:role-switching",
     "test:review-queue-scope": "node scripts/review-queue-scope-mode-smoke.mjs",
     "test:my-work-card-navigation": "node scripts/my-work-card-navigation-smoke.mjs",
+    "test:editor-return-routing": "node scripts/editor-return-routing-smoke.mjs",
+    "test:sop-inventory": "node scripts/sop-inventory-smoke.mjs",
+    "test:archived-sops": "node scripts/archived-sops-smoke.mjs",
+    "test:my-drafts-actions": "node scripts/my-drafts-actions-layout-smoke.mjs",
+    "test:archive-inventory-integration": "node tests/archive-inventory-integration.mjs",
+    "test:archive-inventory:responsive": "playwright test tests/archive-inventory-responsive.spec.mjs --reporter=line",
     "test:admin-departments": "node scripts/admin-departments-smoke.mjs",
     "test:step-attachments": "node scripts/step-attachments-smoke.mjs",
     "test:guided-finder": "node scripts/guided-finder-smoke.mjs",
@@ -33,6 +39,7 @@
   },
   "dependencies": {
     "astro": "latest",
+    "jose": "^6.1.0",
     "pagefind": "latest"
   },
   "devDependencies": {

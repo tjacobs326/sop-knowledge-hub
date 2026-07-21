@@ -20,7 +20,6 @@ interface SopVersionPayload {
   checklist?: string;
   troubleshooting?: string;
   changeSummary?: string;
-  actorUserId?: string;
   tools?: string[] | string;
   audience?: string[] | string;
 }
@@ -126,8 +125,8 @@ export const onRequestPost = async (context: PagesFunctionContext) => {
       metadata,
       optionalText(payload?.changeSummary || "Draft version created.", 2000),
       "Draft",
-      payload?.actorUserId || auth.user?.id || null,
-      payload?.actorUserId || auth.user?.id || null,
+      auth.user?.id || null,
+      auth.user?.id || null,
       nowIso,
       now,
     )

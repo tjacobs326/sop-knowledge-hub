@@ -7042,15 +7042,143 @@ tbody tr:hover {
 }
 
 .review-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.65rem;
-  align-items: end;
+  display: grid;
+  gap: 0.85rem;
   margin-top: 1rem;
 }
 
 .review-actions label {
-  width: min(100%, 240px);
+  width: 100%;
+}
+
+.review-item-navigation {
+  display: flex;
+  justify-content: flex-start;
+  margin: 0 0 0.85rem;
+}
+
+.review-back-link {
+  width: auto;
+  min-height: 2.25rem;
+  padding: 0.42rem 0.7rem;
+  gap: 0.4rem;
+  font-size: 0.88rem;
+}
+
+.review-back-link span[aria-hidden="true"] {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.review-actions__bar,
+.review-actions__utility,
+.review-actions__workflow,
+.review-actions__group,
+.review-actions__decisions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: center;
+}
+
+.review-actions__bar {
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.review-actions__workflow {
+  justify-content: flex-end;
+  align-items: flex-end;
+}
+
+.review-actions__group {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.review-actions__group-label {
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.review-actions__decisions {
+  justify-content: flex-end;
+}
+
+.my-work-back-to-top-row {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: clamp(1.25rem, 3vw, 2rem);
+  padding-bottom: clamp(4.5rem, 9vw, 7rem);
+}
+
+html:has(#my-work-top) {
+  scroll-behavior: smooth;
+}
+
+.my-work-back-to-top {
+  width: auto;
+  min-width: 9rem;
+  min-height: 2.75rem;
+  gap: 0.45rem;
+}
+
+.my-work-back-to-top span[aria-hidden="true"] {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+#my-work-heading:focus-visible {
+  outline: 3px solid var(--color-focus, #f59e0b);
+  outline-offset: 0.3rem;
+}
+
+@media (max-width: 720px) {
+  .review-actions__bar {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .review-actions__utility,
+  .review-actions__workflow,
+  .review-actions__decisions {
+    justify-content: flex-start;
+  }
+
+  .review-actions__workflow {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+    width: 100%;
+  }
+
+  .review-actions__group {
+    align-content: start;
+  }
+
+  .review-actions__decisions .button {
+    flex: 1 1 min(100%, 9rem);
+    width: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .my-work-back-to-top-row {
+    justify-content: flex-start;
+    padding-bottom: 7rem;
+  }
+
+  .my-work-back-to-top {
+    width: 100%;
+    min-height: 2.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 }
 
 @media (max-width: 1180px) {

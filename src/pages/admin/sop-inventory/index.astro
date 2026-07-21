@@ -1,0 +1,229 @@
+---
+import Layout from "../../../components/Layout.astro";
+import AppIllustration from "../../../components/AppIllustration.astro";
+---
+
+<Layout title="SOP Inventory Import and Export" wide>
+  <section class="tool-surface inventory-page" aria-labelledby="inventory-heading">
+    <div class="section-heading surface-intro">
+      <div>
+        <p class="eyebrow">Admin</p>
+        <h1 id="inventory-heading">SOP Inventory Import and Export</h1>
+        <p>Export the live D1 inventory or validate a governed CSV import before any records change.</p>
+      </div>
+      <AppIllustration name="admin" size="md" />
+    </div>
+
+    <div class="inventory-actions" aria-label="SOP inventory actions">
+      <article class="inventory-action-card">
+        <p class="eyebrow">Live database</p>
+        <h2>Export SOP Inventory</h2>
+        <p>Download one UTF-8 CSV row per SOP, including workflow, ownership, governance, step, attachment, and URL fields.</p>
+        <button class="button button--primary" id="export-inventory" type="button">Export SOP Inventory</button>
+      </article>
+      <article class="inventory-action-card">
+        <p class="eyebrow">Validated workflow</p>
+        <h2>Import SOP Inventory</h2>
+        <p>New records become internal drafts. Existing updates preserve content, steps, files, status, approvals, and version history.</p>
+        <button class="button button--secondary" id="download-template" type="button">Download CSV Template</button>
+      </article>
+    </div>
+
+    <section class="dashboard-section" aria-labelledby="upload-heading">
+      <div class="section-heading compact-heading">
+         <div><h2 id="upload-heading">Select and validate a CSV</h2><p>Maximum 5 MB and 20 data rows per atomic import. Required columns are marked below.</p></div>
+      </div>
+      <details class="column-guide">
+        <summary>View CSV column instructions</summary>
+        <div class="column-guide__content">
+          <p><strong>Required:</strong> <code>sop_id</code>, <code>title</code>, <code>summary</code>, <code>category</code>, <code>department</code>, and <code>creator_reviewer_role</code>.</p>
+          <p><strong>Optional:</strong> <code>owner_user_id</code>, <code>author_user_id</code>, <code>status</code>, <code>version_number</code>, <code>review_due_date</code> (YYYY-MM-DD), <code>tags</code> (up to 20, pipe-separated), <code>source</code>, <code>type</code>, and <code>visibility</code>.</p>
+          <p>Categories, departments, roles, and user IDs must already exist. Spreadsheet formulas are rejected. New SOPs always use Draft status, Imported source, and Internal visibility. Existing SOP status, author, content, steps, attachments, approvals, and version history are preserved.</p>
+        </div>
+      </details>
+
+      <label class="drop-zone" id="inventory-drop-zone" for="inventory-file">
+        <strong>Choose a CSV file or drop it here</strong>
+        <span>CSV only · 5 MB maximum</span>
+        <input id="inventory-file" type="file" accept=".csv,text/csv" />
+      </label>
+      <div class="inventory-controls">
+        <button class="button button--primary" id="preview-import" type="button">Validate and Preview</button>
+        <button class="button button--secondary" id="clear-import" type="button">Clear</button>
+      </div>
+      <div class="notice" id="inventory-status" role="status" aria-live="polite">Choose a CSV file to begin.</div>
+      <progress id="inventory-progress" max="100" value="0" hidden aria-label="Import progress"></progress>
+    </section>
+
+    <section class="dashboard-section" id="preview-section" aria-labelledby="preview-heading" hidden>
+      <h2 id="preview-heading">Import Preview</h2>
+      <div class="stat-grid inventory-summary" id="inventory-summary"></div>
+      <fieldset class="strategy-fieldset">
+        <legend>When an SOP ID already exists</legend>
+        <label><input type="radio" name="existing-strategy" value="skip" checked /> Skip existing records <span>(safe default)</span></label>
+        <label><input type="radio" name="existing-strategy" value="update" /> Update supported inventory fields</label>
+      </fieldset>
+      <p class="safety-note"><strong>Protected:</strong> SOP content, steps, attachments, workflow status, approvals, reviews, publication state, and version history are never overwritten by this import.</p>
+      <div class="table-wrap preview-table-wrap" role="region" aria-labelledby="preview-heading" tabindex="0">
+        <table class="inventory-preview-table">
+          <caption class="sr-only">Validated SOP inventory rows</caption>
+          <thead><tr><th scope="col">Row</th><th scope="col">SOP ID</th><th scope="col">Title</th><th scope="col">Result</th><th scope="col">Validation details</th></tr></thead>
+          <tbody id="preview-rows"></tbody>
+        </table>
+      </div>
+      <div class="inventory-controls">
+        <button class="button button--primary" id="commit-import" type="button">Confirm Import</button>
+        <button class="button button--secondary" id="cancel-import" type="button">Cancel Import</button>
+      </div>
+    </section>
+
+    <section class="dashboard-section" aria-labelledby="history-heading">
+      <div class="section-heading compact-heading"><div><h2 id="history-heading">Import and Export History</h2><p>Recent inventory actions recorded for audit and operations review.</p></div><button class="button button--secondary" id="refresh-history" type="button">Refresh</button></div>
+      <div class="table-wrap" role="region" aria-labelledby="history-heading" tabindex="0"><table class="inventory-history-table"><caption class="sr-only">Recent inventory import and export jobs</caption><thead><tr><th scope="col">Action</th><th scope="col">Admin</th><th scope="col">File</th><th scope="col">Date</th><th scope="col">Rows</th><th scope="col">Created</th><th scope="col">Updated</th><th scope="col">Skipped</th><th scope="col">Status</th></tr></thead><tbody id="history-rows"><tr><td colspan="9">Loading inventory history…</td></tr></tbody></table></div>
+    </section>
+  </section>
+
+  <dialog id="import-confirmation" aria-labelledby="confirmation-heading">
+    <form method="dialog" class="confirmation-dialog">
+      <h2 id="confirmation-heading">Confirm SOP inventory import</h2>
+      <p id="confirmation-copy"></p>
+      <p>Changes are written in one atomic D1 batch. If any statement fails, no SOP record changes are committed.</p>
+      <div class="inventory-controls"><button class="button button--secondary" value="cancel">Go Back</button><button class="button button--primary" id="confirm-commit" value="confirm">Import Records</button></div>
+    </form>
+  </dialog>
+</Layout>
+
+<script>
+  // @ts-nocheck
+  import { apiErrorMessage as errorMessage, escapeHtml } from "../../../lib/client-utils";
+  const fileInput = document.getElementById("inventory-file");
+  const dropZone = document.getElementById("inventory-drop-zone");
+  const statusBox = document.getElementById("inventory-status");
+  const progress = document.getElementById("inventory-progress");
+  const previewSection = document.getElementById("preview-section");
+  const summaryGrid = document.getElementById("inventory-summary");
+  const previewRows = document.getElementById("preview-rows");
+  const historyRows = document.getElementById("history-rows");
+  const dialog = document.getElementById("import-confirmation");
+  let selectedFile = null;
+  let currentPreview = null;
+
+  function announce(message, kind = "info") { statusBox.textContent = message; statusBox.dataset.kind = kind; }
+  function setBusy(busy, message) { progress.hidden = !busy; progress.removeAttribute("value"); if (message) announce(message); document.querySelectorAll("#preview-import,#commit-import").forEach((button) => button.disabled = busy); }
+  function resetImport() { selectedFile = null; currentPreview = null; fileInput.value = ""; previewSection.hidden = true; progress.hidden = true; announce("Choose a CSV file to begin."); }
+  async function downloadCsv(url, fallbackName) {
+    announce(`Preparing ${fallbackName}…`);
+    try {
+      const response = await fetch(url);
+       if (!response.ok) { const data = await response.json().catch(() => ({})); throw new Error(errorMessage(data, "Download failed.")); }
+      const disposition = response.headers.get("content-disposition") || "";
+      const fileName = disposition.match(/filename="([^"]+)"/)?.[1] || fallbackName;
+      const objectUrl = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a"); link.href = objectUrl; link.download = fileName; document.body.append(link); link.click(); link.remove(); URL.revokeObjectURL(objectUrl);
+      announce(`${fileName} is ready.`, "success");
+      if (url.includes("action=export")) loadHistory();
+    } catch (error) { announce(error.message || "Download failed.", "error"); }
+  }
+  function acceptFile(file) {
+    if (!file || !file.name.toLowerCase().endsWith(".csv")) return announce("Choose a file with a .csv extension.", "error");
+    if (file.size > 5 * 1024 * 1024) return announce("The selected CSV is larger than 5 MB.", "error");
+    selectedFile = file; currentPreview = null; previewSection.hidden = true; announce(`${file.name} selected. Validate it to preview the records.`);
+  }
+  fileInput?.addEventListener("change", () => acceptFile(fileInput.files?.[0]));
+  ["dragenter", "dragover"].forEach((name) => dropZone?.addEventListener(name, (event) => { event.preventDefault(); dropZone.classList.add("is-dragging"); }));
+  ["dragleave", "drop"].forEach((name) => dropZone?.addEventListener(name, (event) => { event.preventDefault(); dropZone.classList.remove("is-dragging"); }));
+  dropZone?.addEventListener("drop", (event) => acceptFile(event.dataTransfer?.files?.[0]));
+
+  function renderPreview(preview) {
+    const summary = preview.summary;
+    currentPreview = preview;
+    const strategy = document.querySelector('input[name="existing-strategy"]:checked')?.value || "skip";
+    const stats = [["Total rows",summary.totalRows],["Valid rows",summary.validRows],["Invalid rows",summary.invalidRows],["New SOPs",summary.newRecords],["Existing SOPs",summary.existingRecords],["Duplicates",summary.duplicateRows],["Will skip",strategy === "skip" ? summary.existingRecords : 0]];
+    summaryGrid.innerHTML = stats.map(([label,value]) => `<article class="stat-card"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></article>`).join("");
+    previewRows.innerHTML = preview.rows.map((row) => {
+      const messages = [...row.errors.map((error) => `<li><strong>${escapeHtml(error.column)}:</strong> ${escapeHtml(error.message)}</li>`), ...row.warnings.map((warning) => `<li>${escapeHtml(warning)}</li>`)].join("");
+      return `<tr><td data-label="Row">${row.rowNumber}</td><td data-label="SOP ID"><code>${escapeHtml(row.sopId)}</code></td><td data-label="Title">${escapeHtml(row.title)}</td><td data-label="Result"><span class="status-badge ${row.valid ? "status-published" : "status-archived"}">${escapeHtml(row.action)}</span></td><td data-label="Validation details">${messages ? `<ul class="validation-list">${messages}</ul>` : "Ready"}</td></tr>`;
+    }).join("");
+    previewSection.hidden = false;
+    document.getElementById("commit-import").disabled = summary.invalidRows > 0;
+    announce(summary.invalidRows ? `${summary.invalidRows} invalid row(s) must be corrected before import.` : "Validation passed. Review every action before confirming.", summary.invalidRows ? "error" : "success");
+    const previewHeading = previewSection.querySelector("h2");
+    if (previewHeading instanceof HTMLElement) { previewHeading.tabIndex = -1; previewHeading.focus(); }
+  }
+
+  async function previewImport() {
+    if (!selectedFile) return announce("Choose a CSV file first.", "error");
+    setBusy(true, "Validating the CSV against the live inventory…");
+    const body = new FormData(); body.append("file", selectedFile);
+    try { const response = await fetch("/api/admin/sop-inventory?action=preview", { method: "POST", body }); const data = await response.json(); if (!response.ok) throw new Error(errorMessage(data, "Validation failed.")); renderPreview(data.preview); }
+    catch (error) { announce(error.message || "Validation failed.", "error"); }
+    finally { setBusy(false); }
+  }
+
+  async function commitImport() {
+    const strategy = document.querySelector('input[name="existing-strategy"]:checked')?.value || "skip";
+    const body = new FormData(); body.append("file", selectedFile); body.append("existingStrategy", strategy);
+    setBusy(true, "Importing records in an atomic D1 transaction…");
+    try { const response = await fetch("/api/admin/sop-inventory?action=commit", { method: "POST", body }); const data = await response.json(); if (!response.ok) throw new Error(errorMessage(data, "Import failed.")); announce(`Import complete: ${data.summary.createdRecords} created, ${data.summary.updatedRecords} updated, and ${data.summary.skippedRecords} skipped.`, "success"); currentPreview = null; previewSection.hidden = true; await loadHistory(); }
+    catch (error) { announce(error.message || "Import failed. No changes were made.", "error"); }
+    finally { setBusy(false); }
+  }
+
+  async function loadHistory() {
+    try { const response = await fetch("/api/admin/sop-inventory?action=history"); const data = await response.json(); if (!response.ok) throw new Error(errorMessage(data, "History unavailable.")); historyRows.innerHTML = data.history.length ? data.history.map((item) => `<tr><td data-label="Action">${escapeHtml(item.actionType)}</td><td data-label="Admin">${escapeHtml(item.adminUser)}</td><td data-label="File">${escapeHtml(item.fileName)}</td><td data-label="Date">${escapeHtml(new Date(item.createdAt).toLocaleString())}</td><td data-label="Rows">${escapeHtml(item.totalRows)}</td><td data-label="Created">${escapeHtml(item.createdRecords)}</td><td data-label="Updated">${escapeHtml(item.updatedRecords)}</td><td data-label="Skipped">${escapeHtml(item.skippedRecords)}</td><td data-label="Status">${escapeHtml(item.status)}</td></tr>`).join("") : '<tr><td colspan="9">No inventory actions have been recorded.</td></tr>'; }
+    catch (error) { historyRows.innerHTML = `<tr><td colspan="9">${escapeHtml(error.message || "History unavailable.")}</td></tr>`; }
+  }
+  document.getElementById("preview-import")?.addEventListener("click", previewImport);
+  document.getElementById("export-inventory")?.addEventListener("click", () => downloadCsv("/api/admin/sop-inventory?action=export", "sop-inventory.csv"));
+  document.getElementById("download-template")?.addEventListener("click", () => downloadCsv("/api/admin/sop-inventory?action=template", "sop-inventory-template.csv"));
+  document.getElementById("clear-import")?.addEventListener("click", resetImport);
+  document.getElementById("cancel-import")?.addEventListener("click", resetImport);
+  document.getElementById("refresh-history")?.addEventListener("click", loadHistory);
+  document.querySelectorAll('input[name="existing-strategy"]').forEach((input) => input.addEventListener("change", () => { if (currentPreview) renderPreview(currentPreview); }));
+  document.getElementById("commit-import")?.addEventListener("click", () => { if (!currentPreview) return; const strategy = document.querySelector('input[name="existing-strategy"]:checked')?.value || "skip"; document.getElementById("confirmation-copy").textContent = `${currentPreview.summary.newRecords} new SOP(s) will be created as drafts. Existing records will be ${strategy === "update" ? "updated only in supported inventory fields" : "skipped"}.`; dialog.showModal(); });
+  dialog?.addEventListener("close", () => { if (dialog.returnValue === "confirm") commitImport(); });
+  loadHistory();
+</script>
+
+<style is:global>
+  .inventory-page { display: grid; gap: 1.5rem; }
+  .inventory-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1rem; }
+  .inventory-action-card { border: 1px solid var(--border-color,#d8dee9); border-radius: 1rem; padding: 1.25rem; background: var(--surface,#fff); }
+  .inventory-action-card h2 { margin-top: .25rem; }
+  .compact-heading { align-items: center; }
+  .column-guide { margin: 1rem 0; border: 1px solid var(--border-color,#d8dee9); border-radius: .75rem; }
+  .column-guide summary { cursor: pointer; font-weight: 700; padding: .9rem 1rem; }
+  .column-guide__content { padding: 0 1rem 1rem; }
+  .drop-zone { display: grid; justify-items: center; gap: .35rem; padding: 2rem 1rem; border: 2px dashed #718096; border-radius: 1rem; background: #f8fafc; text-align: center; cursor: pointer; }
+  .drop-zone:focus-within,.drop-zone.is-dragging { border-color: #265d97; box-shadow: 0 0 0 3px rgba(38,93,151,.2); }
+  .drop-zone input { margin-top: .75rem; max-width: 100%; }
+  .inventory-controls { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1rem; }
+  #inventory-progress { width: 100%; margin-top: .75rem; }
+  .notice[data-kind="error"] { border-color: #b42318; color: #7a271a; }
+  .notice[data-kind="success"] { border-color: #16803c; color: #116329; }
+  .inventory-summary { grid-template-columns: repeat(auto-fit,minmax(120px,1fr)); margin: 1rem 0; }
+  .strategy-fieldset { display: grid; gap: .75rem; border: 1px solid var(--border-color,#d8dee9); border-radius: .75rem; padding: 1rem; }
+  .strategy-fieldset label { display: flex; align-items: center; gap: .5rem; }
+  .safety-note { padding: .9rem 1rem; border-left: 4px solid #265d97; background: #eef6ff; }
+  .preview-table-wrap { max-height: 34rem; overflow: auto; }
+  .validation-list { margin: 0; padding-left: 1.2rem; min-width: 18rem; }
+  dialog { max-width: 38rem; border: 0; border-radius: 1rem; padding: 0; box-shadow: 0 24px 60px rgba(15,23,42,.28); }
+  dialog::backdrop { background: rgba(15,23,42,.55); }
+  .confirmation-dialog { padding: 1.5rem; }
+  @media (max-width: 760px) {
+    .inventory-actions { grid-template-columns: 1fr; }
+    .inventory-controls .button { width: 100%; justify-content: center; }
+    .drop-zone { padding: 1.4rem .75rem; }
+    .preview-table-wrap, .inventory-page .table-wrap { overflow: visible; border: 0; box-shadow: none; background: transparent; }
+    .inventory-preview-table, .inventory-history-table, .inventory-preview-table tbody, .inventory-history-table tbody,
+    .inventory-preview-table tr, .inventory-history-table tr, .inventory-preview-table td, .inventory-history-table td { display: block; width: 100%; min-width: 0; }
+    .inventory-preview-table thead, .inventory-history-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    .inventory-preview-table tbody, .inventory-history-table tbody { display: grid; gap: 1rem; }
+    .inventory-preview-table tr, .inventory-history-table tr { padding: 1rem; border: 1px solid var(--color-border); border-radius: .75rem; background: #fff; }
+    .inventory-preview-table td, .inventory-history-table td { display: grid; grid-template-columns: minmax(7rem, 35%) minmax(0, 1fr); gap: .75rem; padding: .4rem 0; border: 0; overflow-wrap: anywhere; }
+    .inventory-preview-table td::before, .inventory-history-table td::before { content: attr(data-label); color: var(--color-muted); font-size: .72rem; font-weight: 900; text-transform: uppercase; }
+    .inventory-preview-table td[colspan], .inventory-history-table td[colspan] { display: block; }
+    .inventory-preview-table td[colspan]::before, .inventory-history-table td[colspan]::before { display: none; }
+    .validation-list { min-width: 0; }
+  }
+</style>

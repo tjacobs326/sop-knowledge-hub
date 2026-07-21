@@ -92,8 +92,8 @@ function requestedScope(url: URL) {
   return "";
 }
 
-export async function resolveCreatorWorkScope(db: D1DatabaseBinding, context: PagesFunctionContext) {
-  const user = await getAuthUser(context);
+export async function resolveCreatorWorkScope(db: D1DatabaseBinding, context: PagesFunctionContext, authenticatedUser?: AuthUser) {
+  const user = authenticatedUser || await getAuthUser(context);
   if (!user) {
     return {
       response: failure("UNAUTHENTICATED", "Sign in before using this API.", 401),

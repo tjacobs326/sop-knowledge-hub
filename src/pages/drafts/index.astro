@@ -5,7 +5,7 @@ import { statusBadgeDefinitions } from "../../lib/badges";
 ---
 
 <Layout title="My Drafts" wide>
-  <section class="tool-surface" aria-labelledby="drafts-heading">
+  <section class="tool-surface drafts-page" aria-labelledby="drafts-heading">
     <div class="section-heading surface-intro">
       <div>
         <p class="eyebrow">Creators / Reviewers</p>
@@ -23,8 +23,8 @@ import { statusBadgeDefinitions } from "../../lib/badges";
 
     <div class="drafts-context" id="drafts-context" role="status">Loading draft workflow context...</div>
 
-    <div class="table-wrap" data-drafts-table>
-      <table>
+    <div class="table-wrap drafts-table-wrap" data-drafts-table>
+      <table class="drafts-table">
         <thead>
           <tr>
             <th scope="col">Draft</th>
@@ -34,7 +34,7 @@ import { statusBadgeDefinitions } from "../../lib/badges";
             <th scope="col">Review Date</th>
             <th scope="col">Assigned Reviewer</th>
             <th scope="col">Last Updated</th>
-            <th scope="col">Action</th>
+            <th class="draft-actions-column" scope="col">Actions</th>
           </tr>
         </thead>
         <tbody id="drafts-list">
@@ -53,6 +53,16 @@ import { statusBadgeDefinitions } from "../../lib/badges";
     <div class="form-errors" id="drafts-errors" role="alert" hidden></div>
     <div class="confirmation" id="drafts-confirmation" role="status" hidden></div>
   </section>
+
+  <dialog id="archive-draft-dialog" aria-labelledby="archive-draft-heading" aria-describedby="archive-draft-description">
+    <form method="dialog" class="archive-draft-dialog">
+      <h2 id="archive-draft-heading">Archive this SOP draft?</h2>
+      <p id="archive-draft-description">The SOP will be removed from My Drafts and added to Archived SOPs. Its content, attachments, and history will be preserved.</p>
+      <label class="field"><span>Archive reason <span aria-hidden="true">*</span></span><textarea id="archive-draft-reason" rows="4" required minlength="3" maxlength="2000" aria-required="true"></textarea></label>
+      <p class="form-errors" id="archive-draft-error" role="alert" hidden>Enter an archive reason of at least 3 characters.</p>
+      <div class="form-actions"><button class="button button--ghost" value="cancel">Cancel</button><button class="button button--danger" value="confirm">Archive SOP</button></div>
+    </form>
+  </dialog>
 </Layout>
 
 <script is:inline define:vars={{ statusBadgeDefinitions }}>
@@ -60,12 +70,17 @@ import { statusBadgeDefinitions } from "../../lib/badges";
   const contextEl = document.getElementById("drafts-context");
   const errorsEl = document.getElementById("drafts-errors");
   const confirmation = document.getElementById("drafts-confirmation");
+  const archiveDialog = document.getElementById("archive-draft-dialog");
+  const archiveReason = document.getElementById("archive-draft-reason");
+  const archiveError = document.getElementById("archive-draft-error");
   const ROLE_CONTEXT_EVENT = "sop-role-context-change";
   const ROLE_KEY = "sopHubSelectedRole";
   const SUB_ROLE_KEY = "sopHubSelectedCreatorSubRole";
   const WORK_SCOPE_KEY = "sopHubMyWorkScope";
   let currentDrafts = [];
   let activeDraftRequestId = 0;
+  let pendingArchiveId = "";
+  let pendingArchiveButton = null;
 
   const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (character) => {
@@ -150,34 +165,34 @@ import { statusBadgeDefinitions } from "../../lib/badges";
     }
   }
 
-  function actionButton(label, attributes, className = "button--secondary") {
-    return `<button class="button ${className}" type="button" ${attributes}>${escapeHtml(label)}</button>`;
+  function actionButton(label, attributes, className = "button--secondary", layoutClass = "") {
+    return `<button class="button ${className} ${layoutClass}" type="button" ${attributes}>${escapeHtml(label)}</button>`;
   }
 
-  function actionLink(label, href, className = "button--secondary") {
-    return `<a class="button ${className}" href="${escapeHtml(href)}">${escapeHtml(label)}</a>`;
+  function actionLink(label, href, className = "button--secondary", layoutClass = "") {
+    return `<a class="button ${className} ${layoutClass}" href="${escapeHtml(href)}">${escapeHtml(label)}</a>`;
   }
 
   function renderDraftActions(draft) {
     const capabilities = draft.capabilities || {};
     const actions = [];
-    if (capabilities.canEdit) actions.push(actionLink("Edit Draft", draft.editUrl));
-    if (capabilities.canPreview) actions.push(actionLink("Preview", draft.previewUrl, "button--ghost"));
+    if (capabilities.canEdit) actions.push(actionLink("Edit Draft", draft.editUrl, "button--secondary", "draft-actions__edit"));
+    if (capabilities.canPreview) actions.push(actionLink("Preview", draft.previewUrl, "button--ghost", "draft-actions__preview"));
     if (capabilities.canSubmitForReview) {
-      actions.push(actionButton("Submit for Review", `data-draft-workflow="submit-review" data-draft-id="${escapeHtml(draft.id)}"`));
+      actions.push(actionButton("Submit for Review", `data-draft-workflow="submit-review" data-draft-id="${escapeHtml(draft.id)}"`, "button--primary", "draft-actions__submit"));
     }
-    if (capabilities.canReview) actions.push(actionLink("Review Draft", draft.reviewUrl, "button--secondary"));
+    if (capabilities.canReview) actions.push(actionLink("Review Draft", draft.reviewUrl, "button--secondary", "draft-actions__wide"));
     if (capabilities.canRequestChanges) {
-      actions.push(actionButton("Request Changes", `data-draft-workflow="request-changes" data-draft-id="${escapeHtml(draft.id)}"`, "button--secondary"));
+      actions.push(actionButton("Request Changes", `data-draft-workflow="request-changes" data-draft-id="${escapeHtml(draft.id)}"`, "button--secondary", "draft-actions__wide"));
     }
     if (capabilities.canApprove) {
-      actions.push(actionButton("Approve SOP", `data-draft-workflow="approve" data-draft-id="${escapeHtml(draft.id)}"`, "button--secondary"));
+      actions.push(actionButton("Approve SOP", `data-draft-workflow="approve" data-draft-id="${escapeHtml(draft.id)}"`, "button--secondary", "draft-actions__wide"));
     }
     if (capabilities.canPublish) {
-      actions.push(actionButton("Publish SOP", `data-draft-workflow="publish" data-draft-id="${escapeHtml(draft.id)}"`, "button--primary"));
+      actions.push(actionButton("Publish SOP", `data-draft-workflow="publish" data-draft-id="${escapeHtml(draft.id)}"`, "button--primary", "draft-actions__wide"));
     }
     if (capabilities.canArchive) {
-      actions.push(actionButton("Archive", `data-draft-workflow="archive" data-draft-id="${escapeHtml(draft.id)}"`, "button--danger"));
+      actions.push(actionButton("Archive", `data-draft-workflow="archive" data-draft-id="${escapeHtml(draft.id)}" aria-label="Archive ${escapeHtml(draft.title)}"`, "button--danger-outline", "draft-actions__archive"));
     }
     return actions.length ? actions.join("") : `<span class="muted">No actions available</span>`;
   }
@@ -198,15 +213,15 @@ import { statusBadgeDefinitions } from "../../lib/badges";
       .map(
         (draft) => `
           <tr>
-            <td><strong>${escapeHtml(draft.title)}</strong></td>
-            <td>${escapeHtml(draft.category)}</td>
-            <td>${statusBadge(draft.status)}</td>
-            <td>${escapeHtml(draft.owner)}</td>
-            <td>${escapeHtml(formatDate(draft.reviewDate))}</td>
-            <td>${escapeHtml(draft.assignedReviewer || "Unassigned")}</td>
-            <td>${escapeHtml(formatDate(draft.updatedDate))}</td>
-            <td>
-              <div class="table-actions">
+            <td data-label="Draft"><strong>${escapeHtml(draft.title)}</strong></td>
+            <td data-label="Category">${escapeHtml(draft.category)}</td>
+            <td data-label="Status">${statusBadge(draft.status)}</td>
+            <td data-label="Owner">${escapeHtml(draft.owner)}</td>
+            <td data-label="Review date">${escapeHtml(formatDate(draft.reviewDate))}</td>
+            <td data-label="Assigned reviewer">${escapeHtml(draft.assignedReviewer || "Unassigned")}</td>
+            <td data-label="Last updated">${escapeHtml(formatDate(draft.updatedDate))}</td>
+            <td class="draft-actions-cell" data-label="Actions">
+              <div class="draft-actions">
                 ${renderDraftActions(draft)}
               </div>
             </td>
@@ -267,14 +282,14 @@ import { statusBadgeDefinitions } from "../../lib/badges";
     return action;
   }
 
-  async function runDraftWorkflow(id, action, button) {
+  async function runDraftWorkflow(id, action, button, reason = "") {
     const draft = currentDrafts.find((item) => item.id === id);
-    if (!draft || !window.confirm(workflowMessage(action, draft))) return;
+    if (!draft || (action !== "archive" && !window.confirm(workflowMessage(action, draft)))) return;
     if (button instanceof HTMLButtonElement) button.disabled = true;
     const response = await fetch(`/api/sops/${encodeURIComponent(id)}/${workflowEndpoint(action)}`, {
       method: "POST",
       headers: apiHeaders(),
-      body: JSON.stringify({ notes: `${action} from My Drafts.` }),
+      body: JSON.stringify(action === "archive" ? { reason, notes: reason } : { notes: `${action} from My Drafts.` }),
     });
     await parseApiResponse(response);
     if (confirmation) {
@@ -293,12 +308,38 @@ import { statusBadgeDefinitions } from "../../lib/badges";
     if (!(target instanceof HTMLElement)) return;
     const workflowButton = target.closest("[data-draft-workflow]");
     if (workflowButton instanceof HTMLElement) {
+      if (workflowButton.dataset.draftWorkflow === "archive" && archiveDialog instanceof HTMLDialogElement) {
+        pendingArchiveId = workflowButton.dataset.draftId || "";
+        pendingArchiveButton = workflowButton instanceof HTMLButtonElement ? workflowButton : null;
+        if (archiveReason instanceof HTMLTextAreaElement) archiveReason.value = "";
+        if (archiveError) archiveError.hidden = true;
+        archiveDialog.showModal();
+        window.requestAnimationFrame(() => archiveReason?.focus());
+        return;
+      }
       runDraftWorkflow(
         workflowButton.dataset.draftId || "",
         workflowButton.dataset.draftWorkflow || "",
         workflowButton instanceof HTMLButtonElement ? workflowButton : null,
       ).catch(showError);
     }
+  });
+
+  archiveDialog?.addEventListener("close", () => {
+    if (archiveDialog.returnValue !== "confirm") return;
+    const reason = archiveReason instanceof HTMLTextAreaElement ? archiveReason.value.trim() : "";
+    if (reason.length < 3) {
+      if (archiveError) archiveError.hidden = false;
+      archiveDialog.showModal();
+      archiveReason?.focus();
+      return;
+    }
+    runDraftWorkflow(pendingArchiveId, "archive", pendingArchiveButton, reason).catch((error) => {
+      if (pendingArchiveButton instanceof HTMLButtonElement) pendingArchiveButton.disabled = false;
+      if (archiveError) { archiveError.hidden = false; archiveError.textContent = error instanceof Error ? error.message : "The SOP could not be archived."; }
+      archiveDialog.showModal();
+      archiveReason?.focus();
+    });
   });
 
   window.addEventListener("storage", (event) => {
@@ -320,3 +361,44 @@ import { statusBadgeDefinitions } from "../../lib/badges";
 
   loadDrafts().catch(showError);
 </script>
+
+<style is:global>
+  .drafts-page { --ask-hub-safe-area: calc(3rem + 1.5rem + 2rem); padding-bottom: var(--ask-hub-safe-area); }
+  .drafts-table { min-width: 78rem; }
+  .drafts-table th, .drafts-table td { vertical-align: middle; }
+  .drafts-table tbody tr { min-height: 8rem; }
+  .drafts-table td:first-child { min-width: 15rem; max-width: 24rem; overflow-wrap: anywhere; }
+  .draft-actions-column, .draft-actions-cell { width: 19rem; min-width: 19rem; }
+  .draft-actions { display: grid; grid-template-columns: repeat(2, minmax(6.875rem, 1fr)); gap: .75rem; width: min(100%, 18rem); margin-inline: auto; }
+  .draft-actions .button { width: 100%; min-height: 2.75rem; padding: .65rem .8rem; white-space: nowrap; }
+  .draft-actions__submit, .draft-actions__archive, .draft-actions__wide { grid-column: 1 / -1; }
+  .button--danger-outline { color: #991b1b; background: #fff; border-color: #dc2626; }
+  .button--danger-outline:hover { color: #7f1d1d; background: #fff1f2; border-color: #b91c1c; }
+  .button--danger-outline:active { background: #ffe4e6; }
+  .button--danger-outline:focus-visible { outline: 3px solid rgba(220, 38, 38, .35); outline-offset: 2px; }
+  #archive-draft-dialog { width: min(calc(100% - 2rem), 38rem); border: 0; border-radius: 1rem; padding: 0; box-shadow: 0 24px 60px rgba(15,23,42,.28); }
+  #archive-draft-dialog::backdrop { background: rgba(15,23,42,.58); }
+  .archive-draft-dialog { padding: 1.5rem; }
+  .archive-draft-dialog h2 { margin-top: 0; }
+  @media (max-width: 760px) {
+    .drafts-table-wrap { overflow: visible; border: 0; background: transparent; box-shadow: none; }
+    .drafts-table, .drafts-table tbody, .drafts-table tr, .drafts-table td { display: block; width: 100%; min-width: 0; }
+    .drafts-table { background: transparent; }
+    .drafts-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); clip-path: inset(50%); white-space: nowrap; }
+    .drafts-table tbody { display: grid; gap: 1rem; }
+    .drafts-table tbody tr { min-height: 0; padding: 1rem; background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius); box-shadow: var(--shadow-soft); }
+    .drafts-table td { display: grid; grid-template-columns: minmax(7rem, auto) minmax(0, 1fr); align-items: start; gap: .75rem; padding: .4rem 0; border: 0; }
+    .drafts-table td::before { content: attr(data-label); color: var(--color-muted); font-size: .72rem; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
+    .drafts-table td:first-child { display: block; max-width: none; padding-bottom: .75rem; font-size: 1.05rem; }
+    .drafts-table td:first-child::before { display: block; margin-bottom: .25rem; }
+    .drafts-table td[colspan] { display: block; }
+    .drafts-table td[colspan]::before { display: none; }
+    .drafts-table .draft-actions-cell { display: block !important; width: 100%; min-width: 0; margin-top: .5rem; padding-top: 1rem !important; border-top: 1px solid var(--color-border) !important; }
+    .draft-actions-cell::before { display: none; }
+    .draft-actions { width: 100%; margin: 0; }
+  }
+  @media (max-width: 420px) {
+    .draft-actions { grid-template-columns: 1fr; }
+    .draft-actions__submit, .draft-actions__archive, .draft-actions__wide { grid-column: 1; }
+  }
+</style>

@@ -5,11 +5,11 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
 ---
 
 <Layout title="My Work" wide>
-  <section class="tool-surface" aria-labelledby="my-work-heading">
+  <section class="tool-surface" id="my-work-top" aria-labelledby="my-work-heading">
     <div class="section-heading surface-intro">
       <div>
         <p class="eyebrow">Workflow Dashboard</p>
-        <h1 id="my-work-heading">My Work</h1>
+        <h1 id="my-work-heading" tabindex="-1">My Work</h1>
         <p>See the requests, drafts, assignments, owned SOPs, reviews, and overdue work tied to the current Creator / Reviewer sub-role.</p>
       </div>
       <AppIllustration name="work" size="md" />
@@ -61,9 +61,10 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
       </a>
       <a
         class="stat-card work-summary-card"
-        href="/review-queue/?filter=review-needed"
+        href="/my-work/?view=team-reviews-needed&scope=team&workFilter=review#work-section-review"
         data-work-summary-link
         data-work-filter="review"
+        data-work-view="team-reviews-needed"
         aria-label="View team reviews needed for the current work scope"
       >
         <span>Team reviews needed</span>
@@ -71,9 +72,10 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
       </a>
       <a
         class="stat-card work-summary-card"
-        href="/review-queue/?filter=overdue"
+        href="/my-work/?view=team-overdue-reviews&scope=team&workFilter=overdue#work-section-overdue"
         data-work-summary-link
         data-work-filter="overdue"
+        data-work-view="team-overdue-reviews"
         aria-label="View overdue team reviews for the current work scope"
       >
         <span>Team overdue reviews</span>
@@ -81,6 +83,7 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
       </a>
     </div>
     <p class="work-summary-status" id="work-summary-status" role="status" aria-live="polite"></p>
+    <a class="button button--secondary" id="clear-work-filter" href="/my-work/" hidden>Return to My Work dashboard</a>
 
     <div class="work-grid">
       <section class="dashboard-section work-section" id="work-section-submitted" data-work-section="submitted" aria-labelledby="submitted-heading">
@@ -156,7 +159,7 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
       </section>
 
       <section class="dashboard-section work-section" id="work-section-review" data-work-section="review" aria-labelledby="review-heading">
-        <h2 id="review-heading">SOPs Needing My Review</h2>
+        <h2 id="review-heading">Team Reviews Needed</h2>
         <div class="table-wrap">
           <table>
             <thead>
@@ -174,7 +177,7 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
       </section>
 
       <section class="dashboard-section work-section" id="work-section-overdue" data-work-section="overdue" aria-labelledby="overdue-heading">
-        <h2 id="overdue-heading">Overdue Reviews</h2>
+        <h2 id="overdue-heading">Team Overdue Reviews</h2>
         <div class="table-wrap">
           <table>
             <thead>
@@ -190,6 +193,12 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
           </table>
         </div>
       </section>
+    </div>
+    <div class="my-work-back-to-top-row no-print">
+      <a class="button button--secondary my-work-back-to-top" id="my-work-back-to-top" href="#my-work-heading" aria-label="Back to top">
+        <span aria-hidden="true">↑</span>
+        <span>Back to top</span>
+      </a>
     </div>
   </section>
 </Layout>
@@ -208,11 +217,16 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
   const currentAccessLevel = document.getElementById("current-access-level");
   const workSummaryLinks = Array.from(document.querySelectorAll("[data-work-summary-link]"));
   const workSummaryStatus = document.getElementById("work-summary-status");
+  const clearWorkFilter = document.getElementById("clear-work-filter");
+  const backToTopButton = document.getElementById("my-work-back-to-top");
+  const myWorkTop = document.getElementById("my-work-top");
+  const myWorkHeading = document.getElementById("my-work-heading");
   const tableIds = ["submitted-list", "draft-list", "assigned-list", "owned-list", "review-list", "overdue-list"];
   const workFilterLabels = {
     submitted: "submitted requests",
     drafts: "draft SOPs",
     assigned: "team assignments",
+    owned: "SOPs I Own",
     review: "team reviews needed",
     overdue: "overdue team reviews",
   };
@@ -264,13 +278,23 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
     const rawId = String(item.id || "");
     const itemType = String(item.itemType || "");
     const reviewId = rawId.includes(":") ? rawId : `${itemType === "request" ? "request" : "sop"}:${rawId}`;
-    return `/review-queue/?review=${encodeURIComponent(reviewId)}&origin=${encodeURIComponent(origin)}`;
+    return scopedReviewUrl(reviewId, origin);
   }
 
   function submittedRequestUrl(item) {
     const rawId = String(item.id || "");
     const requestId = rawId.startsWith("request:") ? rawId : `request:${rawId}`;
-    return `/review-queue/?review=${encodeURIComponent(requestId)}&origin=my-work-submitted-requests`;
+    return scopedReviewUrl(requestId, "my-work-submitted-requests");
+  }
+
+  function scopedReviewUrl(reviewId, origin) {
+    const params = new URLSearchParams({ review: reviewId, origin });
+    const parsedScope = parseScopeValue(selectedScope || routeScopeValue() || "team");
+    params.set("scope", parsedScope.scope);
+    if (parsedScope.userId) params.set("userId", parsedScope.userId);
+    const subRole = localStorage.getItem(SUB_ROLE_KEY) || new URLSearchParams(window.location.search).get("subRole") || "";
+    if (subRole) params.set("subRole", subRole);
+    return `/review-queue/?${params.toString()}`;
   }
 
   function badge(definitions, value, fallbackLabel, fallbackClass, baseClass) {
@@ -331,8 +355,56 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
     }
   }
 
+  function routeScopeValue() {
+    const params = new URLSearchParams(window.location.search);
+    const scope = params.get("scope") || "";
+    if (scope === "user" && params.get("userId")) return `user:${params.get("userId")}`;
+    return scope === "mine" || scope === "team" ? scope : "";
+  }
+
+  function syncScopeToUrl(scopeValue = selectedScope, { replace = true } = {}) {
+    const url = new URL(window.location.href);
+    const parsed = parseScopeValue(scopeValue || "team");
+    url.searchParams.set("scope", parsed.scope);
+    if (parsed.userId) url.searchParams.set("userId", parsed.userId);
+    else url.searchParams.delete("userId");
+    const subRole = localStorage.getItem(SUB_ROLE_KEY) || "";
+    if (subRole) url.searchParams.set("subRole", subRole);
+    else url.searchParams.delete("subRole");
+    const next = `${url.pathname}${url.search}${url.hash}`;
+    if (replace) window.history.replaceState({ myWorkScope: scopeValue }, "", next);
+    else window.history.pushState({ myWorkScope: scopeValue }, "", next);
+  }
+
+  function updateWorkSummaryRoutes(context) {
+    const scopeValue = currentScopeValue(context);
+    const parsed = parseScopeValue(scopeValue);
+    const subRole = context?.selectedSubRole?.slug || context?.selectedSubRole?.id || localStorage.getItem(SUB_ROLE_KEY) || "";
+    workSummaryLinks.forEach((link) => {
+      if (!(link instanceof HTMLAnchorElement)) return;
+      const url = new URL(link.href, window.location.origin);
+      url.searchParams.set("scope", parsed.scope);
+      if (parsed.userId) url.searchParams.set("userId", parsed.userId);
+      else url.searchParams.delete("userId");
+      if (subRole) url.searchParams.set("subRole", subRole);
+      const filter = link.dataset.workFilter || "";
+      if (filter === "review") url.searchParams.set("view", "team-reviews-needed");
+      if (filter === "overdue") url.searchParams.set("view", "team-overdue-reviews");
+      link.href = `${url.pathname}${url.search}${url.hash}`;
+    });
+    if (clearWorkFilter instanceof HTMLAnchorElement) {
+      const clearUrl = new URL("/my-work/", window.location.origin);
+      clearUrl.searchParams.set("scope", parsed.scope);
+      if (parsed.userId) clearUrl.searchParams.set("userId", parsed.userId);
+      if (subRole) clearUrl.searchParams.set("subRole", subRole);
+      clearWorkFilter.href = `${clearUrl.pathname}${clearUrl.search}`;
+    }
+  }
+
   function requestedWorkFilter() {
     const params = new URLSearchParams(window.location.search);
+    if (params.get("view") === "team-reviews-needed") return "review";
+    if (params.get("view") === "team-overdue-reviews") return "overdue";
     const filter = params.get("workFilter") || "";
     return Object.prototype.hasOwnProperty.call(workFilterLabels, filter) ? filter : "";
   }
@@ -341,6 +413,7 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
     const filter = requestedWorkFilter();
     if (!filter) {
       if (workSummaryStatus) workSummaryStatus.textContent = "";
+      if (clearWorkFilter instanceof HTMLElement) clearWorkFilter.hidden = true;
       return;
     }
     const section = document.querySelector(`[data-work-section="${CSS.escape(filter)}"]`);
@@ -351,11 +424,15 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
     if (workSummaryStatus) {
       workSummaryStatus.textContent = `Showing ${label} for the selected work scope.`;
     }
+    if (clearWorkFilter instanceof HTMLElement) clearWorkFilter.hidden = false;
     if (section instanceof HTMLElement) {
-      section.setAttribute("tabindex", "-1");
+      const headingId = section.getAttribute("aria-labelledby") || "";
+      const heading = headingId ? document.getElementById(headingId) : null;
+      const focusTarget = heading instanceof HTMLElement ? heading : section;
+      focusTarget.setAttribute("tabindex", "-1");
       requestAnimationFrame(() => {
-        section.scrollIntoView({ behavior: "smooth", block: "start" });
-        section.focus({ preventScroll: true });
+        focusTarget.scrollIntoView({ behavior: "smooth", block: "start" });
+        focusTarget.focus({ preventScroll: true });
       });
     }
   }
@@ -428,6 +505,11 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
     setCount("count-review", counts.teamReviewsNeeded ?? counts.needMyReview);
     setCount("count-overdue", counts.overdueReviews);
     updateWorkSummaryLabels();
+    updateWorkSummaryRoutes(context);
+    const reviewHeading = document.getElementById("review-heading");
+    if (reviewHeading) reviewHeading.textContent = context.workScope === "team" ? "Team Reviews Needed" : "Reviews Needing My Attention";
+    const overdueHeading = document.getElementById("overdue-heading");
+    if (overdueHeading) overdueHeading.textContent = context.workScope === "team" ? "Team Overdue Reviews" : "My Overdue Reviews";
 
     renderRows(
       "submitted-list",
@@ -449,7 +531,12 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
         (item) => escapeHtml(item.title),
         (item) => statusBadge(item.status),
         (item) => escapeHtml(formatDateClient(item.reviewDate)),
-        (item) => actionButton(item.editUrl || `/create/?edit=draft&id=${encodeURIComponent(item.id)}`, "Edit Draft"),
+        (item) =>
+          actionButton(
+            item.editUrl ||
+              `/create/?edit=draft&id=${encodeURIComponent(item.id)}&origin=my-work-drafts&returnTo=${encodeURIComponent("/my-work/?workFilter=drafts#work-section-drafts")}`,
+            "Edit Draft",
+          ),
       ],
       "No backend draft SOPs are owned by this sub-role or selected user.",
     );
@@ -475,7 +562,12 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
         (item) => escapeHtml(item.category || "Uncategorized"),
         (item) => statusBadge(item.status),
         (item) => escapeHtml(formatDateClient(item.reviewDate)),
-        (item) => actionButton(item.editUrl || `/create/?edit=draft&id=${encodeURIComponent(item.id)}&origin=owned-sops`, "Edit SOP"),
+        (item) =>
+          actionButton(
+            item.editUrl ||
+              `/create/?edit=draft&id=${encodeURIComponent(item.id)}&origin=owned-sops&returnTo=${encodeURIComponent("/my-work/?workFilter=owned#work-section-owned")}`,
+            "Edit SOP",
+          ),
       ],
       "No backend SOPs are owned by this selected sub-role.",
     );
@@ -510,8 +602,16 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
 
   async function loadMyWork({ preserveUser = false } = {}) {
     const requestId = ++activeRequestId;
-    const subRole = localStorage.getItem(SUB_ROLE_KEY) || "";
+    const routeParams = new URLSearchParams(window.location.search);
+    const subRole = routeParams.get("subRole") || localStorage.getItem(SUB_ROLE_KEY) || "";
     const params = new URLSearchParams();
+    if (!preserveUser) {
+      const requestedScope = routeScopeValue();
+      if (requestedScope) {
+        selectedScope = requestedScope;
+        preserveUser = true;
+      }
+    }
     if (!preserveUser) {
       try {
         const savedScope = sessionStorage.getItem(WORK_SCOPE_KEY) || "";
@@ -561,11 +661,37 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
   currentUserSelect?.addEventListener("change", () => {
     selectedScope = currentUserSelect instanceof HTMLSelectElement ? currentUserSelect.value : "";
     preserveWorkScope();
+    syncScopeToUrl(selectedScope);
     loadMyWork({ preserveUser: true });
   });
 
   workSummaryLinks.forEach((link) => {
     link.addEventListener("click", preserveWorkScope);
+  });
+
+  document.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (target.closest('a[href^="/create/?edit="]')) preserveWorkScope();
+  });
+
+  backToTopButton?.addEventListener("click", () => {
+    if (!(myWorkTop instanceof HTMLElement) || !(myWorkHeading instanceof HTMLElement)) return;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    myWorkTop.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+    if (reduceMotion) {
+      myWorkHeading.focus({ preventScroll: true });
+      return;
+    }
+    const focusTimer = window.setTimeout(() => myWorkHeading.focus({ preventScroll: true }), 650);
+    window.addEventListener(
+      "scrollend",
+      () => {
+        window.clearTimeout(focusTimer);
+        myWorkHeading.focus({ preventScroll: true });
+      },
+      { once: true },
+    );
   });
 
   window.addEventListener(ROLE_CONTEXT_EVENT, (event) => {
@@ -577,6 +703,9 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
       } catch {
         // Ignore unavailable session storage.
       }
+      const url = new URL(window.location.href);
+      ["scope", "userId", "subRole", "view", "workFilter"].forEach((key) => url.searchParams.delete(key));
+      window.history.replaceState({}, "", `${url.pathname}${url.search}`);
       loadMyWork();
     }
   });

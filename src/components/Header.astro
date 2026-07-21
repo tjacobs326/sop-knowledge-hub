@@ -24,6 +24,7 @@ const navGroups = [
       { href: "/drafts/", label: "My Drafts", icon: "drafts" },
       { href: "/review-queue/", label: "Review Queue", icon: "review" },
       { href: "/needs-review/", label: "Needs Review", icon: "needsReview" },
+      { href: "/my-work/archived/", label: "Archived SOPs", icon: "archive" },
     ],
   },
   {
@@ -33,6 +34,7 @@ const navGroups = [
       { href: "/admin/users/", label: "Users", icon: "users" },
       { href: "/admin/categories/", label: "Categories", icon: "categories" },
       { href: "/admin/tags/", label: "Tags", icon: "tags" },
+      { href: "/admin/sop-inventory/", label: "SOP Inventory", icon: "documents" },
       { href: "/admin/analytics/", label: "Analytics", icon: "analytics" },
       { href: "/admin/settings/", label: "Settings", icon: "settings" },
     ],
@@ -40,7 +42,11 @@ const navGroups = [
 ];
 
 const pathname = Astro.url.pathname;
-const isCurrent = (href: string) => pathname === href || (href !== "/" && pathname.startsWith(href));
+const currentHref = navGroups
+  .flatMap((group) => group.items.map((item) => item.href))
+  .filter((href) => pathname === href || (href !== "/" && pathname.startsWith(href)))
+  .sort((a, b) => b.length - a.length)[0];
+const isCurrent = (href: string) => href === currentHref;
 const roleClass = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 ---
 
@@ -219,7 +225,13 @@ const roleClass = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, 
     if (window.location.pathname !== "/create/") return "";
     const params = new URLSearchParams(window.location.search);
     if (params.has("edit") || params.has("id")) {
-      return params.get("origin") === "owned-sops" ? "/my-work/" : "/drafts/";
+      const origin = params.get("origin") || "";
+      if (origin === "owned-sops" || origin === "my-work-drafts") return "/my-work/";
+      if (origin === "review-queue") return "/review-queue/";
+      if (origin === "needs-review") return "/admin/needs-review/";
+      if (origin === "admin-review-queue") return "/admin/review/";
+      if (origin.startsWith("my-work-")) return "/my-work/";
+      return "/drafts/";
     }
     return "/create/";
   }

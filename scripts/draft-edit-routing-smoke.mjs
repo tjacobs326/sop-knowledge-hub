@@ -29,7 +29,9 @@ assert(
   "My Drafts rows must use the backend-provided draft edit URL.",
 );
 assert(
-  myDraftsApi.includes("editUrl: `/create/?edit=draft&id=${encodeURIComponent(id)}&origin=my-drafts`"),
+  myDraftsApi.includes(
+    'editUrl: `/create/?edit=draft&id=${encodeURIComponent(id)}&origin=my-drafts&returnTo=${encodeURIComponent("/drafts/")}`',
+  ),
   "My Drafts API must return edit URLs that include the draft id.",
 );
 assert(
@@ -73,7 +75,7 @@ assert(
   "Saving an edited draft must update the existing SOP instead of creating a duplicate.",
 );
 assert(
-  createForm.includes('createHeading.textContent = isEdit ? "Edit Draft SOP"') &&
+  createForm.includes('createHeading.textContent = isOwnedSop ? "Edit SOP" : isEdit ? "Edit Draft SOP"') &&
     createForm.includes('saveDraftButton.textContent = isEdit ? "Save Changes"'),
   "Edit mode must clearly label the form as editing an existing draft.",
 );

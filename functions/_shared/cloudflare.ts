@@ -45,6 +45,8 @@ export interface PlatformEnv {
   SOP_MEDIA?: R2BucketBinding;
   SOP_ANALYTICS?: AnalyticsEngineBinding;
   HELPDOCS_API_KEY?: string;
+  TEAM_DOMAIN?: string;
+  POLICY_AUD?: string;
   AI?: {
     run: (model: string, input: unknown) => Promise<unknown>;
   };

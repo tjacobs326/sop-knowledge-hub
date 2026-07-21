@@ -1,6 +1,7 @@
 import { failure, type ApiRole } from "./api";
 import { safeJsonParse, type D1DatabaseBinding, type PagesFunctionContext } from "./cloudflare";
-import { listCreatorSubRoles, listUserSubRoles, resolveSelectedSubRole, selectedSubRoleFromRequest, type CreatorSubRole } from "./ownership";
+import { listUserSubRoles, resolveSelectedSubRole, type CreatorSubRole } from "./ownership";
+import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
 
 export type PermissionName =
   | "Search SOPs"
@@ -20,6 +21,7 @@ export type PermissionName =
   | "View Analytics"
   | "Upload Media"
   | "Manage Media"
+  | "Manage SOP Inventory"
   | "Settings";
 
 export interface AuthUser {
@@ -84,6 +86,7 @@ const fallbackPermissionsByRole: Record<ApiRole, PermissionName[]> = {
     "View Analytics",
     "Upload Media",
     "Manage Media",
+    "Manage SOP Inventory",
     "Settings",
   ],
 };
@@ -91,11 +94,6 @@ const fallbackPermissionsByRole: Record<ApiRole, PermissionName[]> = {
 function isLocalRequest(request: Request) {
   const host = new URL(request.url).hostname;
   return host === "127.0.0.1" || host === "localhost";
-}
-
-function isPreviewRequest(request: Request) {
-  const host = new URL(request.url).hostname;
-  return host.endsWith(".pages.dev") || host === "sop-knowledge-hub.pages.dev";
 }
 
 function normalizeRole(value: string | null): ApiRole {
@@ -111,20 +109,48 @@ function accessLevelForRole(role: ApiRole): AuthUser["accessLevel"] {
   return "Normal User";
 }
 
-function emailFromRequest(request: Request) {
-  return (
-    request.headers.get("cf-access-authenticated-user-email") ||
-    request.headers.get("x-authenticated-user-email") ||
-    request.headers.get("x-forwarded-email") ||
-    ""
-  )
-    .trim()
-    .toLowerCase();
+const accessKeySets = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
+
+function normalizedTeamDomain(value: string | undefined) {
+  const raw = String(value || "").trim().replace(/\/$/, "");
+  if (!raw) return "";
+  try {
+    const url = new URL(raw.includes("://") ? raw : `https://${raw}`);
+    if (url.protocol !== "https:" || !url.hostname.endsWith(".cloudflareaccess.com")) return "";
+    return url.origin;
+  } catch {
+    return "";
+  }
+}
+
+function accessKeySet(teamDomain: string) {
+  const existing = accessKeySets.get(teamDomain);
+  if (existing) return existing;
+  const keySet = createRemoteJWKSet(new URL(`${teamDomain}/cdn-cgi/access/certs`));
+  accessKeySets.set(teamDomain, keySet);
+  return keySet;
+}
+
+async function verifiedAccessIdentity(context: PagesFunctionContext): Promise<JWTPayload | null> {
+  const teamDomain = normalizedTeamDomain(context.env.TEAM_DOMAIN);
+  const audience = String(context.env.POLICY_AUD || "").trim();
+  const token = String(context.request.headers.get("cf-access-jwt-assertion") || "").trim();
+  if (!teamDomain || !audience || !token) return null;
+  try {
+    const { payload } = await jwtVerify(token, accessKeySet(teamDomain), {
+      issuer: teamDomain,
+      audience,
+      algorithms: ["RS256"],
+    });
+    return payload;
+  } catch {
+    return null;
+  }
 }
 
 function localDevUser(request: Request): AuthUser | null {
   const requestedRole = request.headers.get("x-sop-dev-role");
-  if (!isLocalRequest(request) && !(isPreviewRequest(request) && requestedRole)) return null;
+  if (!isLocalRequest(request)) return null;
 
   const role = normalizeRole(requestedRole || "admin");
   const email = String(request.headers.get("x-sop-dev-email") || "tjacobs@example.org")
@@ -234,53 +260,14 @@ async function findUserByEmail(db: D1DatabaseBinding, email: string) {
   }
 }
 
-async function previewCreatorUser(request: Request, db: D1DatabaseBinding): Promise<AuthUser | null> {
-  const requested = selectedSubRoleFromRequest(request);
-  if (!requested) return null;
-
-  const subRoles = await listCreatorSubRoles(db);
-  const selected = subRoles.find((subRole) => subRole.id === requested || subRole.slug === requested);
-  if (!selected) return null;
-  const user = await db
-    .prepare(
-      `SELECT users.id, users.name, users.email, users.access_level AS accessLevel
-       FROM users
-       LEFT JOIN user_sub_roles ON user_sub_roles.user_id = users.id
-       WHERE users.status = 'Active'
-        AND COALESCE(users.is_active, 1) = 1
-        AND users.access_level IN ('Creator / Reviewer', 'Admin')
-        AND (
-          user_sub_roles.sub_role_id = ?
-          OR users.team_id = ?
-          OR users.department = ?
-        )
-       ORDER BY CASE users.access_level WHEN 'Admin' THEN 2 ELSE 1 END, users.name ASC
-       LIMIT 1`,
-    )
-    .bind(selected.id, selected.teamId || "", selected.department)
-    .first<{ id: string; name: string; email: string; accessLevel: AuthUser["accessLevel"] }>()
-    .catch(() => null);
-
-  return {
-    id: user?.id || "preview-creator-reviewer",
-    name: user?.name || "Creator / Reviewer Preview",
-    email: user?.email || "creator-reviewer-preview@example.org",
-    accessLevel: user?.accessLevel || "Creator / Reviewer",
-    role: user?.accessLevel === "Admin" ? "admin" : "creator",
-    permissions: user?.accessLevel === "Admin" ? fallbackPermissionsByRole.admin : fallbackPermissionsByRole.creator,
-    subRoles: [selected],
-    selectedSubRole: selected,
-    isLocalDev: false,
-  };
-}
-
 export async function getAuthUser(context: PagesFunctionContext): Promise<AuthUser | null> {
   const local = localDevUser(context.request);
   if (local) return local;
 
-  const email = emailFromRequest(context.request);
   if (!context.env.DB) return null;
-  if (!email) return previewCreatorUser(context.request, context.env.DB);
+  const identity = await verifiedAccessIdentity(context);
+  const email = typeof identity?.email === "string" ? identity.email.trim().toLowerCase() : "";
+  if (!email) return null;
 
   const row = await findUserByEmail(context.env.DB, email);
   if (!row) return null;

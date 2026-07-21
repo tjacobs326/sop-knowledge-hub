@@ -86,9 +86,15 @@ function normalizeSop(row: Record<string, unknown>) {
   };
 }
 
-function withEditOrigin(url: string, origin: string) {
+function withEditReturn(url: string, origin: string, returnTo: string) {
   const separator = url.includes("?") ? "&" : "?";
-  return `${url}${separator}origin=${encodeURIComponent(origin)}`;
+  return `${url}${separator}origin=${encodeURIComponent(origin)}&returnTo=${encodeURIComponent(returnTo)}`;
+}
+
+function scopedMyWorkReturn(workScope: ResolvedWorkScope, filter: "drafts" | "owned") {
+  const params = new URLSearchParams({ workFilter: filter, scope: workScope.scope, subRole: workScope.subRole.slug || workScope.subRole.id });
+  if (workScope.selectedUser?.id && workScope.scope === "user") params.set("userId", workScope.selectedUser.id);
+  return `/my-work/?${params.toString()}#work-section-${filter}`;
 }
 
 function normalizeReview(row: Record<string, unknown>) {
@@ -206,7 +212,13 @@ async function queryDraftSops(db: D1DatabaseBinding, workScope: ResolvedWorkScop
     .bind(...values)
     .all<Record<string, unknown>>();
 
-  return (result.results || []).map(normalizeSop);
+  return (result.results || []).map((row) => {
+    const sop = normalizeSop(row);
+    return {
+      ...sop,
+      editUrl: withEditReturn(sop.editUrl, "my-work-drafts", scopedMyWorkReturn(workScope, "drafts")),
+    };
+  });
 }
 
 async function queryOwnedSops(db: D1DatabaseBinding, workScope: ResolvedWorkScope) {
@@ -251,7 +263,7 @@ async function queryOwnedSops(db: D1DatabaseBinding, workScope: ResolvedWorkScop
     const sop = normalizeSop(row);
     return {
       ...sop,
-      editUrl: withEditOrigin(sop.editUrl, "owned-sops"),
+      editUrl: withEditReturn(sop.editUrl, "owned-sops", scopedMyWorkReturn(workScope, "owned")),
     };
   });
 }
@@ -429,9 +441,19 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
   const today = isoToday();
   const activeReviewItems = uniqueById(reviewItems);
   const assigned = uniqueById(assignedItems);
-  const overdueReviews = uniqueById([
-    ...activeReviewItems.filter((item) => item.reviewDate && item.reviewDate < today),
+  const overdueOpenStatuses = new Set([
+    "under review",
+    "needs more information",
+    "assigned",
+    "in approval",
+    "in review",
+    "needs revision",
   ]);
+  const overdueReviews = uniqueById(
+    activeReviewItems.filter(
+      (item) => item.reviewDate && item.reviewDate < today && overdueOpenStatuses.has(String(item.status || "").trim().toLowerCase()),
+    ),
+  );
 
   return success({
     context: {

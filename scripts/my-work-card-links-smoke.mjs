@@ -10,10 +10,10 @@ const styles = readFileSync(resolve(root, "src/styles/global.css"), "utf8");
 
 const expectedLinks = [
   ['data-work-filter="submitted"', 'href="/my-work/?workFilter=submitted#work-section-submitted"'],
-  ['data-work-filter="drafts"', 'href="/drafts/?source=my-work"'],
+  ['data-work-filter="drafts"', 'href="/my-work/?workFilter=drafts#my-draft-sops"'],
   ['data-work-filter="assigned"', 'href="/my-work/?workFilter=assigned#work-section-assigned"'],
-  ['data-work-filter="review"', 'href="/review-queue/?filter=review-needed"'],
-  ['data-work-filter="overdue"', 'href="/review-queue/?filter=overdue"'],
+  ['data-work-filter="review"', 'href="/my-work/?view=team-reviews-needed&scope=team&workFilter=review#work-section-review"'],
+  ['data-work-filter="overdue"', 'href="/my-work/?view=team-overdue-reviews&scope=team&workFilter=overdue#work-section-overdue"'],
 ];
 
 const failures = [];
@@ -34,7 +34,7 @@ for (const section of [
   if (!myWork.includes(section)) failures.push(`Missing target work section: ${section}`);
 }
 
-for (const fragment of ["WORK_SCOPE_KEY", "preserveWorkScope", "requestedWorkFilter", "focusRequestedWorkSection"]) {
+for (const fragment of ["WORK_SCOPE_KEY", "preserveWorkScope", "requestedWorkFilter", "focusRequestedWorkSection", "routeScopeValue", "syncScopeToUrl", "updateWorkSummaryRoutes"]) {
   if (!myWork.includes(fragment)) failures.push(`Missing My Work route/scope helper: ${fragment}`);
 }
 

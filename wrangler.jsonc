@@ -3,6 +3,8 @@
   "name": "sop-knowledge-hub",
   "pages_build_output_dir": "./dist",
   "compatibility_date": "2026-06-18",
+  // Set TEAM_DOMAIN and POLICY_AUD as production environment variables in
+  // Workers & Pages. Authentication fails closed when either is missing.
   "ai": {
     "binding": "AI",
     "remote": true

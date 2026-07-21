@@ -188,7 +188,6 @@ import { statusBadgeDefinitions } from "../../lib/badges";
     if (capabilities.canRequestChanges) actions.push(actionButton("Request Changes", "request-changes"));
     if (capabilities.canApprove) actions.push(actionButton("Approve SOP", "approve"));
     if (capabilities.canPublish) actions.push(actionButton("Publish SOP", "publish", "button--primary"));
-    if (capabilities.canArchive) actions.push(actionButton("Archive", "archive", "button--danger"));
     actionsEl.innerHTML = actions.join("");
   }
 
