@@ -65,6 +65,7 @@ const description = isNeedsReviewMode
     </div>
   </div>
 
+  <div class="review-origin-nav no-print" id="review-origin-nav" hidden></div>
   <div class="drafts-context" id="review-context" role="status">Loading review queue context...</div>
 
   {!isNeedsReviewMode && <div class="stat-grid review-summary" aria-label="Review queue counts">
@@ -110,6 +111,7 @@ const description = isNeedsReviewMode
 <script is:inline define:vars={{ summaryFilters, priorityBadgeDefinitions, statusBadgeDefinitions, isNeedsReviewMode, isCreatorReviewMode, isAdminMode }}>
   const list = document.getElementById("review-list");
   const contextEl = document.getElementById("review-context");
+  const originNavEl = document.getElementById("review-origin-nav");
   const descriptionEl = document.getElementById("review-description");
   const workViewSelect = document.getElementById("review-work-view");
   const workScopeInput = document.getElementById("review-work-scope");
@@ -448,11 +450,6 @@ const description = isNeedsReviewMode
           </label>
           <a class="button button--ghost" href="${escapeHtml(detailHref(item))}">View Details</a>
           ${
-            isCreatorReviewMode
-              ? `<a class="button button--ghost" href="${escapeHtml(safeOrigins[requestedOrigin()].href)}">Back to ${escapeHtml(safeOrigins[requestedOrigin()].label)}</a>`
-              : ""
-          }
-          ${
             item.editUrl && item.availableActions?.includes("edit")
               ? `<a class="button button--secondary" href="${escapeHtml(item.editUrl)}">Edit Draft</a>`
               : ""
@@ -489,7 +486,18 @@ const description = isNeedsReviewMode
       const labelEl = needsReviewSummary.querySelector("span");
       if (labelEl) labelEl.textContent = labels.needsReviewLabel;
     }
+    renderOriginNav();
     if (contextEl) contextEl.textContent = labels.loadedMessage || "Review queue loaded.";
+  }
+
+  function renderOriginNav() {
+    if (!(originNavEl instanceof HTMLElement)) return;
+    const origin = safeOrigins[requestedOrigin()];
+    const showOriginNav = Boolean(isCreatorReviewMode && requestedReviewId() && origin);
+    originNavEl.hidden = !showOriginNav;
+    originNavEl.innerHTML = showOriginNav
+      ? `<a class="button button--ghost" href="${escapeHtml(origin.href)}">Back to ${escapeHtml(origin.label)}</a>`
+      : "";
   }
 
   function render() {

@@ -130,10 +130,15 @@ import Layout from "../../components/Layout.astro";
       return;
     }
 
+    const includeArchived = params.get("includeArchived") === "1";
+    const subRole = localStorage.getItem("sopHubSelectedCreatorSubRole") || "";
     const endpoint = slug
-      ? `/api/sops/slug/${encodeURIComponent(slug)}`
-      : `/api/sops/${encodeURIComponent(id)}`;
-    const response = await fetch(endpoint);
+      ? `/api/sops/slug/${encodeURIComponent(slug)}${includeArchived ? "?includeArchived=1" : ""}`
+      : `/api/sops/${encodeURIComponent(id)}${includeArchived ? "?includeArchived=1" : ""}`;
+    const response = await fetch(endpoint, {
+      headers: subRole ? { "x-sop-sub-role": subRole } : {},
+      cache: includeArchived ? "no-store" : "default",
+    });
     if (!response.ok) {
       if (empty instanceof HTMLElement) empty.hidden = false;
       setText("d1-sop-title", "SOP Not Found");

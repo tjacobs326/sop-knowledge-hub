@@ -13,7 +13,7 @@ export const roleAccessViews = [
     label: "Creators / Reviewers",
     description: "Create SOPs, manage drafts, review submissions, and handle assigned work.",
     landingPage: "/my-work/",
-    options: ["Home", "My Work", "AI Assist", "Create SOP", "Review Queue", "Needs Review"],
+    options: ["Home", "My Work", "AI Assist", "Create SOP", "Review Queue", "Needs Review", "Archived SOPs"],
   },
   {
     id: "admin",
@@ -72,6 +72,7 @@ export const roleRouteRules = [
   { pattern: "^/admin/review/", roles: ["creator", "admin"] },
   { pattern: "^/admin/needs-review/", roles: ["admin"] },
   { pattern: "^/needs-review/", roles: ["creator", "admin"] },
+  { pattern: "^/archived-sops/", roles: ["creator", "admin"] },
   { pattern: "^/create/", roles: ["creator", "admin"] },
   { pattern: "^/drafts/", roles: ["creator", "admin"] },
   { pattern: "^/my-work/", roles: ["creator", "admin"] },

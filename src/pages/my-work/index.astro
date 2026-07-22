@@ -61,7 +61,7 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
       </a>
       <a
         class="stat-card work-summary-card"
-        href="/review-queue/?filter=review-needed"
+        href="/my-work/?workFilter=review#my-work-review-queue"
         data-work-summary-link
         data-work-filter="review"
         aria-label="View team reviews needed for the current work scope"
@@ -71,7 +71,7 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
       </a>
       <a
         class="stat-card work-summary-card"
-        href="/review-queue/?filter=overdue"
+        href="/my-work/?workFilter=overdue#my-work-overdue-reviews"
         data-work-summary-link
         data-work-filter="overdue"
         aria-label="View overdue team reviews for the current work scope"
@@ -155,7 +155,8 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
         </div>
       </section>
 
-      <section class="dashboard-section work-section" id="work-section-review" data-work-section="review" aria-labelledby="review-heading">
+      <section class="dashboard-section work-section" id="my-work-review-queue" data-work-section="review" aria-labelledby="review-heading">
+        <span id="work-section-review" class="sr-only" aria-hidden="true"></span>
         <h2 id="review-heading">SOPs Needing My Review</h2>
         <div class="table-wrap">
           <table>
@@ -173,7 +174,8 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
         </div>
       </section>
 
-      <section class="dashboard-section work-section" id="work-section-overdue" data-work-section="overdue" aria-labelledby="overdue-heading">
+      <section class="dashboard-section work-section" id="my-work-overdue-reviews" data-work-section="overdue" aria-labelledby="overdue-heading">
+        <span id="work-section-overdue" class="sr-only" aria-hidden="true"></span>
         <h2 id="overdue-heading">Overdue Reviews</h2>
         <div class="table-wrap">
           <table>

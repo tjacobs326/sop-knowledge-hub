@@ -10,10 +10,10 @@ const styles = readFileSync(resolve(root, "src/styles/global.css"), "utf8");
 
 const expectedLinks = [
   ['data-work-filter="submitted"', 'href="/my-work/?workFilter=submitted#work-section-submitted"'],
-  ['data-work-filter="drafts"', 'href="/drafts/?source=my-work"'],
+  ['data-work-filter="drafts"', 'href="/my-work/?workFilter=drafts#my-draft-sops"'],
   ['data-work-filter="assigned"', 'href="/my-work/?workFilter=assigned#work-section-assigned"'],
-  ['data-work-filter="review"', 'href="/review-queue/?filter=review-needed"'],
-  ['data-work-filter="overdue"', 'href="/review-queue/?filter=overdue"'],
+  ['data-work-filter="review"', 'href="/my-work/?workFilter=review#my-work-review-queue"'],
+  ['data-work-filter="overdue"', 'href="/my-work/?workFilter=overdue#my-work-overdue-reviews"'],
 ];
 
 const failures = [];

@@ -1,0 +1,492 @@
+---
+import Layout from "../../components/Layout.astro";
+import AppIllustration from "../../components/AppIllustration.astro";
+---
+
+<Layout title="Archived SOPs" wide>
+  <section class="tool-surface archive-page" aria-labelledby="archived-sops-heading">
+    <div class="section-heading surface-intro">
+      <div>
+        <p class="eyebrow">Creators / Reviewers</p>
+        <h1 id="archived-sops-heading">Archived SOPs</h1>
+        <p>View and manage SOPs that are no longer active.</p>
+      </div>
+      <AppIllustration name="review" size="md" />
+    </div>
+
+    <div class="form-grid archive-scope-panel">
+      <div class="field">
+        <label for="archive-scope">Current archive scope</label>
+        <input id="archive-scope" type="text" readonly value="Loading archive scope..." />
+      </div>
+      <div class="field">
+        <label for="archive-search">Search archived SOPs</label>
+        <input id="archive-search" type="search" placeholder="Search by title, tag, tool, owner, category, or keyword" autocomplete="off" />
+      </div>
+    </div>
+
+    <div class="stat-grid archive-summary" aria-label="Archived SOP summary">
+      <article class="stat-card"><span>Total Archived</span><strong id="archive-count-total">0</strong></article>
+      <article class="stat-card"><span>Archived This Month</span><strong id="archive-count-month">0</strong></article>
+      <article class="stat-card"><span>Archived by Me</span><strong id="archive-count-me">0</strong></article>
+      <article class="stat-card"><span>Eligible for Deletion</span><strong id="archive-count-delete">0</strong></article>
+    </div>
+
+    <form class="archive-filters" id="archive-filters" aria-label="Archived SOP filters">
+      <div class="field">
+        <label for="archive-department">Department</label>
+        <select id="archive-department" name="department"><option value="">All authorized departments</option></select>
+      </div>
+      <div class="field">
+        <label for="archive-category">Category</label>
+        <select id="archive-category" name="category"><option value="">All categories</option></select>
+      </div>
+      <div class="field">
+        <label for="archive-owner">Owner</label>
+        <select id="archive-owner" name="owner"><option value="">All owners</option></select>
+      </div>
+      <div class="field">
+        <label for="archive-by">Archived by</label>
+        <select id="archive-by" name="archivedBy"><option value="">Anyone</option></select>
+      </div>
+      <div class="field">
+        <label for="archive-reason">Archive reason</label>
+        <select id="archive-reason" name="reason"><option value="">All reasons</option></select>
+      </div>
+      <div class="field">
+        <label for="archive-previous-status">Previous status</label>
+        <select id="archive-previous-status" name="previousStatus"><option value="">Any previous status</option></select>
+      </div>
+      <div class="field">
+        <label for="archive-from">Archived from</label>
+        <input id="archive-from" name="archivedFrom" type="date" />
+      </div>
+      <div class="field">
+        <label for="archive-to">Archived to</label>
+        <input id="archive-to" name="archivedTo" type="date" />
+      </div>
+      <div class="archive-filter-actions">
+        <button class="button button--secondary" type="submit">Apply Filters</button>
+        <button class="button button--ghost" type="button" id="clear-archive-filters">Clear Filters</button>
+      </div>
+    </form>
+
+    <p class="archive-status" id="archive-status" role="status" aria-live="polite">Loading archived SOPs...</p>
+
+    <div class="archive-card-list" id="archive-card-list" aria-label="Archived SOP cards"></div>
+
+    <div class="table-wrap archive-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">SOP title</th>
+            <th scope="col">Category</th>
+            <th scope="col">Department</th>
+            <th scope="col">Owner</th>
+            <th scope="col">Archived</th>
+            <th scope="col">Reason</th>
+            <th scope="col">Previous status</th>
+            <th scope="col">Action</th>
+          </tr>
+        </thead>
+        <tbody id="archive-table-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <dialog class="modal archive-modal" id="archive-details-modal" aria-labelledby="archive-details-heading">
+    <div class="modal__content">
+      <button class="modal__close" type="button" data-close-modal aria-label="Close archive details">Close</button>
+      <h2 id="archive-details-heading">Archive Details</h2>
+      <div id="archive-details-body"></div>
+    </div>
+  </dialog>
+
+  <dialog class="modal archive-modal" id="restore-modal" aria-labelledby="restore-heading">
+    <form class="modal__content" id="restore-form" method="dialog">
+      <button class="modal__close" type="button" data-close-modal aria-label="Close restore dialog">Close</button>
+      <h2 id="restore-heading">Restore Archived SOP</h2>
+      <p class="callout callout--warning">Restored SOPs may contain outdated information. Review the content before making it active.</p>
+      <input type="hidden" id="restore-sop-id" />
+      <div class="form-grid">
+        <div class="field">
+          <label for="restore-status">Restore status</label>
+          <select id="restore-status">
+            <option value="Draft" selected>Draft</option>
+            <option value="Published">Published</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="restore-owner">Owner</label>
+          <select id="restore-owner"></select>
+        </div>
+        <div class="field">
+          <label for="restore-reviewer">Reviewer</label>
+          <select id="restore-reviewer"><option value="">Unassigned</option></select>
+        </div>
+        <div class="field">
+          <label for="restore-department">Department</label>
+          <input id="restore-department" type="text" readonly />
+        </div>
+      </div>
+      <div class="field">
+        <label for="restore-note">Optional restoration note</label>
+        <textarea id="restore-note" rows="4" placeholder="Add context for the audit log."></textarea>
+      </div>
+      <div class="form-actions">
+        <button class="button button--primary" type="submit">Restore SOP</button>
+        <button class="button button--ghost" type="button" data-close-modal>Cancel</button>
+      </div>
+    </form>
+  </dialog>
+</Layout>
+
+<script>
+  // @ts-nocheck
+  const SUB_ROLE_KEY = "sopHubSelectedCreatorSubRole";
+  const ROLE_CONTEXT_EVENT = "sop-role-context-change";
+  const archiveSearch = document.getElementById("archive-search");
+  const archiveScope = document.getElementById("archive-scope");
+  const filtersForm = document.getElementById("archive-filters");
+  const statusEl = document.getElementById("archive-status");
+  const cardList = document.getElementById("archive-card-list");
+  const tableBody = document.getElementById("archive-table-body");
+  const detailsModal = document.getElementById("archive-details-modal");
+  const detailsBody = document.getElementById("archive-details-body");
+  const restoreModal = document.getElementById("restore-modal");
+  const restoreForm = document.getElementById("restore-form");
+  const restoreId = document.getElementById("restore-sop-id");
+  const restoreOwner = document.getElementById("restore-owner");
+  const restoreReviewer = document.getElementById("restore-reviewer");
+  const restoreDepartment = document.getElementById("restore-department");
+  let archivedSops = [];
+  let facets = {};
+  let context = {};
+  let searchTimer = 0;
+
+  const escapeHtml = (value) =>
+    String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
+
+  function formatDate(value, withTime = false) {
+    if (!value) return "Not recorded";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      ...(withTime ? { hour: "numeric", minute: "2-digit" } : {}),
+    }).format(date);
+  }
+
+  function selectedSubRole() {
+    return localStorage.getItem(SUB_ROLE_KEY) || "";
+  }
+
+  function filterValue(id) {
+    const element = document.getElementById(id);
+    return element instanceof HTMLInputElement || element instanceof HTMLSelectElement ? element.value : "";
+  }
+
+  function buildParams() {
+    const params = new URLSearchParams();
+    const subRole = selectedSubRole();
+    if (subRole) params.set("subRole", subRole);
+    if (archiveSearch instanceof HTMLInputElement && archiveSearch.value.trim()) params.set("q", archiveSearch.value.trim());
+    [
+      ["archive-department", "department"],
+      ["archive-category", "category"],
+      ["archive-owner", "owner"],
+      ["archive-by", "archivedBy"],
+      ["archive-reason", "reason"],
+      ["archive-previous-status", "previousStatus"],
+      ["archive-from", "archivedFrom"],
+      ["archive-to", "archivedTo"],
+    ].forEach(([id, key]) => {
+      const value = filterValue(id);
+      if (value) params.set(key, value);
+    });
+    return params;
+  }
+
+  function optionList(items, valueKey = "id", labelKey = "label", first = "") {
+    return [
+      first,
+      ...(items || []).map((item) => {
+        const value = typeof item === "string" ? item : item[valueKey];
+        const label = typeof item === "string" ? item : item[labelKey];
+        return `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`;
+      }),
+    ].join("");
+  }
+
+  function renderFacetOptions() {
+    const current = {
+      department: filterValue("archive-department"),
+      category: filterValue("archive-category"),
+      owner: filterValue("archive-owner"),
+      archivedBy: filterValue("archive-by"),
+      reason: filterValue("archive-reason"),
+      previousStatus: filterValue("archive-previous-status"),
+    };
+    document.getElementById("archive-department").innerHTML = optionList(facets.departments, "id", "label", `<option value="">All authorized departments</option>`);
+    document.getElementById("archive-category").innerHTML = optionList(facets.categories, "id", "label", `<option value="">All categories</option>`);
+    document.getElementById("archive-owner").innerHTML = optionList(facets.owners, "id", "label", `<option value="">All owners</option>`);
+    document.getElementById("archive-by").innerHTML = optionList(facets.archivedBy, "id", "label", `<option value="">Anyone</option>`);
+    document.getElementById("archive-reason").innerHTML = optionList(facets.reasons, "id", "label", `<option value="">All reasons</option>`);
+    document.getElementById("archive-previous-status").innerHTML = optionList(facets.previousStatuses, "id", "label", `<option value="">Any previous status</option>`);
+    Object.entries({
+      "archive-department": current.department,
+      "archive-category": current.category,
+      "archive-owner": current.owner,
+      "archive-by": current.archivedBy,
+      "archive-reason": current.reason,
+      "archive-previous-status": current.previousStatus,
+    }).forEach(([id, value]) => {
+      const element = document.getElementById(id);
+      if (element && value) element.value = value;
+    });
+  }
+
+  function actionButtons(item) {
+    return `
+      <div class="archive-actions">
+        <a class="button button--ghost" href="/sops/detail/?id=${encodeURIComponent(item.id)}&includeArchived=1">Preview</a>
+        ${item.actions?.restore ? `<button class="button button--secondary" type="button" data-restore="${escapeHtml(item.id)}">Restore</button>` : ""}
+        <button class="button button--ghost" type="button" data-details="${escapeHtml(item.id)}">View Archive Details</button>
+        <a class="button button--ghost" href="/api/sops/${encodeURIComponent(item.id)}/versions">View Version History</a>
+        <a class="button button--ghost" href="/create/?duplicate=${encodeURIComponent(item.id)}&origin=archived-sops">Duplicate as New SOP</a>
+        <button class="button button--ghost" type="button" data-print="${escapeHtml(item.id)}">Export or Print</button>
+        ${item.actions?.permanentDelete ? `<button class="button button--danger" type="button" data-delete="${escapeHtml(item.id)}">Permanently Delete</button>` : ""}
+      </div>
+    `;
+  }
+
+  function renderEmpty() {
+    const filtersActive = buildParams().toString().replace(/(^|&)subRole=[^&]*/g, "").length > 0;
+    const clearButton = filtersActive ? `<button class="button button--ghost" type="button" data-clear-empty>Clear Filters</button>` : "";
+    const empty = `
+      <div class="empty-state archive-empty">
+        <img class="app-illustration" data-size="sm" src="/assets/tabler-vocate/tabler-illustrations/illustrations/not-found.svg" alt="" aria-hidden="true" />
+        <strong>No archived SOPs found</strong>
+        <p>SOPs that are archived will appear here.</p>
+        ${clearButton}
+      </div>
+    `;
+    if (cardList) cardList.innerHTML = empty;
+    if (tableBody) tableBody.innerHTML = `<tr><td colspan="8">${empty}</td></tr>`;
+  }
+
+  function renderArchive() {
+    if (archiveScope instanceof HTMLInputElement) {
+      archiveScope.value = context.scopeLabel || "Archived SOPs";
+      archiveScope.title = context.scopeDescription || "";
+    }
+    if (!archivedSops.length) {
+      renderEmpty();
+      return;
+    }
+    if (cardList) {
+      cardList.innerHTML = archivedSops
+        .map(
+          (item) => `
+            <article class="archive-card">
+              <div>
+                <span class="badge status-badge status-badge--archived">Archived</span>
+                <h2>${escapeHtml(item.title)}</h2>
+                <p>${escapeHtml(item.summary || "No summary available.")}</p>
+              </div>
+              <dl class="archive-meta">
+                <div><dt>Category</dt><dd>${escapeHtml(item.category)}</dd></div>
+                <div><dt>Department</dt><dd>${escapeHtml(item.department)}</dd></div>
+                <div><dt>Owner</dt><dd>${escapeHtml(item.owner)}</dd></div>
+                <div><dt>Archived</dt><dd>${escapeHtml(formatDate(item.archivedAt))} by ${escapeHtml(item.archivedBy)}</dd></div>
+                <div><dt>Reason</dt><dd>${escapeHtml(item.archiveReason)}</dd></div>
+                <div><dt>Previous status</dt><dd>${escapeHtml(item.previousStatus)}</dd></div>
+                ${item.replacementSopTitle ? `<div><dt>Replacement SOP</dt><dd>${escapeHtml(item.replacementSopTitle)}</dd></div>` : ""}
+              </dl>
+              ${actionButtons(item)}
+            </article>
+          `,
+        )
+        .join("");
+    }
+    if (tableBody) {
+      tableBody.innerHTML = archivedSops
+        .map(
+          (item) => `
+            <tr>
+              <td><strong>${escapeHtml(item.title)}</strong><br /><span class="badge status-badge status-badge--archived">Archived</span></td>
+              <td>${escapeHtml(item.category)}</td>
+              <td>${escapeHtml(item.department)}</td>
+              <td>${escapeHtml(item.owner)}</td>
+              <td>${escapeHtml(formatDate(item.archivedAt))}<br />${escapeHtml(item.archivedBy)}</td>
+              <td>${escapeHtml(item.archiveReason)}</td>
+              <td>${escapeHtml(item.previousStatus)}</td>
+              <td>${actionButtons(item)}</td>
+            </tr>
+          `,
+        )
+        .join("");
+    }
+  }
+
+  function renderCounts(counts) {
+    document.getElementById("archive-count-total").textContent = String(counts.totalArchived || 0);
+    document.getElementById("archive-count-month").textContent = String(counts.archivedThisMonth || 0);
+    document.getElementById("archive-count-me").textContent = String(counts.archivedByMe || 0);
+    document.getElementById("archive-count-delete").textContent = String(counts.eligibleForDeletion || 0);
+  }
+
+  async function loadArchive() {
+    const params = buildParams();
+    const subRole = selectedSubRole();
+    if (statusEl) statusEl.textContent = "Loading archived SOPs...";
+    try {
+      const response = await fetch(`/api/archived-sops?${params.toString()}`, {
+        headers: {
+          accept: "application/json",
+          ...(subRole ? { "x-sop-sub-role": subRole } : {}),
+        },
+        cache: "no-store",
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data?.success === false) throw new Error(data?.error?.message || "Archived SOPs could not load.");
+      const payload = data.data || data;
+      archivedSops = payload.sops || [];
+      facets = payload.facets || {};
+      context = payload.context || {};
+      renderCounts(payload.counts || {});
+      renderFacetOptions();
+      renderArchive();
+      if (statusEl) statusEl.textContent = `${archivedSops.length} archived SOP${archivedSops.length === 1 ? "" : "s"} loaded.`;
+    } catch (error) {
+      archivedSops = [];
+      renderCounts({});
+      if (cardList) cardList.innerHTML = "";
+      if (tableBody) tableBody.innerHTML = `<tr><td colspan="8"><div class="empty-state empty-state--table"><strong>Archive unavailable</strong><p>${escapeHtml(error instanceof Error ? error.message : "Archived SOPs could not load.")}</p></div></td></tr>`;
+      if (statusEl) statusEl.textContent = "Archived SOPs could not load.";
+    }
+  }
+
+  function itemById(id) {
+    return archivedSops.find((item) => String(item.id) === String(id));
+  }
+
+  function openDetails(id) {
+    const item = itemById(id);
+    if (!item || !detailsBody || !(detailsModal instanceof HTMLDialogElement)) return;
+    detailsBody.innerHTML = `
+      <dl class="archive-detail-list">
+        <div><dt>Archived by</dt><dd>${escapeHtml(item.archivedBy)}</dd></div>
+        <div><dt>Archived date and time</dt><dd>${escapeHtml(formatDate(item.archivedAt, true))}</dd></div>
+        <div><dt>Archive reason</dt><dd>${escapeHtml(item.archiveReason)}</dd></div>
+        <div><dt>Archive notes</dt><dd>${escapeHtml(item.archiveNotes || "No archive notes recorded.")}</dd></div>
+        <div><dt>Previous owner</dt><dd>${escapeHtml(item.previousOwner)}</dd></div>
+        <div><dt>Previous reviewer</dt><dd>${escapeHtml(item.previousReviewer)}</dd></div>
+        <div><dt>Previous status</dt><dd>${escapeHtml(item.previousStatus)}</dd></div>
+        <div><dt>Previous published date</dt><dd>${escapeHtml(formatDate(item.previousPublishedAt))}</dd></div>
+        <div><dt>Replacement SOP</dt><dd>${item.replacementSopTitle ? escapeHtml(item.replacementSopTitle) : "None recorded"}</dd></div>
+      </dl>
+    `;
+    detailsModal.showModal();
+  }
+
+  function fillUserSelect(select, selectedId, includeBlank = false) {
+    if (!(select instanceof HTMLSelectElement)) return;
+    const users = facets.owners || [];
+    select.innerHTML = `${includeBlank ? `<option value="">Unassigned</option>` : ""}${users
+      .map((user) => `<option value="${escapeHtml(user.id)}" ${user.id === selectedId ? "selected" : ""}>${escapeHtml(user.label)}</option>`)
+      .join("")}`;
+  }
+
+  function openRestore(id) {
+    const item = itemById(id);
+    if (!item || !(restoreModal instanceof HTMLDialogElement)) return;
+    restoreId.value = item.id;
+    fillUserSelect(restoreOwner, item.ownerId);
+    fillUserSelect(restoreReviewer, item.reviewerId, true);
+    if (restoreDepartment instanceof HTMLInputElement) restoreDepartment.value = item.department || "";
+    restoreModal.showModal();
+  }
+
+  async function restoreSop() {
+    const id = restoreId instanceof HTMLInputElement ? restoreId.value : "";
+    const restoreStatus = document.getElementById("restore-status").value || "Draft";
+    const ownerId = restoreOwner instanceof HTMLSelectElement ? restoreOwner.value : "";
+    const reviewerId = restoreReviewer instanceof HTMLSelectElement ? restoreReviewer.value : "";
+    const department = restoreDepartment instanceof HTMLInputElement ? restoreDepartment.value : "";
+    const note = document.getElementById("restore-note").value || "";
+    const response = await fetch("/api/archived-sops", {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json", ...(selectedSubRole() ? { "x-sop-sub-role": selectedSubRole() } : {}) },
+      body: JSON.stringify({ action: "restore", id, restoreStatus, ownerId, reviewerId, department, note }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data?.success === false) throw new Error(data?.error?.message || "SOP could not be restored.");
+    restoreModal.close();
+    if (data.data?.editUrl) window.location.href = data.data.editUrl;
+    else await loadArchive();
+  }
+
+  async function permanentDelete(id) {
+    const item = itemById(id);
+    if (!item) return;
+    const first = window.confirm("Permanently delete this archived SOP? This may remove SOP content, attachments, comments, versions, reviews, and audit records.");
+    if (!first) return;
+    const phrase = window.prompt('Type "DELETE ARCHIVED SOP" to confirm permanent deletion.');
+    const response = await fetch("/api/archived-sops", {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({ action: "delete", id, confirmationStep: 2, confirmationPhrase: phrase || "" }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data?.success === false) {
+      window.alert(data?.error?.message || "Archived SOP could not be permanently deleted.");
+      return;
+    }
+    await loadArchive();
+  }
+
+  filtersForm?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    loadArchive();
+  });
+  archiveSearch?.addEventListener("input", () => {
+    clearTimeout(searchTimer);
+    searchTimer = window.setTimeout(loadArchive, 300);
+  });
+  document.getElementById("clear-archive-filters")?.addEventListener("click", () => {
+    filtersForm?.reset();
+    if (archiveSearch instanceof HTMLInputElement) archiveSearch.value = "";
+    loadArchive();
+  });
+  document.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const details = target.closest("[data-details]")?.getAttribute("data-details");
+    const restore = target.closest("[data-restore]")?.getAttribute("data-restore");
+    const print = target.closest("[data-print]")?.getAttribute("data-print");
+    const del = target.closest("[data-delete]")?.getAttribute("data-delete");
+    if (details) openDetails(details);
+    if (restore) openRestore(restore);
+    if (print) window.print();
+    if (del) permanentDelete(del);
+    if (target.matches("[data-close-modal]")) target.closest("dialog")?.close();
+    if (target.matches("[data-clear-empty]")) {
+      filtersForm?.reset();
+      if (archiveSearch instanceof HTMLInputElement) archiveSearch.value = "";
+      loadArchive();
+    }
+  });
+  restoreForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      await restoreSop();
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "SOP could not be restored.");
+    }
+  });
+  window.addEventListener(ROLE_CONTEXT_EVENT, loadArchive);
+  loadArchive();
+</script>

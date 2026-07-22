@@ -8,8 +8,21 @@ import { SopWorkflowTransitionError, transitionSop } from "../../../_shared/sop-
 interface WorkflowPayload {
   versionId?: string;
   actorUserId?: string;
+  reason?: string;
   notes?: string;
+  replacementSopId?: string;
 }
+
+const archiveReasons = new Set([
+  "Process retired",
+  "Replaced by another SOP",
+  "Duplicate SOP",
+  "Tool or system discontinued",
+  "Department no longer owns the process",
+  "Temporarily inactive",
+  "Outdated content",
+  "Other",
+]);
 
 export const onRequestPost = async (context: PagesFunctionContext) => {
   const missingDb = requireDb(context.env.DB);
@@ -21,13 +34,24 @@ export const onRequestPost = async (context: PagesFunctionContext) => {
 
   const [payload, parseError] = await readBody<WorkflowPayload>(context.request);
   if (parseError) return parseError;
+  const reason = String(payload?.reason || "").trim();
+  const fields: Record<string, string> = {};
+  if (!archiveReasons.has(reason)) fields.reason = "Select an archive reason.";
+  if (reason === "Replaced by another SOP" && !payload?.replacementSopId) {
+    fields.replacementSopId = "Select the replacement SOP.";
+  }
+  if (Object.keys(fields).length) {
+    return failure("VALIDATION_ERROR", "Archive reason is required before archiving an SOP.", 400, fields);
+  }
 
   try {
     const transition = await transitionSop(context.env.DB!, {
       sopId: getRouteParam(context, "id"),
       versionId: payload?.versionId,
       actorUserId: payload?.actorUserId || auth.user?.id,
-      notes: payload?.notes || "Archived.",
+      notes: payload?.notes || reason,
+      archiveReason: reason,
+      replacementSopId: payload?.replacementSopId,
       action: "archive",
     });
     if (!transition) return failure("NOT_FOUND", "SOP not found.", 404);

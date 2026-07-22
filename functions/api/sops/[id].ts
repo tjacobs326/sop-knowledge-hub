@@ -13,6 +13,42 @@ import { newId, type PagesFunctionContext } from "../../_shared/cloudflare";
 import { requireSopOwnership, resolveRequestedCreatorSubRole } from "../../_shared/ownership";
 import { getSopById } from "../../_shared/sop-data";
 import { syncProcedureSteps, validateProcedureStepAttachments, type ProcedureStepInput } from "../../_shared/sop-steps";
+import { resolveCreatorWorkScope, subRoleSopScopeClause } from "../../_shared/work-scope";
+
+async function canViewArchivedSop(context: PagesFunctionContext, id: string) {
+  const user = await getAuthUser(context);
+  if (!user) return false;
+  if (user.role === "admin") return true;
+  if (user.role !== "creator") return false;
+  const resolved = await resolveCreatorWorkScope(context.env.DB!, context);
+  if (resolved.response || !resolved.subRole) return false;
+  const scope = subRoleSopScopeClause("sops", resolved.subRole);
+  const row = await context.env.DB!
+    .prepare(
+      `SELECT sops.id
+       FROM sops
+       WHERE sops.id = ?
+        AND sops.status = 'Archived'
+        AND (
+          ${scope.sql}
+          OR sops.created_by_user_id = ?
+          OR COALESCE(sops.owner_id, sops.owner_user_id) = ?
+          OR EXISTS (
+            SELECT 1 FROM sop_assignments scoped_assignment
+            WHERE scoped_assignment.sop_id = sops.id
+              AND scoped_assignment.status = 'Active'
+              AND (
+                scoped_assignment.user_id = ?
+                OR scoped_assignment.team_id = ?
+              )
+          )
+        )
+       LIMIT 1`,
+    )
+    .bind(id, ...scope.values, user.id, user.id, user.id, resolved.subRole.teamId || "")
+    .first<{ id: string }>();
+  return Boolean(row);
+}
 
 export const onRequestGet = async (context: PagesFunctionContext) => {
   const missingDb = requireDb(context.env.DB);
@@ -20,9 +56,23 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
 
   const id = getRouteParam(context, "id");
   const user = await getAuthUser(context);
-  const publicOnly = !user || user.role === "normal";
+  const includeArchived = new URL(context.request.url).searchParams.get("includeArchived") === "1";
+  const publicOnly = !includeArchived && (!user || user.role === "normal");
   const sop = await getSopById(context.env.DB!, id, publicOnly);
   if (!sop) return failure("NOT_FOUND", "SOP not found.", 404);
+  if (String(sop.status || "") === "Archived") {
+    if (!includeArchived || !(await canViewArchivedSop(context, id))) {
+      return failure("FORBIDDEN", "You do not have permission to access this archived SOP.", 403);
+    }
+    return new Response(JSON.stringify({ success: true, data: { sop }, sop }), {
+      status: 200,
+      headers: {
+        "content-type": "application/json; charset=utf-8",
+        ...cacheHeaders("private"),
+        vary: "x-sop-sub-role",
+      },
+    });
+  }
   if (!publicOnly && String(sop.status || "") !== "Published") {
     const auth = await requirePermission(context, "Edit Drafts");
     if (auth.response || !auth.user) return auth.response;

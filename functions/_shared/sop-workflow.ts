@@ -33,6 +33,9 @@ export interface SopWorkflowInput {
   action: SopWorkflowAction;
   actorUserId?: string;
   notes?: string;
+  archiveReason?: string;
+  replacementSopId?: string;
+  restoreStatus?: "Draft" | "Published";
 }
 
 interface WorkflowTransitionRow {
@@ -77,9 +80,20 @@ async function configuredTransition(
 
 export async function transitionSop(db: D1DatabaseBinding, input: SopWorkflowInput) {
   const sop = await db
-    .prepare("SELECT id, status, current_version_id AS currentVersionId FROM sops WHERE id = ? LIMIT 1")
+    .prepare(
+      `SELECT
+        id,
+        status,
+        current_version_id AS currentVersionId,
+        owner_id AS ownerId,
+        owner_user_id AS ownerUserId,
+        published_at AS publishedAt
+       FROM sops
+       WHERE id = ?
+       LIMIT 1`,
+    )
     .bind(input.sopId)
-    .first<{ id: string; status: string; currentVersionId?: string }>();
+    .first<{ id: string; status: string; currentVersionId?: string; ownerId?: string | null; ownerUserId?: string | null; publishedAt?: string | null }>();
 
   if (!sop) return null;
 
@@ -113,8 +127,34 @@ export async function transitionSop(db: D1DatabaseBinding, input: SopWorkflowInp
   } else if (input.action === "archive") {
     statements.push(
       db
-        .prepare("UPDATE sops SET status = ?, archived_at = ?, is_active = 0, updated_at = ? WHERE id = ?")
-        .bind(newStatus, nowIso, nowIso, input.sopId),
+        .prepare(
+          `UPDATE sops
+           SET status = ?,
+               archived_at = ?,
+               archived_by_user_id = ?,
+               archive_reason = COALESCE(?, archive_reason),
+               archive_notes = COALESCE(?, archive_notes),
+               previous_status = COALESCE(previous_status, ?),
+               previous_owner_user_id = COALESCE(previous_owner_user_id, ?),
+               previous_published_at = COALESCE(previous_published_at, ?),
+               replacement_sop_id = COALESCE(?, replacement_sop_id),
+               is_active = 0,
+               updated_at = ?
+           WHERE id = ?`,
+        )
+        .bind(
+          newStatus,
+          nowIso,
+          input.actorUserId || null,
+          input.archiveReason || null,
+          input.notes || null,
+          sop.status,
+          sop.ownerId || sop.ownerUserId || null,
+          sop.publishedAt || null,
+          input.replacementSopId || null,
+          nowIso,
+          input.sopId,
+        ),
     );
   } else {
     statements.push(
@@ -197,6 +237,29 @@ export async function transitionSop(db: D1DatabaseBinding, input: SopWorkflowInp
         now,
       ),
   );
+
+  if (input.action === "archive") {
+    statements.push(
+      db
+        .prepare(
+          `INSERT INTO sop_archive_events (
+            id, sop_id, actor_user_id, event_type, archive_reason, archive_notes,
+            previous_status, replacement_sop_id, details_json, created_at
+          ) VALUES (?, ?, ?, 'Archived', ?, ?, ?, ?, ?, ?)`,
+        )
+        .bind(
+          newId("archive-event"),
+          input.sopId,
+          input.actorUserId || null,
+          input.archiveReason || null,
+          input.notes || null,
+          sop.status,
+          input.replacementSopId || null,
+          JSON.stringify({ versionId, previousStatus: sop.status, newStatus }),
+          nowIso,
+        ),
+    );
+  }
 
   if (configured?.createsReview && versionId) {
     statements.push(
