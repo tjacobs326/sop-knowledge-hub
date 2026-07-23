@@ -219,30 +219,30 @@ function adminQueueOption(): QueueUser {
 function queueLabels(mode: ReviewQueueMode, count: number, selectedUser: QueueUser | null, subRole: CreatorSubRole, view: string | null) {
   const isNeedsReview = view === "needs-review";
   const teamName = `${subRole.department || subRole.label} Team Review Queue`;
-  const needsReviewTeamName = `${subRole.department || subRole.label} Team Needs Review`;
+  const needsReviewTeamName = `${subRole.department || subRole.label} Team Action List`;
   const target = mode === "personal" ? selectedUser?.name || "you" : mode === "admin" ? "Admin Queue" : isNeedsReview ? needsReviewTeamName : teamName;
   const itemWord = count === 1 ? "item" : "items";
   if (isNeedsReview) {
     return {
-      heading: mode === "personal" ? "My Needs Review" : mode === "team" ? "Team Needs Review" : "Admin Needs Review",
+      heading: mode === "personal" ? "My Action List" : mode === "team" ? "Team Action List" : "Admin Action List",
       description:
         mode === "personal"
-          ? "Review SOP work assigned directly to you."
+          ? "Handle SOP review work assigned directly to you."
           : mode === "team"
-            ? "Review SOP work assigned to your department or team queue."
-            : "Review SOP work that needs action across authorized backend queues.",
+            ? "Handle SOP review work currently waiting in your department or team scope."
+            : "Handle SOP review work that needs action across authorized backend queues.",
       loadedMessage:
         mode === "admin"
-          ? `${count} ${itemWord} need review in ${target}.`
-          : `${count} ${itemWord} need review for ${target}.`,
+          ? `${count} ${itemWord} need action in ${target}.`
+          : `${count} ${itemWord} need action for ${target}.`,
       emptyMessage:
         mode === "personal"
-          ? "No items currently need your review."
+          ? "No items currently need action from you."
           : mode === "team"
-            ? `No items currently need review for ${needsReviewTeamName}.`
-            : "No items currently need review in the Admin Queue.",
+            ? `No items currently need action for ${needsReviewTeamName}.`
+            : "No items currently need action in the Admin Queue.",
       newLabel: "New",
-      needsReviewLabel: mode === "personal" ? "Needs my review" : mode === "team" ? "Needs team review" : "Needs review",
+      needsReviewLabel: mode === "personal" ? "Needs my action" : mode === "team" ? "Needs team action" : "Needs action",
     };
   }
   const reviewItemWord = count === 1 ? "review item" : "review items";
@@ -262,7 +262,7 @@ function queueLabels(mode: ReviewQueueMode, count: number, selectedUser: QueueUs
           ? `No review items are assigned to ${teamName}.`
           : "No backend review items are available for the Admin Review Queue.",
     newLabel: "New",
-    needsReviewLabel: mode === "personal" ? "Needs my review" : mode === "team" ? "Needs team review" : "Needs review",
+    needsReviewLabel: mode === "personal" ? "Needs my action" : mode === "team" ? "Needs team action" : "Needs action",
   };
 }
 
@@ -655,12 +655,12 @@ export const onRequestGet = async (context: PagesFunctionContext) => {
             id: option.id,
             label:
               option.id === "admin"
-                ? "Admin Needs Review"
+                ? "Admin Action List"
                 : option.id === "team"
-                  ? `${resolved.subRole.department || resolved.subRole.label} Team Needs Review`
+                  ? `${resolved.subRole.department || resolved.subRole.label} Team Action List`
                   : option.id === activeUser?.id
-                    ? "My Needs Review"
-                    : `${option.name} Needs Review`,
+                    ? "My Action List"
+                    : `${option.name} Action List`,
           })),
         },
         counts: summarize(items),

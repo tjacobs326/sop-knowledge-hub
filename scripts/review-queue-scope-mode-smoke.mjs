@@ -46,14 +46,14 @@ assert(
     reviewQueueApi.includes("const labels = queueLabels(mode, items.length") &&
     reviewQueueApi.includes("counts: summarize(items)") &&
     reviewQueueApi.includes('view: view === "needs-review" ? "needs-review" : "queue"'),
-  "Needs Review must label and count the same filtered action list that is displayed.",
+  "Action List must label and count the same filtered action list that is displayed.",
 );
 assert(
-  reviewQueueApi.includes('"My Needs Review"') &&
-    reviewQueueApi.includes('"Team Needs Review"') &&
-    reviewQueueApi.includes('"Admin Needs Review"') &&
-    reviewQueueApi.includes("No items currently need your review."),
-  "Needs Review must use practical personal/team/admin labels and empty states.",
+  reviewQueueApi.includes('"My Action List"') &&
+    reviewQueueApi.includes('"Team Action List"') &&
+    reviewQueueApi.includes('"Admin Action List"') &&
+    reviewQueueApi.includes("No items currently need action from you."),
+  "Action List must use practical personal/team/admin labels and empty states.",
 );
 assert(
   reviewQueue.includes('id="review-work-view"') &&
@@ -63,10 +63,10 @@ assert(
   "Review Queue UI must expose the selected queue and pass it to the backend.",
 );
 assert(
-  reviewQueue.includes("Needs Review scope") &&
+  reviewQueue.includes("Action list scope") &&
     reviewQueue.includes("data.viewOptions?.scopes") &&
     reviewQueue.includes("scopeLabels"),
-  "Needs Review UI must show backend-provided personal/team/admin scope labels.",
+  "Action List UI must show backend-provided personal/team/admin scope labels.",
 );
 assert(
   reviewQueue.includes("renderWorkViewOptions") &&
@@ -75,21 +75,21 @@ assert(
   "Review Queue UI must reset to the logged-in user's queue after role/sub-role changes instead of keeping a stale person.",
 );
 assert(
-  header.includes('{ href: "/needs-review/", label: "Needs Review"') &&
+  header.includes('{ href: "/needs-review/", label: "Action List"') &&
     !header.includes('{ href: "/admin/needs-review/", label: "Needs Review"'),
-  "Creator / Reviewer sidebar must open the creator-scoped Needs Review route, not the admin route.",
+  "Creator / Reviewer sidebar must open the creator-scoped Action List route, not the admin route.",
 );
 assert(
   platformConfig.includes('{ pattern: "^/admin/needs-review/", roles: ["admin"] }') &&
     platformConfig.includes('{ pattern: "^/needs-review/", roles: ["creator", "admin"] }'),
-  "Role routing must keep admin Needs Review separate from creator-scoped Needs Review.",
+  "Role routing must keep admin Action List separate from creator-scoped Action List.",
 );
 assert(
   creatorNeedsReviewPage.includes('<ReviewQueue mode="needs-review" />') &&
     adminNeedsReviewPage.includes('<ReviewQueue mode="admin-needs-review" />') &&
     reviewQueue.includes('"admin-needs-review"') &&
     reviewQueue.includes('mode === "admin-needs-review"'),
-  "Needs Review pages must use separate component modes for creator/team scope and full admin scope.",
+  "Action List pages must use separate component modes for creator/team scope and full admin scope.",
 );
 
 console.log("Review Queue scope mode smoke checks passed.");

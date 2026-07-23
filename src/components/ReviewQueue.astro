@@ -26,17 +26,17 @@ const filters = [
 
 const summaryFilters = [
   { label: "New", key: "new", filter: "summary:new" },
-  { label: "Needs Review", key: "needsReview", filter: "summary:needs-review" },
+  { label: "Action Needed", key: "needsReview", filter: "summary:needs-review" },
   { label: "Urgent", key: "urgent", filter: "summary:urgent" },
   { label: "Approved", key: "approved", filter: "summary:approved" },
   { label: "Archived", key: "archived", filter: "summary:archived" },
   { label: "Published", key: "published", filter: "summary:published" },
 ];
 
-const heading = isNeedsReviewMode ? "Needs Review" : isCreatorReviewMode ? "Review Queue" : "Admin Review Control Center";
+const heading = isNeedsReviewMode ? "Action List" : isCreatorReviewMode ? "Review Queue" : "Admin Review Control Center";
 const eyebrow = isNeedsReviewMode || isCreatorReviewMode ? "Creators / Reviewers" : "Review Queue";
 const description = isNeedsReviewMode
-  ? "Review backend SOP submissions, drafts, updates, and requests assigned to your selected department."
+  ? "Focus on SOP requests and drafts that need action now for your selected personal or team scope."
   : isCreatorReviewMode
     ? "Review assigned SOPs, provide feedback, and complete actions available for your current Creator / Reviewer role."
   : "Review, assign, approve, request changes, publish, and archive backend SOP work from one queue.";
@@ -54,7 +54,7 @@ const description = isNeedsReviewMode
 
   <div class="form-grid work-user-panel">
     <div class="field">
-      <label for="review-work-view">{isNeedsReviewMode ? "Needs Review scope" : "Review work view"}</label>
+      <label for="review-work-view">{isNeedsReviewMode ? "Action list scope" : "Review work view"}</label>
       <select id="review-work-view">
         <option value={isAdminMode ? "admin" : "team"}>Loading review queues...</option>
       </select>
