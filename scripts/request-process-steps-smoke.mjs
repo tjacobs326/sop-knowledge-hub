@@ -13,7 +13,9 @@ const files = {
 
 const checks = [
   ["form label", files.form.includes("Process steps or expected workflow")],
-  ["form payload", files.form.includes("processSteps: submission.procedureSteps")],
+  ["step builder UI", files.form.includes("request-procedure-steps") && files.form.includes("data-request-step")],
+  ["step formatter", files.form.includes("function formatProcedureSteps")],
+  ["form payload", files.form.includes("processSteps: formatProcedureSteps")],
   ["migration column", files.migration.includes("process_steps TEXT")],
   ["request API select", files.requestsApi.includes("sop_requests.process_steps AS processSteps")],
   ["request API insert", files.requestsApi.includes("draft_content, process_steps, related_links")],

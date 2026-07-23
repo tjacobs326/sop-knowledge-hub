@@ -190,21 +190,15 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
       <label for="before-begin">Before you begin</label>
       <textarea id="before-begin" name="beforeYouBegin" rows="2"></textarea>
     </div>
-    <div class="field field--full">
-      <label for="process-steps">Process steps or expected workflow</label>
+    <fieldset class="field field--full step-builder request-step-builder">
+      <legend>Process steps or expected workflow</legend>
       <p class="field-help" id="process-steps-help">
-        Optional. Share a rough outline of the steps the SOP should include.
+        Optional. Add the rough steps the SOP team should use when drafting this process.
       </p>
-      <textarea
-        id="process-steps"
-        name="procedureSteps"
-        rows="6"
-        aria-describedby="process-steps-help"
-        placeholder={`1. Start by...
-2. Then...
-3. Finish by...`}
-      ></textarea>
-    </div>
+      <textarea id="process-steps" name="procedureSteps" hidden></textarea>
+      <div id="request-procedure-steps"></div>
+      <button class="button button--secondary" id="add-request-step" type="button">Add Step</button>
+    </fieldset>
     <div class="field field--full">
       <label for="known-issues">Known issues or exceptions</label>
       <textarea id="known-issues" name="knownIssues" rows="3"></textarea>
@@ -283,6 +277,8 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
   const attachmentFileInput = document.getElementById("attachments-file");
   const attachmentList = document.querySelector("[data-attachment-list]");
   const attachmentPasteTarget = document.querySelector("[data-attachment-paste]");
+  const requestStepContainer = document.getElementById("request-procedure-steps");
+  const addRequestStepButton = document.getElementById("add-request-step");
   const categorySelect = document.getElementById("request-category");
   const responsibleTeamSelect = document.getElementById("responsible-sop-team");
   const responsibleTeamError = document.getElementById("responsible-sop-team-error");
@@ -316,6 +312,23 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
       .map((item) => item.trim())
       .map((item) => (isLegacyDataAttachment(item) ? attachmentDisplayLabel(item) : item))
       .filter(Boolean);
+
+  function formatProcedureSteps(steps) {
+    return (Array.isArray(steps) ? steps : [])
+      .map((step, index) => {
+        const title = String(step.title || "").trim();
+        const instructions = String(step.instructions || "").trim();
+        const note = String(step.note || "").trim();
+        return [
+          `${index + 1}. ${title || "Untitled step"}`,
+          instructions ? `   ${instructions}` : "",
+          note ? `   Note: ${note}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n");
+      })
+      .join("\n\n");
+  }
 
   function getField(name) {
     const element = form?.querySelector(`[name="${name}"]`);
@@ -356,6 +369,56 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
     if (/^data:application\//i.test(value)) return "Attached file";
     const lastSegment = value.split(/[\\/]/).pop() || "";
     return lastSegment.trim() || "Attachment";
+  }
+
+  function createRequestStepElement(step = {}, index = 1) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "procedure-step request-procedure-step";
+    wrapper.dataset.requestStep = "";
+    wrapper.innerHTML = `
+      <div class="procedure-step__header">
+        <strong>Step ${index}</strong>
+        ${index > 1 ? '<button class="button button--ghost" type="button" data-remove-request-step>Remove</button>' : ""}
+      </div>
+      <div class="field">
+        <label>Step title</label>
+        <input name="requestStepTitle" type="text" value="${escapeHtml(step.title || "")}" />
+      </div>
+      <div class="field field--full">
+        <label>Step instructions</label>
+        <textarea name="requestStepInstructions" rows="3">${escapeHtml(step.instructions || "")}</textarea>
+      </div>
+      <div class="field">
+        <label>Optional note</label>
+        <input name="requestStepNote" type="text" value="${escapeHtml(step.note || "")}" />
+      </div>
+    `;
+    return wrapper;
+  }
+
+  function renderRequestSteps(steps = [{}]) {
+    if (!requestStepContainer) return;
+    requestStepContainer.innerHTML = "";
+    const safeSteps = Array.isArray(steps) && steps.length ? steps : [{}];
+    safeSteps.forEach((step, index) => requestStepContainer.append(createRequestStepElement(step, index + 1)));
+    syncProcedureStepsField();
+  }
+
+  function collectProcedureSteps() {
+    return Array.from(document.querySelectorAll("[data-request-step]"))
+      .map((step) => ({
+        title: step.querySelector('[name="requestStepTitle"]')?.value.trim() || "",
+        instructions: step.querySelector('[name="requestStepInstructions"]')?.value.trim() || "",
+        note: step.querySelector('[name="requestStepNote"]')?.value.trim() || "",
+      }))
+      .filter((step) => step.title || step.instructions || step.note);
+  }
+
+  function syncProcedureStepsField() {
+    const procedureStepsInput = document.getElementById("process-steps");
+    if (procedureStepsInput instanceof HTMLTextAreaElement) {
+      procedureStepsInput.value = formatProcedureSteps(collectProcedureSteps());
+    }
   }
 
   async function uploadMediaFile(file, purpose = "Request Attachment") {
@@ -508,6 +571,10 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
 
   function displayValue(value) {
     if (Array.isArray(value)) {
+      if (value.some((item) => item && typeof item === "object")) {
+        const text = formatProcedureSteps(value);
+        return text || "Not provided";
+      }
       const safeValues = value.map((item) => (isLegacyDataAttachment(item) ? attachmentDisplayLabel(item) : item));
       return safeValues.length ? safeValues.join(", ") : "Not provided";
     }
@@ -631,7 +698,7 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
       desiredCompletionDate: getField("desiredCompletionDate"),
       purpose: getField("purpose"),
       beforeYouBegin: getField("beforeYouBegin"),
-      procedureSteps: splitList(getField("procedureSteps")),
+      procedureSteps: collectProcedureSteps(),
       knownIssues: getField("knownIssues"),
       relatedResources: splitList(getField("relatedResources")),
       documentationLocation: getField("documentationLocation"),
@@ -649,7 +716,7 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
     const draftLines = [
       submission.purpose ? `Purpose:\n${submission.purpose}` : "",
       submission.beforeYouBegin ? `Before you begin:\n${submission.beforeYouBegin}` : "",
-      submission.procedureSteps?.length ? `Procedure:\n${submission.procedureSteps.join("\n")}` : "",
+      submission.procedureSteps?.length ? `Procedure:\n${formatProcedureSteps(submission.procedureSteps)}` : "",
       submission.knownIssues ? `Known issues:\n${submission.knownIssues}` : "",
       submission.additionalNotes ? `Additional notes:\n${submission.additionalNotes}` : "",
       submission.screenshots?.length ? `Attachments:\n${submission.screenshots.join("\n")}` : "",
@@ -673,7 +740,7 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
         priority: submission.priority,
         desiredCompletionAt: submission.desiredCompletionDate,
         draftContent: draftLines,
-        processSteps: submission.procedureSteps?.join("\n") || "",
+        processSteps: formatProcedureSteps(submission.procedureSteps),
         relatedLinks: submission.relatedResources,
         documentationLocation: submission.documentationLocation,
         categoryId: submission.categoryId,
@@ -838,11 +905,13 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
 
   form?.addEventListener("input", () => {
     hasUnsavedChanges = true;
+    syncProcedureStepsField();
     hideReviewStep();
   });
 
   form?.addEventListener("change", () => {
     hasUnsavedChanges = true;
+    syncProcedureStepsField();
     hideReviewStep();
   });
 
@@ -888,15 +957,39 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
     hideReviewStep();
   });
 
+  addRequestStepButton?.addEventListener("click", () => {
+    if (!requestStepContainer) return;
+    const nextIndex = requestStepContainer.querySelectorAll("[data-request-step]").length + 1;
+    requestStepContainer.append(createRequestStepElement({}, nextIndex));
+    syncProcedureStepsField();
+    hasUnsavedChanges = true;
+    hideReviewStep();
+  });
+
+  requestStepContainer?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const button = target.closest("[data-remove-request-step]");
+    if (!(button instanceof HTMLElement)) return;
+    const step = button.closest("[data-request-step]");
+    step?.remove();
+    const existingSteps = collectProcedureSteps();
+    renderRequestSteps(existingSteps.length ? existingSteps : [{}]);
+    hasUnsavedChanges = true;
+    hideReviewStep();
+  });
+
   form?.addEventListener("reset", () => {
     window.setTimeout(() => {
       attachments.splice(0, attachments.length);
       renderAttachments();
+      renderRequestSteps();
       hasUnsavedChanges = false;
       hideReviewStep();
     }, 0);
   });
 
+  renderRequestSteps();
   loadRequestCategories();
   loadResponsibleSopTeams();
 </script>
