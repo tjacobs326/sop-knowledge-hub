@@ -37,6 +37,7 @@ const managedRequestColumns: Record<string, string> = {
   reviewer_notes: "TEXT",
   denial_reason: "TEXT",
   request_notes: "TEXT",
+  process_steps: "TEXT",
   routing_reason: "TEXT",
   draft_sop_id: "TEXT",
   related_sop_id: "TEXT",
@@ -323,6 +324,7 @@ function normalizeRequest(row: Record<string, unknown>, user: AuthUser) {
     draftSopId: row.draftSopId || "",
     reviewerNotes: row.reviewerNotes || "",
     denialReason: row.denialReason || "",
+    processSteps: row.processSteps || "",
     availableActions: requestActions(user),
   };
 }
@@ -396,6 +398,7 @@ async function queryRequests(db: D1DatabaseBinding, subRole: CreatorSubRole, sel
         sub_roles.label AS ownerSubRole,
         sop_requests.reviewer_notes AS reviewerNotes,
         sop_requests.denial_reason AS denialReason,
+        sop_requests.process_steps AS processSteps,
         sop_requests.submitted_at AS submittedAt,
         sop_requests.assigned_at AS assignedAt,
         sop_requests.created_at AS createdAt,
@@ -765,6 +768,7 @@ async function createDraftFromQueueRequest(db: D1DatabaseBinding, requestId: str
         sop_requests.audience,
         sop_requests.tool_system AS toolOrSystem,
         sop_requests.draft_content AS draftContent,
+        sop_requests.process_steps AS processSteps,
         sop_requests.draft_sop_id AS draftSopId
        FROM sop_requests
        WHERE id = ?
@@ -779,7 +783,11 @@ async function createDraftFromQueueRequest(db: D1DatabaseBinding, requestId: str
   const versionId = newId("version");
   const title = optionalText(request.requestedTitle || "Untitled SOP Request", 180);
   const description = optionalText(request.description, 4000);
-  const content = optionalText(request.draftContent || description || title, 50000);
+  const processSteps = optionalText(request.processSteps, 20000);
+  const baseContent = optionalText(request.draftContent || description || title, 50000);
+  const content = [processSteps ? `Requester-provided workflow outline:\n${processSteps}` : "", baseContent]
+    .filter(Boolean)
+    .join("\n\n");
   const createdAt = nowIso();
   const updatedAt = Math.floor(Date.now() / 1000);
   const metadata = JSON.stringify({

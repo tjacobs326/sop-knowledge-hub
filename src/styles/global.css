@@ -7178,6 +7178,26 @@ tbody tr:hover {
   margin-top: 1rem;
 }
 
+.review-card__workflow {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-surface-muted);
+}
+
+.review-card__workflow h3 {
+  margin: 0 0 0.5rem;
+  color: var(--color-ink);
+  font-size: 0.95rem;
+}
+
+.review-card__workflow p {
+  margin: 0;
+  color: var(--color-ink-muted);
+  white-space: pre-wrap;
+}
+
 .review-actions {
   display: flex;
   flex-wrap: wrap;

@@ -191,8 +191,19 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
       <textarea id="before-begin" name="beforeYouBegin" rows="2"></textarea>
     </div>
     <div class="field field--full">
-      <label for="process-steps">Procedure or process steps</label>
-      <textarea id="process-steps" name="procedureSteps" rows="5"></textarea>
+      <label for="process-steps">Process steps or expected workflow</label>
+      <p class="field-help" id="process-steps-help">
+        Optional. Share a rough outline of the steps the SOP should include.
+      </p>
+      <textarea
+        id="process-steps"
+        name="procedureSteps"
+        rows="6"
+        aria-describedby="process-steps-help"
+        placeholder={`1. Start by...
+2. Then...
+3. Finish by...`}
+      ></textarea>
     </div>
     <div class="field field--full">
       <label for="known-issues">Known issues or exceptions</label>
@@ -536,7 +547,7 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
           ["Frequency", submission.frequency],
           ["Purpose", submission.purpose],
           ["Before you begin", submission.beforeYouBegin],
-          ["Procedure steps", submission.procedureSteps],
+          ["Process steps or expected workflow", submission.procedureSteps],
           ["Known issues", submission.knownIssues],
           ["Related resources", submission.relatedResources],
           ["Documentation location", submission.documentationLocation],
@@ -662,6 +673,7 @@ const frequencies = ["Daily", "Weekly", "Monthly", "Term-based", "Occasionally",
         priority: submission.priority,
         desiredCompletionAt: submission.desiredCompletionDate,
         draftContent: draftLines,
+        processSteps: submission.procedureSteps?.join("\n") || "",
         relatedLinks: submission.relatedResources,
         documentationLocation: submission.documentationLocation,
         categoryId: submission.categoryId,

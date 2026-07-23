@@ -39,6 +39,7 @@ export interface SopRequestInput {
   desiredCompletionAt?: string;
   existingSopId?: string;
   draftContent?: string;
+  processSteps?: string;
   relatedLinks?: string[];
   documentationLocation?: string;
 }

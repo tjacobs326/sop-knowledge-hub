@@ -27,6 +27,7 @@ function selectRequest() {
     sop_requests.existing_sop_id AS existingSopId,
     sops.title AS existingSopTitle,
     sop_requests.draft_content AS draftContent,
+    sop_requests.process_steps AS processSteps,
     sop_requests.related_links AS relatedLinks,
     sop_requests.documentation_location AS documentationLocation,
     sop_requests.status,

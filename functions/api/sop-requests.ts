@@ -27,6 +27,7 @@ interface SopRequestPayload {
   relatedSopId?: string;
   draftSopId?: string;
   draftContent?: string;
+  processSteps?: string;
   relatedLinks?: string[] | string;
   documentationLocation?: string;
   status?: string;
@@ -130,6 +131,7 @@ const managedColumns: Record<string, string> = {
   reviewer_notes: "TEXT",
   denial_reason: "TEXT",
   request_notes: "TEXT",
+  process_steps: "TEXT",
   routing_reason: "TEXT",
   draft_sop_id: "TEXT",
   related_sop_id: "TEXT",
@@ -295,6 +297,7 @@ function selectRequests(where = "") {
     sop_requests.draft_sop_id AS draftSopId,
     draft_sops.title AS draftSopTitle,
     sop_requests.draft_content AS draftContent,
+    sop_requests.process_steps AS processSteps,
     sop_requests.related_links AS relatedLinks,
     sop_requests.documentation_location AS documentationLocation,
     sop_requests.category_id AS categoryId,
@@ -469,12 +472,12 @@ export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
     `INSERT INTO sop_requests (
       id, request_type, requested_title, department_name, submitted_by_name,
       submitted_by_email, role_title, description, priority, desired_completion_at,
-      existing_sop_id, draft_content, related_links, documentation_location,
+      existing_sop_id, draft_content, process_steps, related_links, documentation_location,
       category_id, category_name, tool_system, audience, best_contact_method, frequency,
       requested_sop_type, status, assigned_to, assigned_department, assigned_team_id,
       owner_sub_role_id, reviewer_notes, denial_reason, request_notes, routing_reason,
       submitted_at, assigned_at, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
     .bind(
       id,
@@ -489,6 +492,7 @@ export const onRequestPost = async ({ request, env }: PagesFunctionContext) => {
       unixFromDate(payload?.desiredCompletionAt),
       payload?.existingSopId || null,
       optionalText(payload?.draftContent, 30000),
+      optionalText(payload?.processSteps, 20000),
       normalizeLinks(payload?.relatedLinks),
       optionalText(payload?.documentationLocation, 1000),
       category.id,
@@ -566,7 +570,11 @@ async function createDraftFromRequest(db: D1DatabaseBinding, requestId: string, 
   const versionId = newId("version");
   const title = String(request.requestedTitle || "Untitled SOP Request");
   const slug = slugify(title, sopId);
-  const content = String(request.draftContent || request.description || title);
+  const processSteps = optionalText(request.processSteps, 20000);
+  const baseContent = optionalText(request.draftContent || request.description || title, 50000);
+  const content = [processSteps ? `Requester-provided workflow outline:\n${processSteps}` : "", baseContent]
+    .filter(Boolean)
+    .join("\n\n");
   const metadata = JSON.stringify({
     audience: String(request.audience || "")
       .split(/[\n,|]/)

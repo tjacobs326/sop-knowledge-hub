@@ -433,6 +433,14 @@ const description = isNeedsReviewMode
           <div><dt>Review due</dt><dd>${escapeHtml(formatDate(item.reviewDate))}</dd></div>
           <div><dt>Last updated</dt><dd>${escapeHtml(formatDate(item.updatedDate))}</dd></div>
         </dl>
+        ${
+          item.itemType === "request"
+            ? `<section class="review-card__workflow" aria-label="Requester-provided workflow">
+                <h3>Process steps or expected workflow</h3>
+                <p>${escapeHtml(item.processSteps || "No process steps were provided by the requester.")}</p>
+              </section>`
+            : ""
+        }
         <div class="review-actions no-print">
           ${
             isAdminMode
