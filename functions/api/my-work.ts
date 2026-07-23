@@ -206,7 +206,13 @@ async function queryDraftSops(db: D1DatabaseBinding, workScope: ResolvedWorkScop
     .bind(...values)
     .all<Record<string, unknown>>();
 
-  return (result.results || []).map(normalizeSop);
+  return (result.results || []).map((row) => {
+    const sop = normalizeSop(row);
+    return {
+      ...sop,
+      editUrl: withEditOrigin(sop.editUrl, "my-work-drafts"),
+    };
+  });
 }
 
 async function queryOwnedSops(db: D1DatabaseBinding, workScope: ResolvedWorkScope) {

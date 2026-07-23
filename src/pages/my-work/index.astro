@@ -451,7 +451,11 @@ import { priorityBadgeDefinitions, statusBadgeDefinitions } from "../../lib/badg
         (item) => escapeHtml(item.title),
         (item) => statusBadge(item.status),
         (item) => escapeHtml(formatDateClient(item.reviewDate)),
-        (item) => actionButton(item.editUrl || `/create/?edit=draft&id=${encodeURIComponent(item.id)}`, "Edit Draft"),
+        (item) =>
+          actionButton(
+            item.editUrl || `/create/?edit=draft&id=${encodeURIComponent(item.id)}&origin=my-work-drafts`,
+            "Edit Draft",
+          ),
       ],
       "No backend draft SOPs are owned by this sub-role or selected user.",
     );

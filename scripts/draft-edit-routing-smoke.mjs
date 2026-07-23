@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
 const myWorkPage = readFileSync(resolve(root, "src/pages/my-work/index.astro"), "utf8");
+const myWorkApi = readFileSync(resolve(root, "functions/api/my-work.ts"), "utf8");
 const myDraftsPage = readFileSync(resolve(root, "src/pages/drafts/index.astro"), "utf8");
 const reviewQueue = readFileSync(resolve(root, "src/components/ReviewQueue.astro"), "utf8");
 const createForm = readFileSync(resolve(root, "src/components/CreateSopForm.astro"), "utf8");
@@ -23,6 +24,16 @@ function assert(condition, message) {
 assert(
   myWorkPage.includes("/create/?edit=draft&id=${encodeURIComponent(item.id)}"),
   "My Work draft rows must route Edit Draft with the selected draft id.",
+);
+assert(
+  myWorkPage.includes("origin=my-work-drafts") &&
+    createForm.includes('cancelHref: "/my-work/?workFilter=drafts#my-draft-sops"') &&
+    createForm.includes('saveHref: "/my-work/?workFilter=drafts#my-draft-sops"'),
+  "My Work draft edit rows must preserve a My Work return origin and cancel back to the My Draft SOPs section.",
+);
+assert(
+  myWorkApi.includes('editUrl: withEditOrigin(sop.editUrl, "my-work-drafts")'),
+  "My Work API must include the My Work draft origin in backend-provided draft edit URLs.",
 );
 assert(
   myDraftsPage.includes('actionLink("Edit Draft", draft.editUrl)'),
