@@ -429,7 +429,6 @@ const description = isNeedsReviewMode
           <div><dt>Submitted by</dt><dd>${escapeHtml(item.submittedBy || "Unknown")}</dd></div>
           <div><dt>Assigned reviewer</dt><dd>${escapeHtml(item.assignedReviewer || "Unassigned")}</dd></div>
           <div><dt>Priority</dt><dd>${priorityBadge(item.priority)}</dd></div>
-          <div><dt>Status</dt><dd>${statusBadge(item.status)}</dd></div>
           <div><dt>Review due</dt><dd>${escapeHtml(formatDate(item.reviewDate))}</dd></div>
           <div><dt>Last updated</dt><dd>${escapeHtml(formatDate(item.updatedDate))}</dd></div>
         </dl>
